@@ -22,9 +22,10 @@ import { scalarsOf } from "./account-read";
 import type { ActRun } from "./act-runner";
 import type { Sender } from "./capture";
 import { captureSends } from "./capture";
+import type { ClientRunWatchPort } from "./client-run-watch";
 import type { FundingChain } from "./fund";
 import type { Landed, RunPort } from "./run-call";
-import { NoSuchInstructionError, runOrCall } from "./run-call";
+import { NoSuchInstructionError, readOutsideRun, runOrCall } from "./run-call";
 import type { Target } from "./target";
 import { targetGuardFor } from "./target";
 import type { DecodedCall } from "./transactions";
@@ -325,3 +326,30 @@ export const runOnDevnet =
     }
     return result;
   };
+
+/**
+ * The `run` command and devnet, for `watchClientRuns`: a client run started
+ * outside the run act is captured on the same prototype the act captures on,
+ * and read back through the act's own port
+ */
+export const realClientRunWatch = (
+  funding: FundingChain,
+  capSol: number
+): ClientRunWatchPort => ({
+  onDidStart: (cb) => PgCommand.run.onDidStart(cb),
+  onDidFinish: (cb) =>
+    PgCommand.run.onDidFinish((result) =>
+      cb("err" in result ? { err: result.err } : {})
+    ),
+  onDidEnd: (cb) => PgCommand.run.onDidEnd(cb),
+  capture: async (until) => {
+    const { captured, error } = await captureSends(
+      PgWeb3.Connection.prototype as unknown as Sender,
+      () => until
+    );
+    return { captured, error };
+  },
+  read: (input, sends, startedAt) =>
+    readOutsideRun(realRunPort(funding, capSol), input, sends, startedAt),
+  now: () => Date.now(),
+});

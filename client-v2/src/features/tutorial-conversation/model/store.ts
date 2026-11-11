@@ -27,12 +27,15 @@ import { WorkspaceMovedError } from "./real-workspace";
 import type { Action, Effect, EngineContext, EngineState } from "./reducer";
 import {
   actOf,
+  clientRunInput,
   INITIAL_ENGINE_STATE,
   panelInput,
   reduce,
   stepOfBeat,
 } from "./reducer";
 import { route } from "./route";
+import type { ClientRunWatchPort } from "./runners/client-run-watch";
+import { watchClientRuns } from "./runners/client-run-watch";
 import { tutorialTelemetry } from "./telemetry";
 import type { ConversationView } from "./view";
 import { isLaterAirdrop, view } from "./view";
@@ -244,6 +247,40 @@ export class PgConversation {
   /** A step's goal met outside the feed: the Call panel or a client run */
   static passed(via: Exclude<PassedVia, "chat">, result: RunResult) {
     PgConversation._dispatch({ type: "passed", via, result, at: Date.now() });
+  }
+
+  /**
+   * A run of the client file outside its card (the terminal's `run`, the
+   * explorer's or the editor's Run) is judged as the run act's and passes the
+   * live step's call goal it meets, as `client` (HOO-2806). A run that starts
+   * while the step waits on no call, or while an act runs, is not judged; a
+   * result that lands after another tutorial opened, or this one started
+   * over, passes nothing.
+   *
+   * @param port the `run` command and the chain
+   * @returns a disposable that stops watching
+   */
+  static watchClientRuns(port: ClientRunWatchPort): Disposable {
+    return watchClientRuns(() => {
+      const { context, engine } = PgConversation._state;
+      if (!context) return undefined;
+      const input = clientRunInput(context.definition, engine.progress);
+      if (!input) return undefined;
+      const { name } = context.definition;
+      const { restartedAt } = engine.progress;
+      return {
+        input,
+        onResult: (result) => {
+          const now = PgConversation._state;
+          if (
+            now.context?.definition.name === name &&
+            now.engine.progress.restartedAt === restartedAt
+          ) {
+            PgConversation.passed("client", result);
+          }
+        },
+      };
+    }, port);
   }
 
   /**

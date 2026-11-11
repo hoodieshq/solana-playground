@@ -37,3 +37,25 @@ add one. A refused value of any other command with nothing to choose from
 says so instead of "(possible values: )". The shell's Enter reports a
 failed command through `reportUnhandled` rather than leaving an unhandled
 rejection, so the console shows no "Uncaught (in promise)".
+
+## A client run outside the card
+
+Only the Call panel called `PgConversation.passed`, so a `run` typed in the
+terminal on step 3 ran `client.ts` and the step waited on, though the
+assistant's context says running the client file passes the step.
+
+- `run-call.ts`: the reading after the send moves to `fromSends`, which the
+  run act and `readOutsideRun` share; the latter funds, stages and prints
+  nothing, and reads nothing off devnet.
+- `client-run-watch.ts`: `watchClientRuns(begin, port)` captures a `run`'s
+  sends from its start to its finish and reads them back. The run act's own
+  run goes through `run` inside the act's capture, so its capture answers
+  `CAPTURE_BUSY` and the watcher leaves it to the card.
+- `reducer.ts`: `clientRunInput` is the live step's call or refused goal as
+  a `RunInput`, null on any other step, once it passed, or while an act runs.
+- `store.ts`: `PgConversation.watchClientRuns` hands the result to
+  `passed("client", result)`, unless another tutorial opened or this one
+  started over meanwhile; the reducer judges it as any `passed`.
+- `TutorialConversation.tsx` starts it with `realClientRuns()`, as it starts
+  `watchDeploys`.
+- Spec: a sentence and a scenario under "A step passes on what happened".

@@ -46,8 +46,10 @@ vi.mock("@/features/tutorial-conversation", async () => ({
     next: vi.fn(),
     startOver: vi.fn(),
     deployed: vi.fn(),
+    watchClientRuns: vi.fn(() => ({ dispose: vi.fn() })),
   },
   judgeGoal: "judgeGoal",
+  realClientRuns: () => "realClientRuns",
   realDeployWatch: () => "realDeployWatch",
   watchBuildSource: vi.fn(),
   watchDeploys: vi.fn(() => ({ dispose: vi.fn() })),
@@ -391,6 +393,21 @@ describe("TutorialConversation", () => {
     const idl = { version: "0.1.0", name: "p", instructions: [] };
     onIdl(idl as never);
     expect(PgConversation.deployed).toHaveBeenCalledWith(idl);
+    unmount();
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("judges a client run from outside the run card, until it leaves", () => {
+    const stop = vi.fn();
+    vi.mocked(PgConversation.watchClientRuns).mockReturnValueOnce({
+      dispose: stop,
+    });
+    const { unmount } = render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    expect(PgConversation.watchClientRuns).toHaveBeenCalledWith(
+      "realClientRuns"
+    );
     unmount();
     expect(stop).toHaveBeenCalledTimes(1);
   });

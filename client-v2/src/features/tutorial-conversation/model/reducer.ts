@@ -557,6 +557,32 @@ export const panelInput = (
   };
 };
 
+/**
+ * The input a run of the client file started outside its card is judged with
+ * (HOO-2806), as the run act's would be: the live step's call goal, while it
+ * has not passed and no act runs. Null on any other step, which no client run
+ * can pass.
+ */
+export const clientRunInput = (
+  definition: TutorialDefinition,
+  p: ConversationProgress
+): RunInput | null => {
+  if (running(p)) return null;
+  const step = stepAt(definition, p.cursor);
+  if (!step || passed(p, step)) return null;
+  const { goal } = step;
+  if (goal.kind !== "call" && goal.kind !== "refused") return null;
+  const creates = createsOf(goal);
+  return {
+    beatId: "client-run",
+    ...(p.deployed ? { idl: p.deployed.idl } : {}),
+    ...(goal.kind === "call" && goal.log !== undefined
+      ? { log: goal.log }
+      : {}),
+    ...(creates ? { creates } : {}),
+  };
+};
+
 /** A goal a failed result can pass: a refusal, or a call whose account may already exist */
 const acceptsFailure = (goal: Goal): boolean =>
   goal.kind === "refused" ||

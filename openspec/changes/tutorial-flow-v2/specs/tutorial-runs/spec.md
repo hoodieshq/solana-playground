@@ -241,9 +241,19 @@ Each step's goal in the definition SHALL be checked against a real result:
   target, so a call before the upgrade does not pass an argument goal.
 
 A call from the client run, the call act or the Call panel SHALL pass the same
-goal. A call outside a step's goal (on a win, after the finish) SHALL show its
+goal. A run of the client file started outside its act card (the terminal's
+`run`, the explorer's or the editor's Run) SHALL be judged as the run act's
+own, on what it sent, and SHALL pass the live step's goal it meets, as a
+client run; a run the card started SHALL be judged once, by the card. A call outside a step's goal (on a win, after the finish) SHALL show its
 result and pass nothing. A passed step SHALL stay passed. No step SHALL pass on
 the learner's word alone.
+
+#### Scenario: Passing step 3 from the terminal
+
+- **WHEN** on Hello Anchor's step 3 the learner types `run` in the terminal
+  and `client.ts` calls `hello`, which logs "Hello, World!"
+- **THEN** step 3's win follows in the feed, as after the card's Run
+- **AND** a `run` whose transaction logs no hello passes nothing
 
 #### Scenario: Passing step 3 from the Call panel (manual)
 

@@ -22,6 +22,7 @@ import {
   judgeGoal,
   PgCallPanel,
   PgConversation,
+  realClientRuns,
   realDeployWatch,
   realWorkspace,
   stepOfBeat,
@@ -615,6 +616,9 @@ export const TutorialConversation = ({
         .dispose,
     []
   );
+  // A client run outside the run card (the terminal's `run`, the explorer's
+  // Run) passes the step's call goal as the card's would (HOO-2806)
+  useEffect(() => PgConversation.watchClientRuns(realClientRuns()).dispose, []);
   // An unplanned failure's Explain goes to the assistant with its log; once
   // its answer ends, the engine offers "Show me the fix"
   useEffect(() => {
