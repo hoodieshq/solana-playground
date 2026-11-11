@@ -530,6 +530,17 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     expect(sentAt[2] - sentAt[1]).toBeGreaterThanOrEqual(10_000);
   });
 
+  it("names a fetch the browser could not make Failed to fetch, whatever the browser calls it", async () => {
+    chain.failures = 1;
+    // Safari's words for a failed fetch
+    chain.failWith = () => new TypeError("Load failed");
+    const onRefusal = vi.fn();
+
+    await loadWith({ loadConcurrency: 1, writesPerSecond: 1000, onRefusal }, 2);
+
+    expect(onRefusal.mock.calls).toEqual([["Failed to fetch"]]);
+  });
+
   it("leaves a rate-limited write to onRateLimit, not onRefusal", async () => {
     chain.failures = 1;
     chain.failWith = rateLimited;

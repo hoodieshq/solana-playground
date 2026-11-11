@@ -121,6 +121,8 @@ const isFetchFailure = (e: unknown) =>
  * `transactionMessage`, and adds the simulation's logs to its `message`
  */
 const clusterMessageOf = (e: unknown) => {
+  // Each browser words a fetch it could not make its own way; the line names it the same in all
+  if (isFetchFailure(e)) return "Failed to fetch";
   const message = (e as { transactionMessage?: unknown } | null)
     ?.transactionMessage;
   const words =
@@ -258,7 +260,7 @@ export class BpfLoaderUpgradeable {
       let rateLimitReason: string | undefined;
       let hasReportedRefusal = false;
       await Promise.all(
-        new Array(loadConcurrency).fill(null).map(async () => {
+        Array.from({ length: loadConcurrency }, async () => {
           let backoff = 0;
           while (1) {
             if (opts?.abortController?.signal.aborted) return;
@@ -359,7 +361,7 @@ export class BpfLoaderUpgradeable {
     };
 
     const txCount = Math.ceil(programBytes.length / WRITE_CHUNK_SIZE);
-    const indices = new Array(txCount).fill(null).map((_, i) => i);
+    const indices = Array.from({ length: txCount }, (_, i) => i);
 
     const readBufferHost = hostOf(bufferConnection.rpcEndpoint);
     /**

@@ -12,7 +12,12 @@ progress showing, and nothing told the user, or the person reading the log after
   limit, prints one warning line in the terminal with the cluster's message: "Warning: The cluster refused a buffer
   write ({message}), sending it again...". Later refusals in the same round print nothing more.
 - The line prints for a deploy started from the Deploy stage or typed in the terminal, and for a tutorial's deploy.
-- A rate-limited write keeps its own "Reached rate-limits" line and prints no refusal line.
+- A rate-limited write keeps its own "Reached rate-limits" line and prints no refusal line. A round prints one of the
+  two lines at most, the first that happens; a tutorial's deploy prints both as warnings, as the Deploy stage does.
+- `PgTx.send` signs a transaction again with a fresh blockhash after "Blockhash not found" or "This transaction has
+  already been processed" at most 3 times, then throws the RPC's error; before, it did so without limit. **BREAKING**
+  for every caller of `PgTx.send` on a cluster that keeps answering so: the send fails where it used to loop. A
+  stalled cluster then reaches the refused-write line and the deploy's stalled-round limit.
 - Telemetry: no event is added, renamed or removed. The Deploy funnel step's `deploy_started` and `deploy_succeeded`
   keep firing from `commands/deploy/deploy.ts` as before.
 
@@ -20,7 +25,8 @@ progress showing, and nothing told the user, or the person reading the log after
 
 ### New Capabilities
 
-None.
+- `client-v2-transactions`: how the Playground sends a transaction again after a stale-blockhash answer, and when it
+  stops.
 
 ### Modified Capabilities
 
@@ -30,6 +36,8 @@ None.
 
 - Code: `client-v2/src/commands/deploy/` (`bpf-loader-upgradeable.ts` reports a round's first refusal through a new
   `onRefusal` option, `refused-write.ts` holds the line, `deploy.ts` prints it) and the tutorial deploy runner
-  (`features/tutorial-conversation/model/runners/real-deploy.ts`).
+  (`features/tutorial-conversation/model/runners/real-deploy.ts`); `client-v2/src/utils/tx.ts` (`PgTx.send`'s resend
+  limit), which every send in the app goes through: deploy writes and steps, wallet transfers, the Interact stage and
+  tutorial calls.
 - Out of scope: the write pace, the backoff and the stalled-round limit, which stay as they are; the "N transactions
   not confirmed" and rate-limit lines; a line per refused write; the in-app steps for starting a local validator.
