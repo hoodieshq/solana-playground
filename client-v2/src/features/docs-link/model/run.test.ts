@@ -504,7 +504,19 @@ describe("PgClientRun", () => {
     expect(PgClientRun.state.kind).toBe("running");
   });
 
-  it("counts the run as the link's from start to finish", async () => {
+  it("sends no docs link event for a run a link opened only after it started", async () => {
+    const { PgDocsLink, states } = await load();
+    startRun();
+    PgDocsLink.open(QUICKSTART);
+    finishRun({ ok: { ok: true } });
+
+    expect(states).toEqual(["idle", "running", "done"]);
+    expect(
+      sent.events.filter((event) => event.name.startsWith("docs_link_"))
+    ).toEqual([]);
+  });
+
+  it("sends both docs link run events when the link clears mid-run", async () => {
     const { PgDocsLink } = await load();
     PgDocsLink.open(QUICKSTART);
     startRun();

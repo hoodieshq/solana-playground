@@ -111,15 +111,18 @@ const settleWith =
 const isHelp = (input: string | null) =>
   /^\s*\S+\s+(-h|--help)(\s|$)/.test(input ?? "");
 
-/** Whether a docs link opened the project a run starts on */
+/**
+ * Whether a docs link opened the open project: read when a run starts, or
+ * when it ends for a run that started before anything listened
+ */
 const isLinkOpen = () => PgDocsLink.opened !== undefined;
 
 /**
  * Follow the `run` command's own events, so a `run` typed in the terminal
  * shows on the stage row like one from its button. Every run sets the state;
- * only a run in a project a docs link opened is tracked. Started on first
- * use, not at import: `PgCommand` reads the command list, which is filled at
- * startup.
+ * only a run in a project a docs link opened sends the `docs_link_run_*`
+ * events. Started on first use, not at import: `PgCommand` reads the
+ * command list, which is filled at startup.
  */
 const listen = () => {
   if (isListening) return;
@@ -277,8 +280,9 @@ export const PgClientRun = {
 
   /**
    * Start following `run`, so every run is shown, typed in the terminal or
-   * not, and a run in a project a docs link opened is measured. The stage
-   * row calls it once it mounts; it is safe to call again.
+   * not, and a run in a project a docs link opened sends the
+   * `docs_link_run_*` events. The stage row calls it once it mounts; it is
+   * safe to call again.
    */
   follow() {
     listen();

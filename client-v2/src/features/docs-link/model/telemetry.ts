@@ -18,8 +18,9 @@ type DocsLinkEvents = {
   docs_link_failed: { reason: DocsLinkFailure };
   /**
    * A `run` started in a project a docs link opened, from the stage row's
-   * Run or typed in the terminal. A run anywhere else sends no `docs_link_`
-   * event: the `run` slice's `run_finished` and `run_errored` count every run.
+   * Run or typed in the terminal. A run anywhere else sends no
+   * `docs_link_run_*` event: `run_finished` and `run_errored` (the `run`
+   * slice's, sent by `commands/run-and-test`) count every run.
    * `via` stays for the reports that read it; it is always `link`.
    */
   docs_link_run_started: { via: "link" };
