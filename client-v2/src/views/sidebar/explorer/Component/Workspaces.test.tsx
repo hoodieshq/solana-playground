@@ -163,8 +163,13 @@ describe("WorkspaceButton", () => {
 
     const button = screen.getByRole("button", { name: /Create/ });
     expect(button.getAttribute("aria-busy")).toBe("true");
-    expect(button.querySelector('[data-slot="spinner"]')).not.toBeNull();
-    // The icon keeps its room, hidden, so the button does not change size
+    // Both layers stay mounted: busy, the spinner's is shown and the icon's
+    // hidden under it
+    expect(
+      button
+        .querySelector('[data-slot="spinner"]')
+        ?.parentElement?.closest('[aria-hidden="true"]')
+    ).toBeNull();
     expect(
       screen.getByTestId("icon").closest('[aria-hidden="true"]')
     ).not.toBeNull();

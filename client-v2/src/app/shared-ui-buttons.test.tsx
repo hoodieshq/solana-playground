@@ -59,7 +59,8 @@ describe("AsyncButton", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(screen.getByRole("button").getAttribute("aria-busy")).toBe("true");
-    expect(screen.getByRole("button", { name: /Sending\.\.\./ })).toBeTruthy();
+    // Exactly the label it shows: the spinner adds no "Loading" to the name
+    expect(screen.getByRole("button", { name: "Sending..." })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Send$/ })).toBeNull();
 
     await act(async () => resolve());

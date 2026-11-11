@@ -139,8 +139,9 @@ const recordEdges = async (page: Page, buttons: Locator[]) => {
 };
 
 /**
- * Waits until the recording holds a few frames with the first button busy, so
- * the busy layout has been painted and measured, however slow the machine
+ * Waits until the recording holds five frames with the first button busy: the
+ * busy layout has been painted and measured several times over, however slow
+ * the machine
  */
 const waitForBusyFrames = (page: Page) =>
   expect
@@ -177,8 +178,9 @@ const expectHeldStill = (frames: Edges[][]) => {
 const BUILT = { stderr: "", uuid: null, idl: IDL };
 
 /**
- * Answers one `/build` request when the returned function is called, so a
- * test can look at the stage while the build runs
+ * Holds every `/build` request, in place of the routes before it, until the
+ * returned function is called, so a test can look at the stage while the
+ * build runs
  */
 const holdBuild = async (page: Page) => {
   let release: () => void = () => {};
@@ -239,6 +241,15 @@ test.describe("client-v2-stages", () => {
       panel.getByRole("heading", { name: "Build succeeded" })
     ).toBeVisible(LONG);
 
+    // The frame keeps its scrollbar's room on both edges (headless Chromium
+    // draws no scrollbar, so the shift itself is the manual scenario's)
+    expect(
+      await panel
+        .locator("div.overflow-y-auto")
+        .first()
+        .evaluate((frame) => getComputedStyle(frame).scrollbarGutter)
+    ).toBe("stable both-edges");
+
     const release = await holdBuild(page);
     const again = panel.getByRole("button", { name: "Build again" });
     const next = panel.getByRole("button", { name: "Continue to Deploy" });
@@ -246,7 +257,7 @@ test.describe("client-v2-stages", () => {
     await again.click();
     // Busy, its name is the label it shows
     await expect(
-      panel.getByRole("button", { name: "Building…" })
+      panel.getByRole("button", { name: "Building…", exact: true })
     ).toHaveAttribute("aria-busy", "true");
     await waitForBusyFrames(page);
     release();
@@ -400,7 +411,7 @@ test.describe("client-v2-stages: Interact", () => {
     await send.click();
     // Busy, its name is the label it shows
     await expect(
-      panel.getByRole("button", { name: "Sending…" })
+      panel.getByRole("button", { name: "Sending…", exact: true })
     ).toHaveAttribute("aria-busy", "true");
     await waitForBusyFrames(page);
     // Send is busy because its own call is held on the cluster

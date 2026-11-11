@@ -248,8 +248,8 @@ const OutlineContinueButton = ({ p }: { p: BaseBuildProps }) => (
 /**
  * The pill's label and "Building…" in one grid cell, the one not shown
  * `invisible` and `aria-hidden`, as `AsyncButton` keeps its two: the pill is
- * as wide busy as idle, so the centred row beside it does not move while the
- * build runs (HOO-2795)
+ * as wide busy as idle, so neither the pill nor anything centred with it
+ * moves while the build runs (HOO-2795)
  */
 const BusyLabel = ({ busy, label }: { busy: boolean; label: string }) => (
   <span className="inline-grid justify-items-center">

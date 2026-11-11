@@ -91,7 +91,8 @@ stage SHALL move sideways: a button whose label changes while it waits SHALL
 be as wide busy as idle, and the stage SHALL keep the room of its scrollbar
 whether or not its content overflows. One exception stands until HOO-2796
 settles the Deploy stage's action row: the Deploy pill alone in that row may
-change its width between "Deploy to <cluster>" and "Deploying...", keeping
+change its width between its idle label ("Deploy to <cluster>", "Redeploy
+to <cluster>") and its busy one ("Deploying...", "Upgrading..."), keeping
 its centre. The first Build pill ("Build", with its play mark) is not
 held: the first build replaces it with the run's progress bar and Stop, so
 it is not on screen while the build runs. The busy button's accessible name SHALL
@@ -100,7 +101,8 @@ be the label it shows ("Building…", "Sending…"), and it SHALL carry
 
 #### Scenario: Build again keeps the action row in place
 
-- **WHEN** a build has succeeded and the user presses "Build again"
+- **WHEN** a build has succeeded, the code has not changed since, and the
+  user presses the outline "Build again" beside "Continue to Deploy"
 - **THEN** "Build again" reads "Building…" until the build ends
 - **AND** neither "Build again" nor "Continue to Deploy" moves sideways in any
   frame while it runs

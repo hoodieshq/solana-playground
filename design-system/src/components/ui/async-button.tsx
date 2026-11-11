@@ -4,9 +4,10 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 
-/* One of the two labels: both sit in the same cell and centre in it */
+/* One of the two labels: both sit in the same cell, aligned as the button
+   aligns its content (centred, or flush left for a justify-start caller) */
 const LABEL_LAYER =
-  "col-start-1 row-start-1 inline-flex items-center justify-center gap-[inherit]"
+  "col-start-1 row-start-1 inline-flex items-center justify-[inherit] gap-[inherit]"
 
 /* A Button that waits for its own work. Give it an onClick that returns a
    promise or any thenable and it disables itself and shows a spinner until
@@ -68,7 +69,7 @@ function AsyncButton({
       }}
     >
       {loadingText ? (
-        <span data-slot="async-button-label" className="inline-grid gap-[inherit]">
+        <span data-slot="async-button-label" className="inline-grid justify-[inherit] gap-[inherit]">
           <span
             aria-hidden={loading || undefined}
             className={cn(LABEL_LAYER, loading && "invisible")}
@@ -82,8 +83,13 @@ function AsyncButton({
             {/* No data-icon: it would give the idle button, too, the
                 narrower inline-start padding and set its label off centre.
                 Hidden, it stops spinning: a card of Send buttons would
-                otherwise animate every one of them */}
-            <Spinner className={loading ? undefined : "animate-none"} />
+                otherwise animate every one of them. aria-hidden: aria-busy
+                and the busy label say it waits, so the name stays the label
+                ("Sending…"), not "Loading Sending…" */}
+            <Spinner
+              aria-hidden
+              className={loading ? undefined : "animate-none"}
+            />
             {loadingText}
           </span>
         </span>
