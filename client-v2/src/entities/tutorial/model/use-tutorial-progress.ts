@@ -105,7 +105,7 @@ const read = async (): Promise<Map<string, TutorialProgress>> => {
       }
       const live = liveMetadata(t.name);
       if (live) return [t.name, progressOf(true, live, t.pageCount)] as const;
-      let meta = null;
+      let meta: TutorialMetadata | undefined;
       try {
         meta = await PgTutorial.getMetadata(t.name);
       } catch (e) {
