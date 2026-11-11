@@ -701,6 +701,8 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
 
     await loadWith({ loadConcurrency: 1, writesPerSecond: 1000 }, 1);
 
+    // The read at 20 s misses the first write, which lands at 25 s, so the chunk is sent again and that send answers
+    // late too
     expect(
       logged.entries.filter(
         ({ message }) =>

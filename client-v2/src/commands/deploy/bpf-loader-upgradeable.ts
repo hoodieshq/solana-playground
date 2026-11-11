@@ -104,10 +104,10 @@ const nextBackoff = (previous: number) =>
   );
 
 /**
- * How long a buffer write may wait for an answer before it counts as refused. A send is 1 + `PgTx`'s
+ * How long a buffer write may wait for an answer before it counts as refused. A send is at most 1 + `PgTx`'s
  * `MAX_FRESH_BLOCKHASH_SENDS` `sendRawTransaction` calls with their blockhash fetches and a slot's sleep between the
- * later ones, each under a second on an RPC that answers; 20 s passes a slow one, and the line comes about 10 s after
- * the `SLOW_RUN_MS` notice at the earliest.
+ * later ones, each under a second on an RPC that answers; 20 s passes a slow one, and the line comes at least 10 s
+ * after the `SLOW_RUN_MS` notice.
  */
 const WRITE_ANSWER_TIMEOUT_MS = 20_000;
 
@@ -116,8 +116,9 @@ class UnansweredWriteError extends Error {}
 
 /**
  * `send`, or a rejection with {@link UnansweredWriteError} once `ms` pass, or with the stop's reason once
- * `abortController` aborts. The request is not aborted: `PgTx.send` goes on, fresh-blockhash resends included, and a
- * write that lands late is found by the next buffer read, so its late outcome goes to the debug log only.
+ * `abortController` aborts. The request is not aborted: `PgTx.send` goes on, fresh-blockhash resends included. A write
+ * that lands late is found by a later buffer read, and may already have been sent again (a second fee), so its late
+ * outcome goes to the debug log only.
  */
 const awaitAnswerWith =
   ({
@@ -135,7 +136,10 @@ const awaitAnswerWith =
         reject(new UnansweredWriteError(`No answer in ${ms / 1000} s`));
       }, ms);
       const signal = abortController?.signal;
-      const onAbort = () => reject(signal?.reason);
+      const onAbort = () => {
+        clearTimeout(timer);
+        reject(signal?.reason);
+      };
       if (signal?.aborted) onAbort();
       signal?.addEventListener("abort", onAbort, { once: true });
       send
@@ -375,6 +379,8 @@ export class BpfLoaderUpgradeable {
               const current = total - missingIndices.length + successCount;
               opts?.onWrite?.(current, total);
             } catch (e: unknown) {
+              // A send that fails after a stop is not sent again, so it is neither counted nor reported
+              if (opts?.abortController?.signal.aborted) return;
               refusedCount++;
               const error = toError(e);
               firstRefusal ??= error;
@@ -391,11 +397,7 @@ export class BpfLoaderUpgradeable {
                 break;
               }
               lastRefusal = { error, words: `last refusal: ${error.message}` };
-              // A send that fails after a stop is not sent again, so it is not reported
-              if (
-                !hasReportedRefusal &&
-                !opts?.abortController?.signal.aborted
-              ) {
+              if (!hasReportedRefusal) {
                 hasReportedRefusal = true;
                 opts?.onRefusal?.(clusterMessageOf(e));
               }
