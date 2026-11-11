@@ -168,7 +168,7 @@ describe("automaticAirdrop", () => {
       ]);
     });
 
-    it("names the web faucet once when its own airdrop found the faucet closed", async () => {
+    it("adds no second faucet link to the note when its own airdrop found the faucet closed", async () => {
       fresh.airdrop.mockImplementationOnce(async () => {
         fresh.closed.rememberFaucetClosed(DEVNET_RPC);
         throw new Error(LINE);
