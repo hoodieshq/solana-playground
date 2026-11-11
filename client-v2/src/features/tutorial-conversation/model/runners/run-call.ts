@@ -273,7 +273,7 @@ const fromSends = async ({
   fail,
   onConfirming,
 }: Sent): Promise<TxResult> => {
-  // A first try `PgTx.send` answered by sending again is not a refusal
+  // A try `PgTx.send` answered by sending again is not a refusal; after its last resend the answer arrives as `error`
   const captured = sends.captured.filter((c) => !isRetriedSend(c));
   const { error } = sends;
 
