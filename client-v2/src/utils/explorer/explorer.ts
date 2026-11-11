@@ -175,7 +175,10 @@ export class PgExplorer {
     return this._workspace?.nameOf(id);
   }
 
-  /** Get names of all workspaces */
+  /**
+   * Get names of all workspaces, `undefined` in a temporary view. What the
+   * user sees as their projects reads `storedWorkspaceNames`.
+   */
   static get allWorkspaceNames() {
     return this._workspace?.allNames;
   }
@@ -1041,7 +1044,8 @@ export class PgExplorer {
       if (opts?.announce) {
         PgCommon.createAndDispatchCustomEvent(
           this.events.ON_DID_RENAME_WORKSPACE,
-          { id: this.workspaceIdOf(newName) }
+          // From the list renamed in: a temporary view holds no other
+          { id: list.idOf(newName) }
         );
       }
       return;
@@ -1068,7 +1072,12 @@ export class PgExplorer {
    * Delete a workspace and everything in it.
    *
    * @param name the workspace to delete; defaults to the current one
-   * @throws if not in a workspace, or if `name` is not one
+   * @throws if there is no list to delete from (no workspace and no
+   * temporary view's stored list), or if `name` is not on it
+   *
+   * A temporary view (a repository, gist or docs link) deletes from the
+   * stored list the project list shows; none of it is current, so the link's
+   * project stays open.
    *
    * Deleting a workspace the user is not in leaves them where they are — the
    * switch below would otherwise discard unsaved editor state in the project

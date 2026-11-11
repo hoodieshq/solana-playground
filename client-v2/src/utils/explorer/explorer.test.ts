@@ -728,6 +728,25 @@ describe("the stored workspaces beside a temporary view", () => {
     expectLinkStillOpen();
   });
 
+  it("announces a rename with the stored id, so sync uploads the new name", async () => {
+    await openLink();
+    const id = storedIdOf("alpha");
+    const announced: unknown[] = [];
+    const listening = PgExplorer.onDidRenameWorkspace((renamed) =>
+      announced.push(renamed)
+    );
+    try {
+      await PgExplorer.renameWorkspace("gamma", {
+        from: "alpha",
+        announce: true,
+      });
+    } finally {
+      listening.dispose();
+    }
+
+    expect(announced).toEqual([{ id }]);
+  });
+
   it("deletes one, leaving the link's project open", async () => {
     await openLink();
 
