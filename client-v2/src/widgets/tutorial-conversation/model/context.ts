@@ -147,8 +147,9 @@ const nowOf = (
 
 /**
  * What the live card waits for (an open question, an act's button, a done
- * step's Next, a failed result), or "" when no card waits. A win on a step
- * the definition no longer has reads as the last, as in `whereNextIs`
+ * step's Next, a failed result), or that the last step is done; "" for any
+ * other card or none. A win on a step the definition no longer has reads as
+ * the last, as in `whereNextIs`
  */
 const waitsOn = (definition: TutorialDefinition, live: Turn | null): string => {
   if (live?.kind === "ask" && live.open) {
@@ -304,7 +305,7 @@ const whereActIs = (live: Extract<Turn, { kind: "act" }>): string =>
   `${BESIDES_THE_CARD[live.act.act]} Point the learner to that card.` +
   actStateOf(live);
 
-/** How an act card stands, after a space, or "" when it is live */
+/** How an act card stands, with a leading space, or "" when it is live */
 const actStateOf = (live: Extract<Turn, { kind: "act" }>): string => {
   if (live.state === "running") return " It is running now.";
   if (live.state === "interrupted") {

@@ -98,8 +98,8 @@ const withModeNow = (said: UserModelMessage & { content: string }) => {
 
 /**
  * One conversation with any model provider, on `runTurn`. The history keeps the SDK's messages, so
- * tool calls and Gemini's thought signatures go back as sent, but the user's message as typed,
- * without the mode's state now (`withModeNow`); a failed turn leaves it unchanged.
+ * tool calls and Gemini's thought signatures go back as sent; it keeps the user's message as
+ * typed, without the mode's state now (`withModeNow`). A failed turn leaves it unchanged.
  * The thread still stores each call that turn finished (`PgAssistant.addToolResult`), so a provider
  * rebuilt later replays them: they ran, and the model must not run them again.
  */

@@ -70,7 +70,7 @@ export interface AssistantMode {
    * The surface's state as it is now, sent after the thread's history as a
    * second text part of the newest message. The history keeps that message as
    * typed, so the state is never stored and each turn sends it fresh. An empty
-   * string sends nothing
+   * or blank string adds no part: the message goes as typed
    */
   now?(): string;
   /** Tools of the surface's own, offered beside the allowed ones */
