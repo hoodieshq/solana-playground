@@ -49,6 +49,7 @@ export const describeTutorial = (facts: TutorialFacts): string => {
       `${definition.steps.length} steps, on devnet.`,
     whereOf(definition, progress),
     WHERE_ACTIONS_ARE,
+    WHAT_THE_TERMINAL_RUNS,
   ];
   if (live?.kind === "ask" && live.open) {
     lines.push(
@@ -119,9 +120,16 @@ const whereOf = (
   const step = definition.steps[i];
   if (!step) return "They are in a step this tutorial no longer has.";
   const passed = progress.passed.includes(step.id) ? " It has passed." : "";
+  const n = definition.steps.length;
+  const after = definition.steps
+    .slice(i + 1)
+    .map((s, j) => `${s.title} (${i + j + 2} of ${n})`);
+  const rest = after.length
+    ? ` Steps after this one: ${after.join(", ")}.`
+    : " This is the last step.";
   return (
-    `Step ${i + 1} of ${definition.steps.length}: ${step.title}. ` +
-    `Objective: ${step.objective}. The step's file: ${step.file}.${passed}`
+    `Step ${i + 1} of ${n}: ${step.title}. ` +
+    `Objective: ${step.objective}. The step's file: ${step.file}.${passed}${rest}`
   );
 };
 
@@ -138,6 +146,17 @@ const WHERE_ACTIONS_ARE =
   "Deploy or Interact action or tab in a tutorial. Besides the cards, only " +
   "the Call panel in the work area's head, once the program is deployed, " +
   "and running the client file act.";
+
+/**
+ * What the terminal runs: Playground's own commands (`src/commands`), not a
+ * shell. Asked "what now?", the assistant sent a learner to `yarn run test`
+ * and a test file the tutorial does not ship (HOO-2801)
+ */
+const WHAT_THE_TERMINAL_RUNS =
+  "The terminal runs Playground's own commands (build, deploy, run, test, " +
+  "airdrop, solana, anchor, spl-token, help and a few more), not a shell: " +
+  "there is no yarn, npm or npx. In a tutorial a command typed there " +
+  "passes no step, except where this context says so.";
 
 /**
  * What else, if anything, runs the live act outside its card. A build or a
@@ -286,7 +305,41 @@ if (import.meta.vitest) {
       expect(text).toContain("in front: programs/hello/src/lib.rs");
       expect(text).toContain("you cannot change files, build, deploy");
       expect(text).toContain(NO_WORK_AREA_ACTION);
+      expect(text).toContain(
+        "The terminal runs Playground's own commands (build, deploy, run, test, airdrop, solana, anchor, spl-token, help and a few more), not a shell: there is no yarn, npm or npx. In a tutorial a command typed there passes no step, except where this context says so."
+      );
+      expect(text).toContain(
+        `Steps after this one: ${hello.steps[2].title} (3 of 4), ${hello.steps[3].title} (4 of 4).`
+      );
+      expect(text).not.toContain("This is the last step.");
       expect(text).not.toContain(BEGIN_INVITATION);
+    });
+
+    it("names the step after the current one, and says when it is the last", () => {
+      const at = (index: number) => {
+        const progress = freshProgress();
+        progress.startedAt = 1000;
+        progress.cursor = {
+          kind: "step",
+          stepId: hello.steps[index].id,
+          beat: 0,
+          fail: false,
+        };
+        return describeTutorial({
+          definition: hello,
+          progress,
+          live: null,
+          openFiles: [],
+          currentFile: null,
+        });
+      };
+      const third = at(2);
+      expect(third).toContain(
+        `Steps after this one: ${hello.steps[3].title} (4 of 4).`
+      );
+      expect(third).not.toContain("This is the last step.");
+      expect(at(3)).toContain("This is the last step.");
+      expect(at(3)).not.toContain("Steps after this one");
     });
 
     it("points to the live act's card, says what else runs it, and that an interrupted card is pressed again", () => {
