@@ -24,7 +24,7 @@ in order. Plan: [plans/1-wire-import-card.md](plans/1-wire-import-card.md).
       `importHeld`/`onImporting`/`closePage`; Start and the cards wait on the
       import and Import on them; `NewProject.test.tsx` covers it (depends on
       2.1).
-- [ ] 2.3 e2e `new-project-import.e2e.spec.ts`: a TypeScript-only repository
+- [x] 2.3 e2e `new-project-import.e2e.spec.ts`: a TypeScript-only repository
       imports through the card and opens; a GitLab link shows the bad-link
       message with no GitHub request; a 404 shows the can't-find message
       (depends on 2.2).
