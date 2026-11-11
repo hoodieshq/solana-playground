@@ -26,6 +26,7 @@ airdrop or a deploy's top-up in the same session.
 
 - [Matching on words] Over HTTP a changed message is still recognised by the 410 status. Over a 200 only the words
   are read, since web3.js keeps the JSON-RPC code in `error.code`, not in the message.
-- [A tutorial's funding] `fundForDeploy` neither reads nor records the closed answer: the tutorial's runners are
-  under HOO-2822, and its cards are the person's own request. A closed faucet found there is still asked again by
+- [A tutorial's funding] `fundForDeploy` reads the closed answer only to log it as a warning, and neither skips the
+  faucet for it nor records it: the tutorial's runners are under HOO-2822, and its cards are the person's own
+  request. A closed faucet found there is still asked again by
   the automatic airdrop once.

@@ -71,9 +71,12 @@ export const fundForDeploy = async ({
   } catch (e) {
     const error = toError(e);
     // The faucet's limit, or a closed faucet (HOO-2824), is expected: a
-    // warning, never a report. Neither line carries the wallet's address,
-    // though a refusal carried by a 200 names it in its message
-    if (isFaucetLimit(error.message) || isFaucetClosed(error.message)) {
+    // warning, never a report. Neither line carries the wallet's address: a
+    // closed faucet's refusal carried by a 200 names it, so only the reason
+    // is logged for it
+    if (isFaucetClosed(error.message)) {
+      log.warn("The devnet faucet is closed");
+    } else if (isFaucetLimit(error.message)) {
       log.warn("The devnet faucet refused an airdrop", {
         context: { message: error.message },
       });
@@ -288,8 +291,7 @@ if (import.meta.vitest) {
     });
 
     it("warns of a closed faucet without reporting it", async () => {
-      const closed =
-        '410 Gone: {"jsonrpc":"2.0","error":{"code": 410, "message":"The RPC faucet is closed on this cluster. Request test SOL at https://faucet.solana.com"}, "id": "1"}';
+      const closed = `airdrop to ${ADDRESS} failed: The RPC faucet is closed on this cluster. Request test SOL at https://faucet.solana.com`;
       await expect(
         fundShort(
           chainOf([0.2 * SOL], async () => {
@@ -300,6 +302,7 @@ if (import.meta.vitest) {
       expect(logged.entries).toEqual([
         expect.objectContaining({ level: "warn", report: false }),
       ]);
+      expect(JSON.stringify(logged.entries)).not.toContain(ADDRESS);
     });
 
     it("reports an airdrop that threw for any other reason", async () => {
