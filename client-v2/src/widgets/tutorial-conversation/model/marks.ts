@@ -6,6 +6,8 @@ import type {
 } from "@/features/tutorial-conversation";
 import { landingFor, stepOfBeat } from "@/features/tutorial-conversation";
 
+import { linesNow } from "./lines-now";
+
 /**
  * What the feed lights in a file of the editor (`tutorial-workspace`'s
  * `LineMarks`, less the failed build's line, which the workspace reads
@@ -57,8 +59,11 @@ export const marksOf =
           t.wrote !== null &&
           t.wrote.file === file
       );
+    // Where the block is now, as its card names it
     const written =
-      wrote?.kind === "wrote" && wrote.wrote ? wrote.wrote.lines : [];
+      wrote?.kind === "wrote" && wrote.wrote
+        ? linesNow(wrote.wrote, read(file) ?? undefined)
+        : [];
 
     let landing: Landing | null = null;
     if (live?.kind === "ask" && live.open && live.ask.writes?.file === file) {

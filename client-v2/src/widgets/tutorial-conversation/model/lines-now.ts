@@ -1,13 +1,23 @@
 import type { Wrote } from "@/features/tutorial-conversation";
 
 /**
+ * How many rows a block must hold, other than blank lines and lone brackets,
+ * before its text can name its place: one such row, an applied proposal's
+ * `    }` say, matches too many places to follow
+ */
+const DISTINCT_ROWS = 2;
+
+/** A row that says nothing about where it is: blank, or only brackets */
+const isBare = (row: string) => /^[\s{}()[\];,]*$/.test(row);
+
+/**
  * Where a landed block's lines are in the file now, in the order of
- * `wrote.lines`: the saved lines moved by as many rows as the learner added
- * or took away above the block. The block is found by its saved text, every
- * row at the same distance from the first as when it landed; of several
- * places that match, the one nearest the saved one wins. Without saved text,
- * or when the file no longer holds the block as written (edited or deleted),
- * these are the saved lines.
+ * `wrote.lines`. The block is looked for by its saved text: every row at the
+ * same distance from the first as when it landed, at the place nearest the
+ * saved one (the upper one on a tie). An identical copy counts as the block.
+ * The saved lines stand when the landing has no text, when the text holds
+ * fewer than two rows that are neither blank nor bare brackets, and when no
+ * place in the file holds the block as written (it was edited or deleted).
  */
 export const linesNow = (
   wrote: Wrote,
@@ -15,14 +25,18 @@ export const linesNow = (
 ): number[] => {
   const { lines, text } = wrote;
   if (!text || !lines.length || content === undefined) return lines;
+  if (text.filter((row) => !isBare(row)).length < DISTINCT_ROWS) return lines;
   const rows = content.split("\n");
   const first = Math.min(...lines);
+  const last = Math.max(...lines);
   const matchesAt = (shift: number) =>
     lines.every((line, i) => rows[line + shift - 1] === text[i]);
-  // Nearest first: 0, then -1 and +1, -2 and +2, and so on, across the file
-  for (let distance = 0; distance < rows.length; distance++) {
+  // Every shift that keeps the block inside the file, nearest first
+  const up = first - 1;
+  const down = rows.length - last;
+  for (let distance = 0; distance <= Math.max(up, down); distance++) {
     for (const shift of distance ? [-distance, distance] : [0]) {
-      if (first + shift >= 1 && matchesAt(shift)) {
+      if (-shift <= up && shift <= down && matchesAt(shift)) {
         return lines.map((line) => line + shift);
       }
     }
@@ -75,6 +89,36 @@ if (import.meta.vitest) {
       ).toEqual([3, 4, 5]);
       expect(linesNow(wrote, file("use x;"))).toEqual([3, 4, 5]);
       expect(linesNow(wrote, undefined)).toEqual([3, 4, 5]);
+    });
+
+    it("follows a block moved up past the file's new length", () => {
+      const far: Wrote = {
+        file: "src/lib.rs",
+        lines: [40, 41, 42],
+        text: BLOCK,
+      };
+      expect(linesNow(far, file("use x;", ...BLOCK))).toEqual([2, 3, 4]);
+    });
+
+    it("keeps the saved lines of a block too bare to tell apart", () => {
+      // One row, edited: the nearest other `    }` is not the one written
+      const brace: Wrote = { file: "src/lib.rs", lines: [3], text: ["    }"] };
+      expect(linesNow(brace, file("    }", "x", "    mine", "    }"))).toEqual([
+        3,
+      ]);
+      // One named row is not enough either: `Ok(())` is in many functions
+      const ok: Wrote = {
+        file: "src/lib.rs",
+        lines: [3],
+        text: ["    Ok(())"],
+      };
+      expect(linesNow(ok, file("a", "b", "c", "    Ok(())"))).toEqual([3]);
+      const blanks: Wrote = {
+        file: "src/lib.rs",
+        lines: [2, 3],
+        text: ["", "}"],
+      };
+      expect(linesNow(blanks, file("", "}", "x", "", "}"))).toEqual([2, 3]);
     });
 
     it("keeps the saved lines for a landing without text", () => {

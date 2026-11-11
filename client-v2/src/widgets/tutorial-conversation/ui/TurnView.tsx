@@ -152,9 +152,10 @@ const linesOf = (content: string | null) => content?.split("\n") ?? [];
 
 /**
  * A block's lines, first to last: the text saved when it landed (a lesson's
- * block, or the line an applied proposal wrote), else, for a landing without
- * text (an older save), those lines as the file holds them now, the
- * learner's edits included
+ * block, the learner's own words in a typed answer included, or the line an
+ * applied proposal wrote), else, for a landing without text (an older save,
+ * or text that did not pair with its lines), those lines as the file holds
+ * them now, the learner's edits included
  */
 const previewOf = (
   read: (file: string) => string | null,

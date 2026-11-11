@@ -84,6 +84,27 @@ describe("widgets/tutorial-conversation/model/marks", () => {
     expect(restored.arriving).toBe(false);
   });
 
+  it("lights the live step's last write where it is now, once lines were added above it", () => {
+    const opened = openAsk();
+    const BOILER_ROWS = BOILER.split("\n");
+    const moved: Turn = {
+      id: "wrote:write-program",
+      kind: "wrote",
+      step: "write-program",
+      at: 1,
+      whole: true,
+      beatId: "s1.boil",
+      wrote: { file: "src/lib.rs", lines: [1, 2, 3], text: BOILER_ROWS },
+      failed: false,
+    };
+    const marks = marksOf(
+      hello,
+      viewOf([moved, opened], opened),
+      () => `// mine\n// mine\n${BOILER}`
+    )("src/lib.rs");
+    expect(marks.written).toEqual([3, 4, 5]);
+  });
+
   it("marks nothing in another file, or for a write from an earlier step", () => {
     const opened = openAsk();
     expect(

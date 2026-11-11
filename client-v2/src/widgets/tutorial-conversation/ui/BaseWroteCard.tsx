@@ -11,7 +11,7 @@ export interface BaseWroteCardProps {
   /** Null when the block could not be written (`failed`) */
   wrote: Wrote | null;
   failed: boolean;
-  /** The written lines as the file holds them, first to last; the card shows three */
+  /** The written lines, first to last, as they landed (`previewOf`); the card shows three */
   preview: readonly string[];
   /** Open the file and bring the first written line into view */
   onShow: (file: string, line: number) => void;

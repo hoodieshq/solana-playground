@@ -186,6 +186,15 @@ learner sees what they saw on entering it.
 - **AND** a card saved before the written text was kept shows those lines
   as the file holds them
 
+#### Scenario: The learner adds lines above the written lines
+
+- **WHEN** a write has posted its wrote card and the learner then adds lines
+  above the block
+- **THEN** the card's range and Show, and the lines the editor lights, name
+  the block where it is now
+- **AND** once the block was edited, or holds fewer than two rows that are
+  neither blank nor bare brackets, they keep the lines it was written to
+
 ### Requirement: Act cards run one thing and show its stages
 
 An `act` beat SHALL render as an act card with an icon tile, a title, a

@@ -1047,9 +1047,13 @@ describe("TurnView", () => {
         ["use x;", "use y;", "use z;", ""].concat(BLOCK).join("\n"),
         handlers
       );
-      await userEvent.click(
-        screen.getByRole("button", { name: "Show lines 5 to 7 in src/lib.rs" })
-      );
+      const card = screen.getByRole("button", {
+        name: "Show lines 5 to 7 in src/lib.rs",
+      });
+      // The numbers beside the code are the block's lines now, the code its own
+      expect(card.textContent).toContain('    msg!("Hi");');
+      expect(card.textContent).toContain("567");
+      await userEvent.click(card);
       expect(handlers.showLine).toHaveBeenCalledWith("src/lib.rs", 5);
     });
 
