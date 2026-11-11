@@ -640,15 +640,16 @@ const parseWrote = (v: unknown): Wrote | null => {
   if (!parsed.success) return null;
   const { file, lines, text, created, appended } = parsed.data;
   const wrote: Wrote = { file, lines };
-  // Text that does not pair with the lines is dropped: the card then reads
-  // the file, as for a save from before text was kept
+  // Text that is not a list of strings, or does not pair with the lines, is
+  // dropped: the card then reads the file, as for a save from before text
+  // was kept
   if (text && text.length === lines.length) wrote.text = text;
   else if (isRecord(v) && v.text !== undefined) {
-    log.debug("a saved block's text does not pair with its lines", {
+    log.debug("a saved block's text is unusable, so its card reads the file", {
       context: {
         file,
         lines: lines.length,
-        text: Array.isArray(v.text) ? v.text.length : typeof v.text,
+        text: text ? text.length : "not a list of strings",
       },
     });
   }
@@ -1393,35 +1394,41 @@ if (import.meta.vitest) {
       expect(landed("a\nb")).toEqual(block);
     });
 
-    it("logs each block whose saved text it drops, and nothing for one without text", async () => {
+    describe("a block's dropped text", () => {
       // Loaded here, so the bundle carries no test logger
-      const { initLogger, memoryProvider, resetLogger } = await import(
-        "@/shared/lib/logger"
-      );
-      const logged = memoryProvider();
-      initLogger({ providers: [logged] });
-      try {
-        const landed = (wrote: Record<string, unknown>) =>
-          reload(
-            midway({
-              beats: { "s1.boil": { kind: "written", at: 1100, wrote } },
-            })
-          );
-        landed({ file: "src/lib.rs", lines: [1, 2], text: ["only one"] });
-        landed({ file: "src/lib.rs", lines: [1, 2], text: "a\nb" });
-        landed({ file: "src/lib.rs", lines: [1, 2] });
-        landed({ file: "src/lib.rs", lines: [1, 2], text: ["a", "b"] });
-        expect(
-          logged.entries
-            .filter((e) => e.message?.includes("does not pair"))
-            .map((e) => e.context)
-        ).toEqual([
-          { file: "src/lib.rs", lines: 2, text: 1 },
-          { file: "src/lib.rs", lines: 2, text: "string" },
-        ]);
-      } finally {
-        resetLogger();
-      }
+      let logger: typeof import("@/shared/lib/logger");
+      import.meta.vitest?.beforeAll(async () => {
+        logger = await import("@/shared/lib/logger");
+      });
+
+      it("is logged once per block, and nothing for text that pairs or none", () => {
+        const logged = logger.memoryProvider();
+        logger.initLogger({ providers: [logged] });
+        try {
+          const landed = (wrote: Record<string, unknown>) =>
+            reload(
+              midway({
+                beats: { "s1.boil": { kind: "written", at: 1100, wrote } },
+              })
+            );
+          landed({ file: "src/lib.rs", lines: [1, 2], text: ["only one"] });
+          landed({ file: "src/lib.rs", lines: [1, 2], text: "a\nb" });
+          landed({ file: "src/lib.rs", lines: [1, 2], text: ["a", 2] });
+          landed({ file: "src/lib.rs", lines: [1, 2] });
+          landed({ file: "src/lib.rs", lines: [1, 2], text: ["a", "b"] });
+          expect(
+            logged.entries
+              .filter((e) => e.message?.includes("text is unusable"))
+              .map((e) => e.context)
+          ).toEqual([
+            { file: "src/lib.rs", lines: 2, text: 1 },
+            { file: "src/lib.rs", lines: 2, text: "not a list of strings" },
+            { file: "src/lib.rs", lines: 2, text: "not a list of strings" },
+          ]);
+        } finally {
+          logger.resetLogger();
+        }
+      });
     });
 
     it("keeps a created file's landing across a reload, and reads a malformed flag as absent", () => {
