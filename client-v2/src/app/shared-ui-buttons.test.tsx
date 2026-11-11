@@ -94,13 +94,17 @@ describe("AsyncButton", () => {
     expect(idle.layer.hasAttribute("aria-hidden")).toBe(false);
     expect(busy.layer.getAttribute("aria-hidden")).toBe("true");
     expect(busy.layer.classList).toContain("invisible");
+    // Hidden, the spinner does not spin
+    const spinner = busy.layer.querySelector('[data-slot="spinner"]');
+    expect(spinner?.classList).toContain("animate-none");
 
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(idle.layer.getAttribute("aria-hidden")).toBe("true");
     expect(idle.layer.classList).toContain("invisible");
     expect(busy.layer.hasAttribute("aria-hidden")).toBe(false);
     expect(busy.layer.classList).not.toContain("invisible");
-    expect(busy.layer.querySelector('[data-slot="spinner"]')).not.toBeNull();
+    expect(spinner?.classList).not.toContain("animate-none");
+    expect(spinner?.classList).toContain("animate-spin");
 
     await act(async () => resolve());
     expect(idle.layer.hasAttribute("aria-hidden")).toBe(false);

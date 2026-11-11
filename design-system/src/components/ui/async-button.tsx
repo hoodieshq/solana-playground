@@ -80,8 +80,10 @@ function AsyncButton({
             className={cn(LABEL_LAYER, !loading && "invisible")}
           >
             {/* No data-icon: it would give the idle button, too, the
-                narrower inline-start padding and set its label off centre */}
-            <Spinner />
+                narrower inline-start padding and set its label off centre.
+                Hidden, it stops spinning: a card of Send buttons would
+                otherwise animate every one of them */}
+            <Spinner className={loading ? undefined : "animate-none"} />
             {loadingText}
           </span>
         </span>

@@ -142,6 +142,22 @@ const recordEdges = async (page: Page, buttons: Locator[]) => {
  * Every frame's edges equal the first frame's, and the recording caught the
  * first button both idle and busy
  */
+/**
+ * Waits until the recording holds a few frames with the first button busy, so
+ * the busy layout has been painted and measured, however slow the machine
+ */
+const waitForBusyFrames = (page: Page) =>
+  expect
+    .poll(() =>
+      page.evaluate(() => {
+        const box = window as unknown as {
+          __edges: { frames: Edges[][] };
+        };
+        return box.__edges.frames.filter(([first]) => first.busy).length;
+      })
+    )
+    .toBeGreaterThanOrEqual(5);
+
 const expectHeldStill = (frames: Edges[][]) => {
   expect(frames.some(([first]) => first.busy)).toBe(true);
   expect(frames.some(([first]) => !first.busy)).toBe(true);
@@ -232,7 +248,7 @@ test.describe("client-v2-stages", () => {
     await expect(
       panel.getByRole("button", { name: "Building…" })
     ).toHaveAttribute("aria-busy", "true");
-    await page.waitForTimeout(300);
+    await waitForBusyFrames(page);
     release();
     await expect(again).toBeEnabled(LONG);
     expectHeldStill(await stop());
@@ -377,7 +393,7 @@ test.describe("client-v2-stages: Interact", () => {
     await expect(
       panel.getByRole("button", { name: "Sending…" })
     ).toHaveAttribute("aria-busy", "true");
-    await page.waitForTimeout(300);
+    await waitForBusyFrames(page);
     release();
     await expect(send).not.toHaveAttribute("aria-busy", "true", LONG);
     expectHeldStill(await stop());
