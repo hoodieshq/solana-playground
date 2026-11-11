@@ -66,14 +66,25 @@ type Connection = PgWeb3.Connection;
 const readBufferOf = (conn: Connection) =>
   PgConnection.getReadBufferConnection(conn);
 
-/** Devnet through the connection the settings hold, which `PgTx` sends on */
+/**
+ * Devnet through the airdrop connection of the one the settings hold: the
+ * cluster's native RPC, whose faucet answers where a platform RPC refuses.
+ * The balance is read there too, so the RPC that confirmed an airdrop is the
+ * one that says whether it arrived.
+ */
+const airdropConnection = () =>
+  PgConnection.getAirdropConnection(PgConnection.current);
+
 export const devnetFunding: FundingChain = {
-  balance: (address) => PgConnection.current.getBalance(pk(address)),
+  balance: (address) => airdropConnection().getBalance(pk(address)),
   airdrop: (address, lamports) =>
-    PgConnection.current.requestAirdrop(pk(address), lamports),
+    airdropConnection().requestAirdrop(pk(address), lamports),
   confirm: async (signature) => {
-    const result = await PgTx.confirm(signature);
-    return !!result && !result.err;
+    // `PgTx.confirm` answers nothing for a transaction that landed
+    const result = await PgTx.confirm(signature, {
+      connection: airdropConnection(),
+    });
+    return !result?.err;
   },
 };
 
