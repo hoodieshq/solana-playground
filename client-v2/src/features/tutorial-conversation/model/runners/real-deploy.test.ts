@@ -184,7 +184,7 @@ describe("features/tutorial-conversation/model/runners/real-deploy: realDeployPo
     await expect(realDeployPort().build()).resolves.toEqual({
       ok: false,
       message: "Stopped.",
-      stopped: true,
+      isStopped: true,
     });
   });
 

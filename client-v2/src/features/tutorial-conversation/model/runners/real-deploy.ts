@@ -274,7 +274,7 @@ export const realDeployPort = (): DeployPort => {
       const built = await runBuild("build", { beatId: "deploy" }, () => {});
       if (built.ok || built.act !== "build") return { ok: true };
       return built.reason === "stopped"
-        ? { ok: false, message: built.log, stopped: true }
+        ? { ok: false, message: built.log, isStopped: true }
         : { ok: false, message: buildFailureOf(built) };
     },
     bytes: async () =>

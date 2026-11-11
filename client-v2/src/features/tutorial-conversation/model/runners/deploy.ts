@@ -69,10 +69,10 @@ export interface DeployPort {
   program(): ProgramState;
   /**
    * Runs the build; a failure stops the deploy with its message, and a build
-   * the learner stopped (`stopped`) stops it as stopped (HOO-2822)
+   * the learner stopped (`isStopped`) stops it as stopped (HOO-2822)
    */
   build(): Promise<
-    { ok: true } | { ok: false; message: string; stopped?: true }
+    { ok: true } | { ok: false; message: string; isStopped?: true }
   >;
   /** The last build's binary */
   bytes(): Promise<Uint8Array>;
@@ -260,7 +260,7 @@ export const runDeploy = async (
           act,
           started,
           port.now(),
-          built.stopped ? "stopped" : "failed",
+          built.isStopped ? "stopped" : "failed",
           built.message
         );
       }
@@ -626,7 +626,11 @@ if (import.meta.vitest) {
         deployed: false,
         stale: true,
         id: null,
-        build: async () => ({ ok: false, message: "Stopped.", stopped: true }),
+        build: async () => ({
+          ok: false,
+          message: "Stopped.",
+          isStopped: true,
+        }),
       });
       await expect(
         runDeploy(port, "buildDeploy", () => {})
