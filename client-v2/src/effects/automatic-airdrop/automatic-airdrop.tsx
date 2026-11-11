@@ -63,7 +63,7 @@ export const automaticAirdrop = () => {
         });
         errorCache.add(cluster);
         PgTerminal.println(
-          PgTerminal.warning(faucetClosedLineFor(cluster)(address))
+          PgTerminal.error(faucetClosedLineFor(cluster)(address))
         );
         PgTerminal.println(
           `Note: This was an automatic airdrop request. ${disable}`
@@ -81,13 +81,17 @@ export const automaticAirdrop = () => {
           log.info("no terminal mounted, airdrop deferred");
           return;
         }
+        // The airdrop's line for a closed faucet already links the web
+        // faucet, with the wallet's address: the log names the reason instead
+        const hasLinkedFaucet = isFaucetKnownClosed(getAirdropEndpoint());
         // Off for this cluster until a reload; the terminal said why
         log.warn("automatic airdrop failed, off for this cluster", {
-          context: { cluster, error: String(e) },
+          context: {
+            cluster,
+            error: hasLinkedFaucet ? "faucet closed" : String(e),
+          },
         });
         errorCache.add(cluster);
-        // The airdrop's line for a closed faucet already links the web faucet
-        const hasLinkedFaucet = isFaucetKnownClosed(getAirdropEndpoint());
         PgTerminal.println(
           [
             "Note: This was an automatic airdrop request.",

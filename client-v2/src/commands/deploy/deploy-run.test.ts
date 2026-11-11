@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
+
 import { PgSession } from "../../features/auth";
 import { PgCommand, PgProgramInfo, PgTerminal } from "../../utils";
 import {
@@ -412,6 +414,37 @@ describe("deploy run", () => {
         cause: "429 Too Many Requests",
       });
     });
+  });
+
+  it("warns of a faucet the stage's top-up finds closed, without reporting it or logging the wallet", async () => {
+    const logged = memoryProvider();
+    initLogger({ providers: [logged] });
+    // The logger hands a new provider what it kept from before
+    const earlier = logged.entries.length;
+    try {
+      balance.mockResolvedValueOnce(0);
+      const line = `The devnet RPC faucet is closed. Request test SOL at https://faucet.solana.com/?walletAddress=${WALLET}&cluster=devnet`;
+      vi.mocked(PgCommand.airdrop.execute).mockRejectedValueOnce(
+        new Error(line)
+      );
+
+      const run = PgDeployRun.runWith(answers(true))(handleDeploy);
+
+      await expect(run).rejects.toMatchObject({
+        detail: { reason: "airdrop_failed", cause: line },
+      });
+      const entries = logged.entries.slice(earlier);
+      expect(entries).toEqual([
+        expect.objectContaining({
+          ns: "commands:deploy",
+          level: "warn",
+          report: false,
+        }),
+      ]);
+      expect(JSON.stringify(entries)).not.toContain(WALLET);
+    } finally {
+      resetLogger();
+    }
   });
 
   describe("once the faucet answered closed", () => {

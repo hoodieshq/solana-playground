@@ -201,6 +201,14 @@ describe("airdrop, once the faucet answers", () => {
       expect(isFaucetKnownClosed(connection.rpcEndpoint)).toBe(true);
     });
 
+    it("reads a 410 from a balance read as that failure, not a closed faucet", async () => {
+      connection.getBalance.mockRejectedValueOnce(new Error(CLOSED));
+
+      await expect(run()).rejects.toThrow(CLOSED);
+
+      expect(isFaucetKnownClosed(connection.rpcEndpoint)).toBe(false);
+    });
+
     it("still asks the faucet when the command runs again", async () => {
       connection.requestAirdrop.mockRejectedValueOnce(new Error(CLOSED));
       await expect(run()).rejects.toThrow(LINE);

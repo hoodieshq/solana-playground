@@ -65,7 +65,9 @@ export const faucetUrlWith = (sol: number) => linkWith({ amount: sol });
 /**
  * A closed RPC faucet's answer to `requestAirdrop`, as web3.js reports it:
  * "410 Gone: <body>" for the HTTP status (or "410 : <body>" over HTTP/2), and
- * the JSON-RPC error's own words when the status is 200. Since 3 Nov devnet
+ * "airdrop to <address> failed: <message>" for a JSON-RPC error carried by a
+ * 200, whose code web3.js keeps out of the message, so only the words tell
+ * there. Since 3 Nov devnet
  * answers `{"code": 410, "message": "The RPC faucet is closed on this
  * cluster. Request test SOL at https://faucet.solana.com"}`.
  */
@@ -79,8 +81,9 @@ export const isFaucetClosed = (message: string): boolean =>
   FAUCET_CLOSED.test(message);
 
 /**
- * The one line wherever a closed RPC faucet refused an airdrop: the web
- * faucet with the wallet's address filled in, in place of the RPC's JSON
+ * The line the terminal and the deploy's funding card show once a closed RPC
+ * faucet refused an airdrop: the web faucet with the wallet's address filled
+ * in, in place of the RPC's JSON
  */
 export const faucetClosedLineFor =
   (cluster: string) =>
@@ -143,7 +146,7 @@ if (import.meta.vitest) {
       ["the HTTP/2 410, with no status text", `410 : ${CLOSED_BODY}`],
       [
         "the JSON-RPC error of a 200",
-        "failed to request airdrop of 5000000000 lamports for Wa11et: The RPC faucet is closed on this cluster. Request test SOL at https://faucet.solana.com",
+        "airdrop to Wa11et failed: The RPC faucet is closed on this cluster. Request test SOL at https://faucet.solana.com",
       ],
     ])("reads %s as a closed faucet", (_, message) => {
       expect(isFaucetClosed(message)).toBe(true);
@@ -151,6 +154,12 @@ if (import.meta.vitest) {
 
     it("reads a limit or any other failure as something else", () => {
       expect(isFaucetClosed("429 Too Many Requests: rate limited")).toBe(false);
+      // Devnet's own answer at its limit sits closest to the closed one
+      expect(
+        isFaucetClosed(
+          `429 Too Many Requests: {"jsonrpc":"2.0","error":{"code": 429, "message":"You've either reached your airdrop limit today or the airdrop faucet has run dry. Please visit https://faucet.solana.com for alternate sources of test SOL"}, "id": "1"}`
+        )
+      ).toBe(false);
       expect(isFaucetClosed("fetch failed")).toBe(false);
       expect(isFaucetClosed("slot 4100 is not available")).toBe(false);
     });

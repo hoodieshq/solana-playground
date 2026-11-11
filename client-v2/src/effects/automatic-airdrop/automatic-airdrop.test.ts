@@ -20,7 +20,7 @@ vi.mock("../../utils", () => ({
     getAirdropConnection: <T>(connection: T) => connection,
   },
   PgSettings: { wallet: { automaticAirdrop: true } },
-  PgTerminal: { println: vi.fn(), warning: (text: string) => text },
+  PgTerminal: { println: vi.fn(), error: (text: string) => text },
   PgWallet: {
     balance: 0,
     current: { publicKey: { toBase58: () => "Wa11et" } },
@@ -166,6 +166,24 @@ describe("automaticAirdrop", () => {
         LINE,
         "Note: This was an automatic airdrop request. To disable, run `settings set wallet.automaticAirdrop false`.",
       ]);
+    });
+
+    it("still asks a faucet on another endpoint, such as a local validator", async () => {
+      fresh.closed.rememberFaucetClosed(DEVNET_RPC);
+      const utils = await import("../../utils");
+      const connection = utils.PgConnection as unknown as {
+        cluster: string;
+        current: { rpcEndpoint: string };
+      };
+      connection.cluster = "localnet";
+      connection.current = { rpcEndpoint: "http://localhost:8899" };
+      try {
+        await fresh.pass();
+      } finally {
+        connection.current = { rpcEndpoint: DEVNET_RPC };
+      }
+
+      expect(fresh.airdrop).toHaveBeenCalledOnce();
     });
 
     it("adds no second faucet link to the note when its own airdrop found the faucet closed", async () => {

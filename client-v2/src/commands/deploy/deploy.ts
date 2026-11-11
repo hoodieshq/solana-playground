@@ -1,4 +1,4 @@
-import { faucetClosedLineFor } from "@/shared/lib/faucet";
+import { faucetClosedLineFor, isFaucetClosed } from "@/shared/lib/faucet";
 import { createLogger, toError } from "@/shared/lib/logger";
 import { networkHold } from "@/widgets/status";
 
@@ -417,8 +417,19 @@ const processDeploy = async (
     } catch (e) {
       if (!answers) throw e;
       // The stage shows the faucet's answer on its card; the error and its
-      // stack go to the logs, where a faucet regression can be found
-      log.error(e, { report: true, context: { what: "stage deploy airdrop" } });
+      // stack go to the logs, where a faucet regression can be found. A
+      // closed faucet is expected: a warning, never a report, and without
+      // the line, which carries the wallet's address
+      if (e instanceof Error && isFaucetClosed(e.message)) {
+        log.warn("The faucet is closed", {
+          context: { what: "stage deploy airdrop" },
+        });
+      } else {
+        log.error(e, {
+          report: true,
+          context: { what: "stage deploy airdrop" },
+        });
+      }
       throw shortWith(e instanceof Error ? e.message : String(e))(
         "airdrop_failed"
       );

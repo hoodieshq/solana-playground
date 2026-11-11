@@ -11,10 +11,11 @@ JSON, and the automatic airdrop asks the closed faucet again (HOO-2824).
   message: the HTTP 410 web3.js reports, or the JSON-RPC error's own words.
 - Wherever an airdrop's refusal reaches the user, a closed faucet reads as one line that links the web faucet with
   the wallet's address and the cluster filled in: the terminal's `airdrop` (and the wallet menu's Airdrop, the
-  Interact stage's "Get devnet SOL" and the automatic airdrop, which run it), the deploy's funding card, and the
-  tutorial's "Not enough devnet SOL" cards, which already carry "Open faucet".
+  Interact stage's "Get devnet SOL" and the automatic airdrop, which run it) and the deploy's funding card. The
+  tutorial's "Not enough devnet SOL" cards say the RPC faucet is closed beside their existing "Open faucet".
 - The session remembers, in memory, which airdrop RPC answered closed. The automatic airdrop and a deploy's top-up
-  then point to the web faucet without asking that RPC; the `airdrop` command still asks, since the faucet may reopen,
+  then point to the web faucet without asking that RPC (the editor's deploy: the `deploy` command and the Deploy
+  stage); the `airdrop` command still asks, since the faucet may reopen,
   and an airdrop that lands forgets the answer.
 - A tutorial's funding logs a closed faucet as a warning, as it logs the faucet's limit, instead of reporting it.
 - Telemetry: no event is added, renamed or removed. `fund_airdropped` (funnel-events) keeps firing from the `airdrop`
@@ -37,5 +38,5 @@ JSON, and the automatic airdrop asks the closed faucet again (HOO-2824).
 - A devnet user reads where to get SOL instead of a JSON error, and the automatic airdrop stops spending a request on
   each balance change once the faucet said it is closed.
 - Out of scope: a faucet of Playground's own (HOO-2356 lists it as its own ticket); localnet and custom endpoints,
-  whose faucets answer as before; a tutorial's airdrop card, which is the person's own request and asks the faucet
-  each time.
+  whose faucets answer as before; a tutorial's funding (its airdrop card and its run and deploy top-ups), which asks
+  the faucet each time and does not record a closed answer.

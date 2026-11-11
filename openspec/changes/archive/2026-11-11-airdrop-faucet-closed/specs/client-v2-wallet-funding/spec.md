@@ -22,11 +22,12 @@ tutorial's "Not enough devnet SOL" card SHALL say the RPC faucet is closed and k
 
 ### Requirement: A closed RPC faucet is not asked again unasked
 
-After an airdrop RPC answers closed, the automatic airdrop and a deploy's top-up SHALL NOT request an airdrop from
-that RPC again in the same session: the automatic airdrop SHALL print the faucet line once, and a deploy SHALL stop
-at its funding card, or end a typed deploy, with that line. The `airdrop` command SHALL still request one, and an
-airdrop that lands SHALL clear the answer. The answer SHALL live in memory only, and an RPC that never answered closed
-(localnet, a custom endpoint) SHALL be asked as before.
+After the `airdrop` command finds an airdrop RPC closed, the automatic airdrop and the editor's deploy top-up (the
+`deploy` command and the Deploy stage) SHALL NOT request an airdrop from that RPC again in the same session: the
+automatic airdrop SHALL print the faucet line once, and a deploy SHALL stop at its funding card, or end a typed
+deploy, with that line. The `airdrop` command SHALL still request one, and an airdrop that lands SHALL clear the
+answer. The answer SHALL live in memory only, and an RPC that never answered closed (localnet, a custom endpoint that
+airdrops through itself) SHALL be asked as before. A tutorial's funding SHALL ask the faucet each time.
 
 #### Scenario: The automatic airdrop after a closed answer (manual)
 

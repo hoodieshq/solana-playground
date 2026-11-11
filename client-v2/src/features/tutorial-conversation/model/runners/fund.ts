@@ -71,7 +71,8 @@ export const fundForDeploy = async ({
   } catch (e) {
     const error = toError(e);
     // The faucet's limit, or a closed faucet (HOO-2824), is expected: a
-    // warning, never a report. Neither line carries the wallet's address
+    // warning, never a report. Neither line carries the wallet's address,
+    // though a refusal carried by a 200 names it in its message
     if (isFaucetLimit(error.message) || isFaucetClosed(error.message)) {
       log.warn("The devnet faucet refused an airdrop", {
         context: { message: error.message },
