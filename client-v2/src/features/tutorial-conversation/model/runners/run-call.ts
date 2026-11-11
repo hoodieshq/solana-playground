@@ -484,9 +484,13 @@ const landedResult = async (
 };
 
 if (import.meta.vitest) {
-  const { describe, it, expect, vi } = import.meta.vitest;
+  const { beforeAll, describe, it, expect, vi } = import.meta.vitest;
 
   describe("features/tutorial-conversation/model/runners/run-call", () => {
+    let StoppedError: typeof import("@/utils/stopped").StoppedError;
+    beforeAll(async () => {
+      ({ StoppedError } = await import("@/utils/stopped"));
+    });
     const SOL = 1_000_000_000;
     const PROGRAM = "He11o1111111111111111111111111111111111111";
     const WALLET = "Wa11et1111111111111111111111111111111111111";
@@ -777,7 +781,6 @@ if (import.meta.vitest) {
     it.each(["run", "call"] as const)(
       "a %s the learner stopped is stopped, not failed, and nothing is reported",
       async (act) => {
-        const { StoppedError } = await import("@/utils/stopped");
         const before = portWith({
           send: async () => ({
             captured: [],

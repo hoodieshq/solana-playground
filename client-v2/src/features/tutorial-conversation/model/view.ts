@@ -1038,13 +1038,13 @@ export const view = (
               // myself" entered `onFail`; any other failure waits on this
               // card while it is the act's latest run
               // A stopped act closes at once: its retry card is the way on
-              const stopped =
+              const isStopped =
                 run.status === "failed" && isStoppedRun(run.result);
               const open =
                 run.status === "failed" &&
                 isLast &&
                 !done &&
-                !stopped &&
+                !isStopped &&
                 run.explainedAt === undefined &&
                 run.selfFixAt === undefined &&
                 !(planned && p.cursor.kind === "step" && p.cursor.fail);
@@ -1146,10 +1146,10 @@ export const view = (
                   ? run.selfFixAt ?? offerAt
                   : null;
               let failedRetry: Retry | null =
-                open || (stopped && isLast && !done)
+                open || (isStopped && isLast && !done)
                   ? retryOf(run.result)
                   : null;
-              if (fixingAt !== null && !stopped) failedRetry = "fix";
+              if (fixingAt !== null && !isStopped) failedRetry = "fix";
               if (isTurnedDown || failedRetry !== null) {
                 turn({
                   id: `${b.id}:retry`,
@@ -1282,6 +1282,10 @@ if (import.meta.vitest) {
 
   describe("features/tutorial-conversation/model/view", () => {
     let freshProgress: typeof import("./progress").freshProgress;
+    let route: typeof import("./route").route;
+    beforeAll(async () => {
+      ({ route } = await import("./route"));
+    });
 
     describe("a repeating call act", () => {
       const repeating = (): TutorialDefinition => {
@@ -2834,8 +2838,7 @@ if (import.meta.vitest) {
           expect(controlOf(v, beatId)).toBe(control);
         });
 
-        it("a stopped build: a closed card with nothing to explain, then Build again at once, which the composer's word presses", async () => {
-          const { route } = await import("./route");
+        it("a stopped build: a closed card with nothing to explain, then Build again at once, which the composer's word presses", () => {
           const state = playStrict(
             toBuild().concat([
               endedWith("s1.build", buildFailed("stopped"), 8000),

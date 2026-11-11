@@ -189,12 +189,12 @@ const BaseResultCard = ({
   // Not a failure: nothing is wrong with the code (Design alignment, 6 Nov)
   const signedOut = failedBuild?.reason === "signed_out";
   // The build never ran: one way on, nothing of the compiler's to read
-  const neverRan = unreachable || signedOut;
+  const hasNotRun = unreachable || signedOut;
   const Icon = iconOf(result.ok, signedOut);
   // Folded, it opens again only when there is something to read
   const foldable =
     !!failedBuild &&
-    !neverRan &&
+    !hasNotRun &&
     !open &&
     (failedBuild.error !== null || failedBuild.log !== "");
   const expanded = open || (foldable && reopened);
@@ -285,7 +285,7 @@ const BaseResultCard = ({
           )}
         </div>
       )}
-      {expanded && failedBuild && !neverRan && (
+      {expanded && failedBuild && !hasNotRun && (
         <div className="flex flex-col gap-3 border-t border-error/20 px-3 py-3">
           {/* The compiler's words on a red rule, a quote of its output with
               no well (the prototype's ResultCard, f7d42bf2e) */}

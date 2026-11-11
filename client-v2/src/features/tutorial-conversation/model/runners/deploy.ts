@@ -342,9 +342,13 @@ export const runDeploy = async (
 };
 
 if (import.meta.vitest) {
-  const { describe, it, expect, vi } = import.meta.vitest;
+  const { beforeAll, describe, it, expect, vi } = import.meta.vitest;
 
   describe("features/tutorial-conversation/model/runners/deploy", () => {
+    let StoppedError: typeof import("@/utils/stopped").StoppedError;
+    beforeAll(async () => {
+      ({ StoppedError } = await import("@/utils/stopped"));
+    });
     const SOL = 1_000_000_000;
     const WALLET = "Wa11et1111111111111111111111111111111111111";
     const PROGRAM = "Prog111111111111111111111111111111111111111";
@@ -635,7 +639,6 @@ if (import.meta.vitest) {
     });
 
     it("turns a stop thrown in a stage into a stopped deploy, and reports nothing", async () => {
-      const { StoppedError } = await import("@/utils/stopped");
       const { port } = portOf({
         balances: [5 * SOL],
         deployed: false,
