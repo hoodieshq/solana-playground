@@ -2134,6 +2134,7 @@ describe("PgCallPanel", () => {
           return { dispose: () => finish.delete(cb) };
         },
         onDidEnd: () => ({ dispose: () => {} }),
+        prepare: () => {},
         capture: async (until) => {
           if (busy) return { captured: [], error: new Error(CAPTURE_BUSY) };
           await until;

@@ -254,8 +254,8 @@ export class PgConversation {
    * explorer's or the editor's Run) is judged as the run act's and passes the
    * live step's call goal it meets, as `client` (HOO-2806). A run that starts
    * while the step waits on no call, or while an act runs, is not judged; a
-   * result that lands after another tutorial opened, or this one started
-   * over, passes nothing.
+   * result that lands after another tutorial opened, this one started over,
+   * or the learner moved to another step, passes nothing.
    *
    * @param port the `run` command and the chain
    * @returns a disposable that stops watching
@@ -264,17 +264,20 @@ export class PgConversation {
     return watchClientRuns(() => {
       const { context, engine } = PgConversation._state;
       if (!context) return undefined;
-      const input = clientRunInput(context.definition, engine.progress);
-      if (!input) return undefined;
+      const judged = clientRunInput(context.definition, engine.progress);
+      if (!judged) return undefined;
       const { name } = context.definition;
       const { restartedAt } = engine.progress;
       return {
-        input,
+        input: judged.input,
         onResult: (result) => {
           const now = PgConversation._state;
+          const { cursor } = now.engine.progress;
           if (
             now.context?.definition.name === name &&
-            now.engine.progress.restartedAt === restartedAt
+            now.engine.progress.restartedAt === restartedAt &&
+            cursor.kind === "step" &&
+            cursor.stepId === judged.stepId
           ) {
             PgConversation.passed("client", result);
           }

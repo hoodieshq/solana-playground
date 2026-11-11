@@ -213,6 +213,17 @@ const sendCall = async (
   );
 };
 
+/**
+ * client.ts calls through `pg.program`, built from the stored IDL, which an
+ * Anchor 1.1.2 build leaves empty: the deployed one (the tutorial's shipped
+ * IDL) stands in, as the build's would
+ */
+const withDeployedIdl = (input: RunInput) => {
+  if (input.idl && !PgProgramInfo.callableIdl()) {
+    PgProgramInfo.update({ idl: input.idl });
+  }
+};
+
 /** The open project and the network, for a run's `targetGuardFor` */
 export const currentTarget = (): Target => ({
   workspace: PgExplorer.currentWorkspaceName ?? undefined,
@@ -241,12 +252,7 @@ export const realRunPort = (funding: FundingChain, capSol: number): RunPort => {
         PgWeb3.Connection.prototype as unknown as Sender,
         async () => {
           if (act === "run") {
-            // client.ts calls through `pg.program`, built from the stored
-            // IDL, which an Anchor 1.1.2 build leaves empty: the deployed one
-            // (the tutorial's shipped IDL) stands in, as the build's would
-            if (input.idl && !PgProgramInfo.callableIdl()) {
-              PgProgramInfo.update({ idl: input.idl });
-            }
+            withDeployedIdl(input);
             await PgCommand.run.execute(CLIENT_FILE);
             return;
           }
@@ -342,6 +348,7 @@ export const realClientRunWatch = (
       cb("err" in result ? { err: result.err } : {})
     ),
   onDidEnd: (cb) => PgCommand.run.onDidEnd(cb),
+  prepare: withDeployedIdl,
   capture: async (until) => {
     const { captured, error } = await captureSends(
       PgWeb3.Connection.prototype as unknown as Sender,

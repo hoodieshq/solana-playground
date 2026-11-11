@@ -321,7 +321,7 @@ const fromSends = async ({
  * A run of the client file started outside its act card (the terminal's
  * `run`, the explorer's Run), read as the run act reads its own: what it
  * sent, read back from devnet, against the live step's `input`. Nothing is
- * funded, staged or printed: the run has already happened. Null when there
+ * funded, staged or printed: the run has already happened. Undefined when there
  * is no program to read its calls against, off devnet, or when the reading
  * failed (reported).
  *
@@ -336,11 +336,11 @@ export const readOutsideRun = async (
   input: RunInput,
   sends: { captured: Captured[]; error: unknown },
   startedAt: number
-): Promise<TxResult | null> => {
+): Promise<TxResult | undefined> => {
   // Another cluster's run is no step's: tutorials run on devnet
-  if (port.refusal()) return null;
+  if (port.refusal()) return undefined;
   const programId = port.programId();
-  if (!programId) return null;
+  if (!programId) return undefined;
   const seconds = () => (port.now() - startedAt) / 1000;
   try {
     return await fromSends({
@@ -361,7 +361,7 @@ export const readOutsideRun = async (
     });
   } catch (e) {
     port.report(e, "Reading a client run outside its card");
-    return null;
+    return undefined;
   }
 };
 

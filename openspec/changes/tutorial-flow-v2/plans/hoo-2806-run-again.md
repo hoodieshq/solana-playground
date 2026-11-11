@@ -32,7 +32,8 @@ Today the act card gives way to the failed result and nothing follows.
 `tests/`, but no longer have `PgCommandManager` refuse a path the list does
 not hold (`Arg.suggestOnly`): `runFiles` refuses it inside `processCommon`,
 so `run_errored {reason: "other"}` is sent (funnel-events, "A file that does
-not exist"). Its line names the scripts there are, or, with none, where to
+not exist"). A relative path is looked for in the command's own folder, as
+the completion list offers it, so `run tests/x.test.ts` is still refused. Its line names the scripts there are, or, with none, where to
 add one. A refused value of any other command with nothing to choose from
 says so instead of "(possible values: )". The shell's Enter reports a
 failed command through `reportUnhandled` rather than leaving an unhandled
@@ -47,15 +48,17 @@ assistant's context says running the client file passes the step.
 - `run-call.ts`: the reading after the send moves to `fromSends`, which the
   run act and `readOutsideRun` share; the latter funds, stages and prints
   nothing, and reads nothing off devnet.
-- `client-run-watch.ts`: `watchClientRuns(begin, port)` captures a `run`'s
-  sends from its start to its finish and reads them back. The run act's own
+- `client-run-watch.ts`: `watchClientRuns(begin, port)` captures a `run`
+  of the client file (`run` alone, or paths naming `client.ts`) from its
+  start to its finish and reads it back; at the start it hands `pg.program`
+  the deployed IDL, as the run act does. The run act's own
   run goes through `run` inside the act's capture, so its capture answers
   `CAPTURE_BUSY` and the watcher leaves it to the card.
 - `reducer.ts`: `clientRunInput` is the live step's call or refused goal as
   a `RunInput`, null on any other step, once it passed, or while an act runs.
 - `store.ts`: `PgConversation.watchClientRuns` hands the result to
-  `passed("client", result)`, unless another tutorial opened or this one
-  started over meanwhile; the reducer judges it as any `passed`.
+  `passed("client", result)`, unless another tutorial opened, this one
+  started over, or the cursor left the step meanwhile; the reducer judges it as any `passed`.
 - `TutorialConversation.tsx` starts it with `realClientRuns()`, as it starts
   `watchDeploys`.
 - Spec: a sentence and a scenario under "A step passes on what happened".

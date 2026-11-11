@@ -24,7 +24,11 @@ vi.mock("../../utils", () => ({
       `/${parts.join("/")}`.replace(/\/+/g, "/"),
   },
   PgExplorer: {
-    PATHS: { CLIENT_DIRNAME: "client", TESTS_DIRNAME: "tests" },
+    PATHS: {
+      ROOT_DIR_PATH: "/",
+      CLIENT_DIRNAME: "client",
+      TESTS_DIRNAME: "tests",
+    },
     getFolderContent: () => ({ files: ["a.ts", "b.ts"], folders: [] }),
     getFileContent: (path: string) => files.get(path),
     getItemNameFromPath: (path: string) => path.split("/").at(-1),
@@ -221,6 +225,18 @@ describe("a path with no file", () => {
     await expect(execute("missing.ts")).rejects.toThrow(
       "File 'missing.ts' doesn't exist (files you can run: client.ts)"
     );
+  });
+
+  it("is looked for in the command's own folder only", async () => {
+    files.set("/tests/x.test.ts", "x");
+    files.set("tests/x.test.ts", "x");
+
+    await expect(execute("tests/x.test.ts")).rejects.toThrow(
+      "File 'tests/x.test.ts' doesn't exist"
+    );
+    expect(runtime.execute).not.toHaveBeenCalled();
+    files.delete("/tests/x.test.ts");
+    files.delete("tests/x.test.ts");
   });
 
   it("is refused before the run says it is running, and runs nothing", async () => {

@@ -63,23 +63,23 @@ const scriptsIn = (parentPath: string) =>
     .filter((path) => path.startsWith(parentPath))
     .map((path) => path.replace(PgCommon.appendSlash(parentPath), ""));
 
+/** What `run` and `test` call their scripts, by the folder they run in */
+const SCRIPT_KIND: Record<string, string> = {
+  [PgExplorer.PATHS.CLIENT_DIRNAME]: "client",
+  [PgExplorer.PATHS.TESTS_DIRNAME]: "test",
+};
+
 /**
  * The line for a path with no file: with no script to choose from, where to
  * add one, else the scripts there are.
  *
- * @param path the path as given
- * @param isTest whether `test` was given it
- * @returns the message to throw
+ * @param folder the folder the command runs in, `client` or `tests`
+ * @returns the message to throw for a path as given
  */
-const missingFileLine = (path: string, isTest: boolean) => {
-  const folder = isTest
-    ? PgExplorer.PATHS.TESTS_DIRNAME
-    : PgExplorer.PATHS.CLIENT_DIRNAME;
+const missingFileLineIn = (folder: string) => (path: string) => {
   const scripts = scriptsIn(folder);
   if (!scripts.length) {
-    return `No ${
-      isTest ? "test" : "client"
-    } file to run: add one under ${folder}/`;
+    return `No ${SCRIPT_KIND[folder]} file to run: add one under ${folder}/`;
   }
   return `File '${path}' doesn't exist (files you can run: ${scripts.join(
     ", "
@@ -155,10 +155,15 @@ const runFiles = async (params: ProcessParams): Promise<RunResult> => {
   // The path can be a file name that's expected to run inside the `client`
   // or `tests` directory based on the command that's running
   const scripts = (paths ?? []).map((path) => {
-    const code =
-      PgExplorer.getFileContent(path) ??
-      PgExplorer.getFileContent(PgCommon.joinPaths(folderPath, path));
-    if (!code) throw new Error(missingFileLine(path, isTest));
+    // A full path, or one in the command's folder, as given; any other name
+    // is in that folder, so `run` never runs a test file, nor `test` a client
+    const inFolder =
+      path.startsWith(PgExplorer.PATHS.ROOT_DIR_PATH) ||
+      path.startsWith(PgCommon.appendSlash(folderPath));
+    const code = PgExplorer.getFileContent(
+      inFolder ? path : PgCommon.joinPaths(folderPath, path)
+    );
+    if (!code) throw new Error(missingFileLineIn(folderPath)(path));
 
     const fileName = PgExplorer.getItemNameFromPath(path);
     if (!PgLanguage.getIsPathJsLike(fileName)) {

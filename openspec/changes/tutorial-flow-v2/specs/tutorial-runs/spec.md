@@ -177,7 +177,7 @@ the one they landed with and the goal SHALL be judged on it.
 - **AND** "Check again", once devnet has the transaction, posts "Confirmed"
   and passes the step without sending a second transaction
 
-#### Scenario: A failed run runs again
+#### Scenario: A failed run runs again (manual)
 
 - **WHEN** on Hello Anchor's step 3 `client.ts` throws and the card reads
   "Run failed"
@@ -248,7 +248,7 @@ client run; a run the card started SHALL be judged once, by the card. A call out
 result and pass nothing. A passed step SHALL stay passed. No step SHALL pass on
 the learner's word alone.
 
-#### Scenario: Passing step 3 from the terminal
+#### Scenario: Passing step 3 from the terminal (manual)
 
 - **WHEN** on Hello Anchor's step 3 the learner types `run` in the terminal
   and `client.ts` calls `hello`, which logs "Hello, World!"

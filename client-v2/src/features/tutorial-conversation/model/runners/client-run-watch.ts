@@ -28,12 +28,18 @@ export interface ClientRunWatchPort {
    * the run act's own: its run goes through `run` inside its capture
    */
   capture(until: Promise<void>): Promise<Sends>;
-  /** The result the run act would post for the same sends */
+  /**
+   * Readies the run as the run act readies its own, before the run's
+   * handler starts: `pg.program` from the deployed IDL when the stored one
+   * is empty
+   */
+  prepare(input: RunInput): void;
+  /** The result the run act would post for the same sends, if it can be read */
   read(
     input: RunInput,
     sends: Sends,
     startedAt: number
-  ): Promise<RunResult | null>;
+  ): Promise<RunResult | undefined>;
   now(): number;
 }
 
@@ -43,8 +49,20 @@ export interface ClientRunJudging {
   onResult(result: RunResult): void;
 }
 
-const isHelp = (input: string | null) =>
-  !!input && /(^|\s)(--help|-h)(\s|$)/.test(input);
+/** The client file a run act runs, as `run` is given it */
+const CLIENT_FILE = "client.ts";
+
+/**
+ * Whether a `run` runs the client file: `run` alone (every client script),
+ * or paths that each name it (`client.ts`, `client/client.ts`, the full
+ * path). Help runs nothing
+ */
+const isClientRun = (input: string | null) => {
+  const paths = (input ?? "").trim().split(/\s+/).slice(1);
+  return paths.every(
+    (path) => path === CLIENT_FILE || path.endsWith(`/${CLIENT_FILE}`)
+  );
+};
 
 /**
  * Judge every run of the client file that did not start from its act card
@@ -70,9 +88,10 @@ export const watchClientRuns = (
   };
   const subs = [
     port.onDidStart((input) => {
-      if (release || isHelp(input)) return;
+      if (release || !isClientRun(input)) return;
       const judging = begin();
       if (!judging) return;
+      port.prepare(judging.input);
       const startedAt = port.now();
       let error: unknown;
       const until = new Promise<void>((resolve) => {
@@ -84,11 +103,11 @@ export const watchClientRuns = (
       port
         .capture(until)
         .then(async (sends) => {
-          const busy =
+          const isBusy =
             sends.error instanceof Error &&
             sends.error.message === CAPTURE_BUSY;
           // The card's own run, or another act sending: theirs to judge
-          if (busy) return;
+          if (isBusy) return;
           const result = await port.read(
             judging.input,
             { captured: sends.captured, error },
@@ -129,7 +148,13 @@ if (import.meta.vitest) {
     const SENT: Captured[] = [
       { kind: "sent", signature: "sig", encoded: "tx" },
     ];
-    const fakePort = ({ busy, sent }: { busy: boolean; sent: Captured[] }) => {
+    const fakePort = ({
+      isBusy,
+      sent,
+    }: {
+      isBusy: boolean;
+      sent: Captured[];
+    }) => {
       const start = new Set<(input: string | null) => void>();
       const finish = new Set<(result: { err?: unknown }) => void>();
       const end = new Set<() => void>();
@@ -145,12 +170,13 @@ if (import.meta.vitest) {
         onDidFinish: on(finish),
         onDidEnd: on(end),
         capture: async (until) => {
-          if (busy) {
+          if (isBusy) {
             return { captured: [], error: new Error(CAPTURE_BUSY) };
           }
           await until;
           return { captured: sent, error: undefined };
         },
+        prepare: vi.fn(),
         read,
         now: () => 1000,
       };
@@ -165,7 +191,7 @@ if (import.meta.vitest) {
     };
 
     it("reads a run the terminal started against the live step, and hands the result on", async () => {
-      const { port, read, run } = fakePort({ busy: false, sent: SENT });
+      const { port, read, run } = fakePort({ isBusy: false, sent: SENT });
       const onResult = vi.fn();
       const watch = watchClientRuns(() => ({ input: INPUT, onResult }), port);
 
@@ -181,7 +207,7 @@ if (import.meta.vitest) {
     });
 
     it("hands on what the run threw with its sends", async () => {
-      const { port, read, run } = fakePort({ busy: false, sent: SENT });
+      const { port, read, run } = fakePort({ isBusy: false, sent: SENT });
       const thrown = new Error("boom");
       const watch = watchClientRuns(
         () => ({ input: INPUT, onResult: () => {} }),
@@ -199,7 +225,7 @@ if (import.meta.vitest) {
     });
 
     it("leaves the card's own run to the card: its capture is already running", async () => {
-      const { port, read, run } = fakePort({ busy: true, sent: SENT });
+      const { port, read, run } = fakePort({ isBusy: true, sent: SENT });
       const onResult = vi.fn();
       const watch = watchClientRuns(() => ({ input: INPUT, onResult }), port);
 
@@ -210,8 +236,8 @@ if (import.meta.vitest) {
       watch.dispose();
     });
 
-    it("captures nothing when no step waits on a run, or for help", async () => {
-      const { port, read, run } = fakePort({ busy: false, sent: SENT });
+    it("captures nothing when no step waits on a run, for help, or for another script", async () => {
+      const { port, read, run } = fakePort({ isBusy: false, sent: SENT });
       const begin = vi.fn(() => undefined);
       const watch = watchClientRuns(begin, port);
 
@@ -223,6 +249,7 @@ if (import.meta.vitest) {
         port
       );
       await run("run --help", {});
+      await run("run scratch.ts", {});
 
       expect(read).not.toHaveBeenCalled();
       watch.dispose();

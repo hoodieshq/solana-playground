@@ -453,14 +453,14 @@ export const runDeployOnDevnet: ActRun = async (act, _input, onStage) => {
   return withIdl(result);
 };
 
-/**
- * The runner the tutorial frame passes to `PgConversation.init`. The build
- * act, whose ticket has not landed, answers "not wired yet".
- */
 /** The `run` command and devnet, for a client run outside its card (`watchClientRuns`) */
 export const realClientRuns = () =>
   realClientRunWatch(devnetFunding, DEVNET_FAUCET_SOL);
 
+/**
+ * The runner the tutorial frame passes to `PgConversation.init`. The build
+ * act, whose ticket has not landed, answers "not wired yet".
+ */
 export const tutorialRunner: Runner = {
   ...actRunner(
     {

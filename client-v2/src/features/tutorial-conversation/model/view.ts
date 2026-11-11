@@ -296,10 +296,10 @@ const RETRY_CONTEXT: Record<Exclude<Retry, "again" | "fix">, string> = {
 };
 
 /** A failed run's retry line: the file it runs is the one to fix */
-export const FIX_AND_RUN = "Fix client.ts, then run it again.";
+const FIX_AND_RUN = "Fix client.ts, then run it again.";
 
 /** A failed call's: it is sent from the chat, so there is no file to name */
-export const FIX_AND_CALL = "Fix what the error says, then try again.";
+const FIX_AND_CALL = "Fix what the error says, then try again.";
 
 /** The line a failed act's retry card shows */
 const retryContext = (act: ActBeat, retry: Retry | null): string => {

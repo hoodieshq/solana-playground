@@ -560,26 +560,29 @@ export const panelInput = (
 /**
  * The input a run of the client file started outside its card is judged with
  * (HOO-2806), as the run act's would be: the live step's call goal, while it
- * has not passed and no act runs. Null on any other step, which no client run
- * can pass.
+ * has not passed and no act runs, with the step it is for. Undefined on any
+ * other step, which no client run can pass.
  */
 export const clientRunInput = (
   definition: TutorialDefinition,
   p: ConversationProgress
-): RunInput | null => {
-  if (running(p)) return null;
+): { stepId: string; input: RunInput } | undefined => {
+  if (running(p)) return undefined;
   const step = stepAt(definition, p.cursor);
-  if (!step || passed(p, step)) return null;
+  if (!step || passed(p, step)) return undefined;
   const { goal } = step;
-  if (goal.kind !== "call" && goal.kind !== "refused") return null;
+  if (goal.kind !== "call" && goal.kind !== "refused") return undefined;
   const creates = createsOf(goal);
   return {
-    beatId: "client-run",
-    ...(p.deployed ? { idl: p.deployed.idl } : {}),
-    ...(goal.kind === "call" && goal.log !== undefined
-      ? { log: goal.log }
-      : {}),
-    ...(creates ? { creates } : {}),
+    stepId: step.id,
+    input: {
+      beatId: "client-run",
+      ...(p.deployed ? { idl: p.deployed.idl } : {}),
+      ...(goal.kind === "call" && goal.log !== undefined
+        ? { log: goal.log }
+        : {}),
+      ...(creates ? { creates } : {}),
+    },
   };
 };
 
