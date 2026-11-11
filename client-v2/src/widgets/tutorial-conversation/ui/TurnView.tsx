@@ -344,6 +344,7 @@ const TurnView = ({
           onRecheck={() => on.recheck(turn.beatId)}
           signedIn={signedIn}
           onSignIn={on.signIn}
+          onCreateWallet={() => on.createWallet(turn.beatId)}
         />
       );
     case "win": {

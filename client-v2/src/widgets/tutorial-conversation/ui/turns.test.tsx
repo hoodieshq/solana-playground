@@ -400,7 +400,13 @@ describe("BaseResultCard", () => {
       open = false,
       onRecheck = vi.fn(),
       exists,
-    }: { open?: boolean; onRecheck?: () => void; exists?: string } = {}
+      onCreateWallet = vi.fn(),
+    }: {
+      open?: boolean;
+      onRecheck?: () => void;
+      exists?: string;
+      onCreateWallet?: () => void;
+    } = {}
   ) =>
     render(
       // The app's root provides the tooltip Copy signature carries
@@ -417,9 +423,32 @@ describe("BaseResultCard", () => {
           onRecheck={onRecheck}
           signedIn={false}
           onSignIn={vi.fn()}
+          onCreateWallet={onCreateWallet}
         />
       </TooltipProvider>
     );
+
+  // HOO-2806: a run or call that found no wallet said so with no button
+  it("offers Create wallet on a run with no wallet while it is live", async () => {
+    const onCreateWallet = vi.fn();
+    const noWallet: RunResult = {
+      act: "run",
+      ok: false,
+      seconds: 0,
+      reason: "no_wallet",
+      message: "Create a Playground wallet or connect one, then try again.",
+      log: "",
+    };
+    const { unmount } = txCard(noWallet, { open: true, onCreateWallet });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create wallet" })
+    );
+    expect(onCreateWallet).toHaveBeenCalledTimes(1);
+    unmount();
+
+    txCard(noWallet, { open: false, onCreateWallet });
+    expect(screen.queryByRole("button", { name: "Create wallet" })).toBeNull();
+  });
 
   it("reads as a pass for a call refused because the player already exists", () => {
     const { container } = txCard(
@@ -641,6 +670,7 @@ describe("BaseResultCard", () => {
         onRecheck={vi.fn()}
         signedIn={false}
         onSignIn={vi.fn()}
+        onCreateWallet={vi.fn()}
       />
     );
     expect(screen.getByText("Build successful")).toBeTruthy();
@@ -669,6 +699,7 @@ describe("BaseResultCard", () => {
         onRecheck={vi.fn()}
         signedIn={false}
         onSignIn={vi.fn()}
+        onCreateWallet={vi.fn()}
       />
     );
     const { unmount } = render(deployed(1_250_000_000));
@@ -695,6 +726,7 @@ describe("BaseResultCard", () => {
         onRecheck={vi.fn()}
         signedIn={false}
         onSignIn={vi.fn()}
+        onCreateWallet={vi.fn()}
       />
     );
     expect(screen.getByText("Build failed")).toBeTruthy();
@@ -734,6 +766,7 @@ describe("BaseResultCard", () => {
         onRecheck={vi.fn()}
         signedIn={false}
         onSignIn={vi.fn()}
+        onCreateWallet={vi.fn()}
       />
     );
     expect(screen.getByText("Build server unreachable")).toBeTruthy();
@@ -770,6 +803,7 @@ describe("BaseResultCard", () => {
           onRecheck={vi.fn()}
           signedIn={signedIn}
           onSignIn={on.signIn}
+          onCreateWallet={vi.fn()}
         />
       );
       return on;
@@ -825,6 +859,7 @@ describe("BaseResultCard", () => {
         onRecheck={vi.fn()}
         signedIn={false}
         onSignIn={vi.fn()}
+        onCreateWallet={vi.fn()}
       />
     );
     expect(screen.getByText(/Invalid path/)).toBeTruthy();
@@ -864,6 +899,7 @@ describe("BaseResultCard", () => {
         onRecheck={vi.fn()}
         signedIn={false}
         onSignIn={vi.fn()}
+        onCreateWallet={vi.fn()}
       />
     );
     expect(screen.getByText(/exit status: 1/)).toBeTruthy();
@@ -888,6 +924,7 @@ describe("BaseResultCard", () => {
         onRecheck={vi.fn()}
         signedIn={false}
         onSignIn={vi.fn()}
+        onCreateWallet={vi.fn()}
       />
     );
     expect(screen.getByText("E0412 on line 9")).toBeTruthy();

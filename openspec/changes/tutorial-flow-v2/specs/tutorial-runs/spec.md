@@ -279,6 +279,35 @@ The current step's goal SHALL stay as it is.
 - **THEN** one nudge with "Build and deploy" posts at the live point
 - **AND** the next call's log shows the new text only after that deploy lands
 
+### Requirement: No failed act is a dead end
+
+A failed or refused act SHALL always leave a live control in the feed that
+runs it again or leads to what fixes it (HOO-2806): its result card's own
+button (Explain the error and "I'll fix it myself", Try again, Sign in with
+GitHub, Create wallet, Check again) or an act card under the result that runs
+the act again ("Try again", or the act's own verb with "again", with a line
+saying what to fix first when the learner must change something). A failed
+build whose card closed on "I'll fix it myself", or on Explain once the
+answer ended, SHALL be followed by "Build again" with "Fix the error, then
+build again."; a planned failure goes on to the step's fix question instead.
+A run or call that found no wallet SHALL offer Create wallet, which makes the
+Playground wallet and runs the act again.
+
+#### Scenario: Fixing an unplanned build error yourself (manual)
+
+- **WHEN** a build fails with an error the step does not plan and the
+  learner presses "I'll fix it myself"
+- **THEN** the card closes and an act card "Fix the error, then build
+  again." with "Build again" follows
+- **AND** after the fix, Build again builds and a passing build passes the
+  step
+
+#### Scenario: A run with no wallet (manual)
+
+- **WHEN** a run or call finds no wallet
+- **THEN** its "No wallet" card offers Create wallet
+- **AND** Create wallet makes the Playground wallet and runs the act again
+
 ### Requirement: A reload interrupts a run, never repeats it
 
 A run in flight at a reload SHALL not resume. Its act card SHALL come back

@@ -272,6 +272,11 @@ export type RunRecord =
       answeredAt?: number;
       /** When "Show me the fix" wrote the step's target; it works once */
       fixedAt?: number;
+      /**
+       * An unplanned failure: when "I'll fix it myself" closed its card, and
+       * the act's Build again card follows (HOO-2806)
+       */
+      selfFixAt?: number;
     };
 
 /**
@@ -916,6 +921,7 @@ const parseRun = (v: unknown): RunRecord | null => {
       if (isMs(v.explainedAt)) run.explainedAt = v.explainedAt;
       if (isMs(v.answeredAt)) run.answeredAt = v.answeredAt;
       if (isMs(v.fixedAt)) run.fixedAt = v.fixedAt;
+      if (isMs(v.selfFixAt)) run.selfFixAt = v.selfFixAt;
       return run;
     }
     default:
@@ -1418,6 +1424,7 @@ if (import.meta.vitest) {
         explainedAt: 4,
         answeredAt: 5,
         fixedAt: 6,
+        selfFixAt: 7,
       };
       const broken = {
         status: "failed",

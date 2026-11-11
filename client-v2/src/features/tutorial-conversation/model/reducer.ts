@@ -1596,7 +1596,23 @@ const reduceAction = (
             : "landing",
       };
       if (!run.planned || p.cursor.fail) {
-        return { state, effects: [focus] };
+        // A build's card closes, and its Build again card follows
+        // (HOO-2806): without it the learner fixed the code with no Build
+        // to press
+        if (
+          run.result.act !== "build" ||
+          run.selfFixAt !== undefined ||
+          run.explainedAt !== undefined
+        ) {
+          return { state, effects: [focus] };
+        }
+        return {
+          state: withLastRun(state, action.beatId, {
+            ...run,
+            selfFixAt: action.at,
+          }),
+          effects: [focus],
+        };
       }
       // The fix question still follows; the explanation before it is skipped
       const flowed = flow(

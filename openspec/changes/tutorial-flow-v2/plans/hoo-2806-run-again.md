@@ -62,3 +62,25 @@ assistant's context says running the client file passes the step.
 - `TutorialConversation.tsx` starts it with `realClientRuns()`, as it starts
   `watchDeploys`.
 - Spec: a sentence and a scenario under "A step passes on what happened".
+
+## No dead end (the user's rule, 11 Nov)
+
+"Any card that requires an action that has a possibility to be failed needs
+to show an appropriate retry button so there's never a dead end for the
+user." The matrix of act × outcome → control is in the PR body and in the
+table-driven test `never a dead end` in `view.ts`. Two cells were dead ends
+beyond the run and call ones above:
+
+- An unplanned build failure: Explain closed the card and "Show me the fix"
+  wrote the lines, and "I'll fix it myself" only moved the caret; neither
+  left a Build to press. `fixMyself` on a failed build now records
+  `selfFixAt` (saved, parsed in `progress.ts`) and closes the card; once it
+  is closed that way, or by Explain once the answer ended, `view.ts` posts
+  "Build again" with `FIX_AND_BUILD` in the retry slot. A planned failure
+  still goes to `onFail`.
+- A run or call with no wallet: `BaseTxResultCard`'s "No wallet" card gets
+  the deploy card's Create wallet, wired to the same `createWallet` handler.
+
+The HOO-2356 refusals (immutable program, wrong authority) are `failed`
+deploys, so they keep Try again with the refusal as the card's message; a
+reason of their own stays with HOO-2356.
