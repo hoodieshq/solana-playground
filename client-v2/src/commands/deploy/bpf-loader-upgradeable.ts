@@ -121,13 +121,8 @@ class UnansweredWriteError extends Error {}
  * outcome goes to the debug log only.
  */
 const awaitAnswerWith =
-  ({
-    ms,
-    abortController,
-  }: {
-    ms: number;
-    abortController?: AbortController;
-  }) =>
+  (ms: number) =>
+  (abortController: AbortController | undefined) =>
   <T>(send: Promise<T>) =>
     new Promise<T>((resolve, reject) => {
       let timedOut = false;
@@ -362,10 +357,9 @@ export class BpfLoaderUpgradeable {
             if (hasUnansweredWrite) break;
 
             try {
-              lastTxHash = await awaitAnswerWith({
-                ms: WRITE_ANSWER_TIMEOUT_MS,
-                abortController: opts?.abortController,
-              })(
+              lastTxHash = await awaitAnswerWith(WRITE_ANSWER_TIMEOUT_MS)(
+                opts?.abortController
+              )(
                 PgTx.send(ix, {
                   wallet,
                   computeUnitLimit,
