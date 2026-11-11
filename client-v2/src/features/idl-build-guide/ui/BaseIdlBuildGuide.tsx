@@ -278,7 +278,7 @@ const BaseIdlBuildGuide = (p: BaseIdlBuildGuideProps) => (
       <ol
         aria-label="Steps"
         className={cn(
-          "flex min-h-0 flex-col gap-5 overflow-y-auto pb-6",
+          "flex min-h-0 flex-col gap-5 overflow-y-auto pb-6 [scrollbar-width:none]",
           GUTTER
         )}
       >
