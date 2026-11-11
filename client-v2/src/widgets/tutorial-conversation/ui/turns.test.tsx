@@ -1025,7 +1025,7 @@ describe("TurnView", () => {
       wrote,
       failed: false,
     });
-    const drawWith = (turn: Turn, file: string) =>
+    const drawWith = (turn: Turn, file: string, handlers = on()) =>
       render(
         <TurnView
           turn={turn}
@@ -1035,9 +1035,47 @@ describe("TurnView", () => {
           passed={[]}
           read={() => file}
           nextTutorial={null}
-          on={on()}
+          on={handlers}
         />
       );
+    const BLOCK = ["fn hello() {", '    msg!("Hi");', "}"];
+
+    it("names and shows the block where it is now, once lines were added above it", async () => {
+      const handlers = on();
+      drawWith(
+        wroteTurn({ file: "src/lib.rs", lines: [3, 4, 5], text: BLOCK }),
+        ["use x;", "use y;", "use z;", ""].concat(BLOCK).join("\n"),
+        handlers
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Show lines 5 to 7 in src/lib.rs" })
+      );
+      expect(handlers.showLine).toHaveBeenCalledWith("src/lib.rs", 5);
+    });
+
+    it("names and shows the saved lines once the block was edited", async () => {
+      const handlers = on();
+      // Lines added above, and the block's middle line changed: no place
+      // holds the block as written, so the card keeps the saved lines
+      drawWith(
+        wroteTurn({ file: "src/lib.rs", lines: [3, 4, 5], text: BLOCK }),
+        [
+          "use x;",
+          "use y;",
+          "use z;",
+          "",
+          "fn hello() {",
+          "    mine();",
+          "}",
+        ].join("\n"),
+        handlers
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Show lines 3 to 5 in src/lib.rs" })
+      );
+      expect(handlers.showLine).toHaveBeenCalledWith("src/lib.rs", 3);
+    });
+
     const edited = 'import "not-a-real-package";\n// const a = 1;\n// a();';
 
     it("shows the lines the lesson wrote, whatever the file holds now", () => {
