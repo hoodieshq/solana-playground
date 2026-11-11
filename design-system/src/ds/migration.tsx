@@ -98,7 +98,7 @@ function Steps() {
     ["Add Tailwind 4 beside styled-components.", "It goes in through PostCSS in craco, without its reset at first, so nothing on screen moves. Load tokens.css and theme.css and put dark on the html element."],
     ["Install from our registry.", `The tokens first, then each component as it is needed. Stock ones come from shadcn by name.`],
     ["Move one piece at a time, leaves first.", "Tag, Callout, StatusDot and the buttons. Then Stepper, Segmented and the menus. The panels last. Each move deletes one styled-component."],
-    ["Keep the ids and the labels.", "Studio's map and the tests find things by them, so they stay exactly as they are."],
+    ["Keep the ids and the labels.", "The tests find things by them, so they stay exactly as they are."],
     ["Turn the reset on last.", "When the last global style has gone, Tailwind's preflight can come in, and the two systems become one."],
   ]
   return (

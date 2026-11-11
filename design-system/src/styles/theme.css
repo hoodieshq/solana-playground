@@ -1,5 +1,5 @@
 /* The tokens, as Tailwind utilities. Shared by the design system page
- * (index.css) and the stylesheet Studio injects into the product
+ * (index.css) and the stylesheet laid into the product
  * (inject.css), so a class means the same thing in both. */
 
 @theme inline {
@@ -145,8 +145,8 @@
 }
 
 /* Sizes and weights are values rather than references, so they sit in a
- * plain @theme: the utilities then read them as variables, and a change in
- * Studio's Design tab reaches every text-* and font-* class on the page. */
+ * plain @theme: the utilities then read them as variables, and a change
+ * made in a design tool reaches every text-* and font-* class on the page. */
 @theme {
   /* The product's scale, one set of sizes for every screen */
   --text-display: 1.75rem;

@@ -147,7 +147,7 @@ function App() {
                 href="/#app"
                 className="hidden h-9 items-center gap-1 rounded-control px-3 text-control font-act text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground md:inline-flex"
               >
-                Product, with Studio
+                Product
                 <ArrowUpRight className="size-4" />
               </a>
               <button
@@ -194,7 +194,7 @@ function App() {
               </details>
             </section>
 
-            <Group id="foundations" title="Foundations" note="The tokens every component reads. Change one here, or in Studio, and everything that uses it follows.">
+            <Group id="foundations" title="Foundations" note="The tokens every component reads. Change one here and everything that uses it follows.">
               <Colour />
               <Type />
               <Shape />

@@ -7,7 +7,7 @@
  * tracks, layout sizes, elevation and motion.
  *
  * The values come from the product's theme (client-v2 themes/solana-v3) and
- * the deck's tokens. Colours are hex on purpose: Studio's Design tab offers a
+ * the deck's tokens. Colours are hex on purpose: a design tool offers a
  * colour picker for a hex token and a text field for anything else.
  *
  * :root is paper, for the landing and the deck's white slides. .dark is the

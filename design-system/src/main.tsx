@@ -18,8 +18,10 @@ Element.prototype.scrollIntoView = function (arg?: boolean | ScrollIntoViewOptio
   return scrollIntoView.call(this, arg)
 }
 
-/* The page ships as a snapshot of itself, so Studio can read the specimens
-   without running it. The first render replaces that snapshot. */
+/* Local review tools only: dropped from every build */
+if (import.meta.env.DEV) import("./dev-overlay.css")
+
+/* The page ships as a snapshot of itself. The first render replaces it. */
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

@@ -1,0 +1,12 @@
+/* Local review only: a bar the dev tools lay over the top 34px of the page.
+   Imported in dev, never part of a build. */
+html:has(.ribbon.studio-built):not(.studio-rib-off) body {
+  padding-top: 34px;
+}
+html:has(.ribbon.studio-built):not(.studio-rib-off) [data-ds-header] {
+  top: 34px;
+}
+html:has(.ribbon.studio-built):not(.studio-rib-off) [data-ds-aside] {
+  top: calc(3.5rem + 34px);
+  height: calc(100vh - 3.5rem - 34px);
+}

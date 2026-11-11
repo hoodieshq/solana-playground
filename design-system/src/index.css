@@ -20,14 +20,3 @@
   }
 }
 
-/* Studio's bar, while it shows, lies over the top 34px of the page */
-html:has(.ribbon.studio-built):not(.studio-rib-off) body {
-  padding-top: 34px;
-}
-html:has(.ribbon.studio-built):not(.studio-rib-off) [data-ds-header] {
-  top: 34px;
-}
-html:has(.ribbon.studio-built):not(.studio-rib-off) [data-ds-aside] {
-  top: calc(3.5rem + 34px);
-  height: calc(100vh - 3.5rem - 34px);
-}
