@@ -816,6 +816,32 @@ describe("the stored workspaces beside a temporary view", () => {
     ]);
   });
 
+  it("puts the folder back when a project is opened while a rename beside the link runs", async () => {
+    await openLink();
+    const realRename = PgExplorer.fs.rename.bind(PgExplorer.fs);
+    const opening = vi
+      .spyOn(PgExplorer.fs, "rename")
+      .mockImplementationOnce(async (from: string, to: string) => {
+        await realRename(from, to);
+        // The user opens beta from the list while the folder moves
+        await PgExplorer.switchWorkspace("beta");
+      });
+    try {
+      await expect(
+        PgExplorer.renameWorkspace("gamma", { from: "alpha" })
+      ).rejects.toThrow("The workspaces changed while the list was saved.");
+    } finally {
+      opening.mockRestore();
+    }
+
+    expect(stored().get("/alpha/src/lib.rs")).toBe("declare_id!();");
+    expect(readConfig().workspaces.map((w) => w.name)).toEqual([
+      "alpha",
+      "beta",
+    ]);
+    expect(PgExplorer.currentWorkspaceName).toBe("beta");
+  });
+
   it("keeps another tab's new workspace through a delete made beside the link", async () => {
     await openLink();
     anotherTabCreatesDelta();

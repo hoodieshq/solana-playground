@@ -2166,7 +2166,15 @@ export class PgExplorer {
    * right before, with no await between, so a read meanwhile cannot swap it
    */
   private static async _saveList(list: PgWorkspace) {
-    if (list !== this._workspace) this._storedList = list;
+    if (list !== this._workspace) {
+      // A project opened from the list while this change ran: the list in
+      // memory, not the one changed, is what a save writes now, so the
+      // change is refused and its caller puts the folder back
+      if (this._workspace) {
+        throw new Error("The workspaces changed while the list was saved.");
+      }
+      this._storedList = list;
+    }
     await this._saveWorkspaces();
   }
 
