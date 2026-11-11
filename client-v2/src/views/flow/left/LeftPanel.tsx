@@ -138,18 +138,19 @@ export default LeftPanel;
 const EXPLORER_CONTAINER = cn(
   // Workspaces row (project select + "Projects" label) and the icon
   // toolbar (new file/folder, collapse, share, ...) are the 1st and 2nd
-  // children of Explorer's own root <div> -- true whether Explorer renders
-  // its normal tree or the "temporary project" warning in Workspaces's
-  // place (both are a single root <div>, so the position holds either
-  // way). Anchor: positional, scoped under this wrapper's single child
-  // (Explorer's own root). Failure mode: if the current project has *no*
+  // children of Explorer's own root <div>. Anchor: positional, scoped
+  // under this wrapper's single child (Explorer's own root). In a
+  // temporary project Workspaces renders its warning in the 1st place
+  // instead, and that stays: its Import is the only way to keep the
+  // project, so the rule skips `[data-temporary-warning]`, which the
+  // warning's root carries. Failure mode: if the current project has *no*
   // workspaces at all, Explorer renders a single-branch "create a
   // project" empty state instead (a different component, not Workspaces +
   // Folders) -- its own first two children (an intro line and a "Create a
   // new project" button) would be hidden by the same rule. Flow only
   // mounts once a project is open, so this state should not occur in
   // practice, but it is a real gap if it ever does.
-  "[&>div>div:nth-child(1)]:hidden!",
+  "[&>div>div:nth-child(1):not([data-temporary-warning])]:hidden!",
   "[&>div>div:nth-child(2)]:hidden!",
   // Program section (#root-dir's own first child): hides the "Program"
   // label and the Build/Deploy buttons, keeps a lone "+" (add-program,
