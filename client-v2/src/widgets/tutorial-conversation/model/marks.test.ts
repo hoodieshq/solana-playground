@@ -103,6 +103,28 @@ describe("widgets/tutorial-conversation/model/marks", () => {
       () => `// mine\n// mine\n${BOILER}`
     )("src/lib.rs");
     expect(marks.written).toEqual([3, 4, 5]);
+    // Posted this session (not whole), yet it does not arrive again once moved
+    const fresh = marksOf(
+      hello,
+      viewOf(
+        [
+          {
+            id: "wrote:write-program",
+            kind: "wrote",
+            step: "write-program",
+            at: 1,
+            whole: false,
+            beatId: "s1.boil",
+            wrote: { file: "src/lib.rs", lines: [1, 2, 3], text: BOILER_ROWS },
+            failed: false,
+          },
+          opened,
+        ],
+        opened
+      ),
+      () => `// mine\n// mine\n${BOILER}`
+    )("src/lib.rs");
+    expect(fresh).toMatchObject({ written: [3, 4, 5], arriving: false });
   });
 
   it("marks nothing in another file, or for a write from an earlier step", () => {

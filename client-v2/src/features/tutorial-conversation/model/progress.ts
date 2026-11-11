@@ -241,7 +241,7 @@ export interface Wrote {
   /**
    * Each written line's text as it landed, in the order of `lines`: the card
    * draws these, so the learner's later edits to the file leave the card as
-   * the write made it. Absent for a created file (no lines), in a save from
+   * the write made it, and finds the block by them when lines above it move. Absent for a created file (no lines), in a save from
    * before the text was kept, and where the saved text did not pair with
    * `lines` (`parseWrote` drops it); the card then reads those lines from
    * the file.
@@ -645,13 +645,16 @@ const parseWrote = (v: unknown): Wrote | null => {
   // was kept
   if (text && text.length === lines.length) wrote.text = text;
   else if (isRecord(v) && v.text !== undefined) {
-    log.debug("a saved block's text is unusable, so its card reads the file", {
-      context: {
-        file,
-        lines: lines.length,
-        text: text ? text.length : "not a list of strings",
-      },
-    });
+    log.debug(
+      "a saved block's text is unusable, so its card reads the file and keeps its lines",
+      {
+        context: {
+          file,
+          lines: lines.length,
+          text: text ? text.length : "not a list of strings",
+        },
+      }
+    );
   }
   if (created) wrote.created = true;
   if (appended) wrote.appended = true;

@@ -188,12 +188,14 @@ learner sees what they saw on entering it.
 
 #### Scenario: The learner adds lines above the written lines
 
-- **WHEN** a write has posted its wrote card and the learner then adds lines
-  above the block
+- **WHEN** a write has posted its wrote card and the learner then adds or
+  removes lines above the block
 - **THEN** the card's range and Show, and the lines the editor lights, name
-  the block where it is now
-- **AND** once the block was edited, or holds fewer than two rows that are
-  neither blank nor bare brackets, they keep the lines it was written to
+  the block where it is now, the nearest place that holds it as written (a
+  program id a build filled in aside)
+- **AND** they keep the lines it was written to once the block was edited,
+  when it holds fewer than two rows that are not blank or only brackets,
+  `;` and `,`, and for a card saved before the written text was kept
 
 ### Requirement: Act cards run one thing and show its stages
 

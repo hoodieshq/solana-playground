@@ -60,10 +60,15 @@ export const marksOf =
           t.wrote.file === file
       );
     // Where the block is now, as its card names it
+    const saved =
+      wrote?.kind === "wrote" && wrote.wrote ? wrote.wrote.lines : [];
     const written =
       wrote?.kind === "wrote" && wrote.wrote
         ? linesNow(wrote.wrote, read(file) ?? undefined)
         : [];
+    // A block arrives where it landed: once the learner moved it, its lines
+    // are lit without flashing in again
+    const moved = written.some((line, i) => line !== saved[i]);
 
     let landing: Landing | null = null;
     if (live?.kind === "ask" && live.open && live.ask.writes?.file === file) {
@@ -82,7 +87,8 @@ export const marksOf =
     if (!written.length && !landing) return NONE;
     return {
       written,
-      arriving: written.length > 0 && wrote !== undefined && !wrote.whole,
+      arriving:
+        written.length > 0 && wrote !== undefined && !wrote.whole && !moved,
       landing,
     };
   };

@@ -337,9 +337,13 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
         name: new RegExp(`^Show lines ${range} in .*lib\\.rs$`),
       });
     await start(page);
-    await expect(card("1 to 3")).toBeVisible(LONG);
+    await answer(page, beat("s1.q1", "ask"));
+    await expect(card("5 to 13")).toBeVisible(LONG);
+    // A quiet moment: the question is answered and Build waits, so an edit
+    // that answers nothing posts no turn
+    await expect(act(page, "s1.build")).toBeVisible(LONG);
     // Two lines typed at the top of the file the block landed in
-    await card("1 to 3").click();
+    await card("5 to 13").click();
     await page.locator(".monaco-editor .view-lines").first().click();
     await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.press("ArrowLeft");
@@ -349,9 +353,9 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
         timeout: 10_000,
       })
       .toBe(true);
-    // The card names the block where it is now, and Show goes there
-    await expect(card("3 to 5")).toBeVisible();
-    await expect(card("1 to 3")).toHaveCount(0);
+    // The card names the block where it is now
+    await expect(card("7 to 15")).toBeVisible();
+    await expect(card("5 to 13")).toHaveCount(0);
   });
 
   test("tutorial-conversation: The planned E0412", async ({ page }) => {
