@@ -1,4 +1,5 @@
 export { newProjectTelemetry } from "./model/telemetry";
+export { IMPORT_FALLBACK } from "./model/link-import";
 export type {
   LinkImport,
   LinkImportFailure,

@@ -2,22 +2,13 @@ import { useState } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
 
-import type { LinkImport, LinkSource } from "../model/link-import";
+import type { LinkImport } from "../model/link-import";
+import { IMPORT_FALLBACK } from "../model/link-import";
 import { newProjectTelemetry } from "../model/telemetry";
 import type { UrlImport } from "./BaseImportFromUrl";
 import BaseImportFromUrl from "./BaseImportFromUrl";
 
 const log = createLogger("new-project:import");
-
-/** What a failure that carries no message of its own says */
-const FALLBACK = "Could not import it.";
-
-/**
- * The source a throw is counted under: the card cannot route the link
- * itself (that meets two features), so it guesses from the host
- */
-const sourceOf = (link: string): LinkSource =>
-  /gist\.github(usercontent)?\.com/i.test(link) ? "gist" : "github";
 
 export interface ImportFromUrlProps {
   /**
@@ -54,7 +45,7 @@ const ImportFromUrl = ({
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState<UrlImport>({ state: "idle" });
 
-  const run = async () => {
+  const handleImport = async () => {
     const link = url.trim();
     if (!link || held || status.state === "importing") return;
 
@@ -68,9 +59,9 @@ const ImportFromUrl = ({
       // ours, shown like any other so the page is never left held
       result = {
         outcome: "failed",
-        source: sourceOf(link),
+        source: "unknown",
         reason: "unexpected",
-        message: FALLBACK,
+        message: IMPORT_FALLBACK,
         error,
       };
     } finally {
@@ -127,7 +118,7 @@ const ImportFromUrl = ({
       }}
       status={status}
       held={held}
-      onImport={run}
+      onImport={handleImport}
     />
   );
 };

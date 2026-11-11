@@ -31,9 +31,9 @@ project; it is a design stand-in that imports nothing. HOO-2608 wires it.
   are told apart from the dialog's. No event is renamed or removed.
 - Funnel: step "Get a project: new" keeps `new_project_started` firing
   untouched. Step "Get a project: import" is still pending in `funnel-events`
-  (`project_imported` does not exist yet); this change adds the card to the
-  import step's call sites in a note to that change rather than sending an
-  event it has not declared.
+  (`project_imported` does not exist yet); the card is a new call site for it,
+  recorded for that change through Intake rather than sending an event it has
+  not declared.
 
 ## Capabilities
 

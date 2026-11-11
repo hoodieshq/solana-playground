@@ -50,7 +50,7 @@ rate-limit reset time, "open your copy / fresh copy".
    Import on `busy || starting`. `NewProjectState` exposes it as
    `onImporting` and `importHeld`, matching Start's `onStarting`/`held`.
 5. **Failure after the page closes.** As Start does: once New project was
-   left mid-import, a failure comes up as a toast (`toastOpenFailed`), since
+   left mid-import, a failure comes up as a toast (`toastImportFailed`, lead "Could not import."), since
    no field is left to show it.
 6. **Events.** `new_project_imported` / `new_project_import_failed` in
    `features/new-project`'s tracker. The `reason` comes from

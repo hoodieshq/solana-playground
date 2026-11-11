@@ -1,3 +1,6 @@
+/** What a failure that carries no message of its own says */
+export const IMPORT_FALLBACK = "Could not import it.";
+
 /** Which import a link went to */
 export type LinkSource = "github" | "gist";
 
@@ -19,8 +22,9 @@ export type LinkImportFailure =
 
 /**
  * How an import from a link ended. A failure carries the message the card
- * shows, and the error behind it, if any, for the log. Only a link that is
- * neither a repository nor a gist has no source.
+ * shows, and the error behind it, if any, for the log. A link that is
+ * neither a repository nor a gist has no source, nor has a throw that no
+ * import answered.
  */
 export type LinkImport =
   | { outcome: "imported"; source: LinkSource }
@@ -28,8 +32,9 @@ export type LinkImport =
   | {
       outcome: "failed";
       source: "unknown";
-      reason: "bad-link";
+      reason: "bad-link" | "unexpected";
       message: string;
+      error?: unknown;
     }
   | {
       outcome: "failed";

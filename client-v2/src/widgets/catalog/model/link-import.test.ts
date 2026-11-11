@@ -178,6 +178,14 @@ describe("importLink says why an import failed", () => {
     });
   });
 
+  it("calls a TypeError that is not a failed fetch unexpected", async () => {
+    failWith(new TypeError("Cannot read properties of undefined"));
+    await expect(importLink(REPO)).resolves.toMatchObject({
+      reason: "unexpected",
+      message: "Cannot read properties of undefined",
+    });
+  });
+
   it("calls anything else unexpected, with its message", async () => {
     failWith(new Error("IndexedDB is closed"));
     await expect(importLink(REPO)).resolves.toMatchObject({

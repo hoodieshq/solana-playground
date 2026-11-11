@@ -22,13 +22,13 @@ the import does elsewhere.
   `/github-alice/ts-client/client/index.ts` and
   `/github-alice/ts-client/tests/rpc.test.ts`
 
-#### Scenario: A gist link
+#### Scenario: A gist link (manual)
 
 - **WHEN** a user imports a `gist.github.com/<owner>/<id>` link from the card
 - **THEN** `importGist` is called with that link and `"new-project"`, and New
   project closes once it resolves
 
-#### Scenario: Empty field
+#### Scenario: Empty field (manual)
 
 - **WHEN** the field is empty or holds only spaces
 - **THEN** Import is disabled and Enter does nothing
@@ -38,7 +38,7 @@ the import does elsewhere.
 While an import runs, the field SHALL be disabled and the button SHALL be
 disabled, carry `aria-busy="true"`, and read "Importing…" beside a spinner.
 
-#### Scenario: Importing
+#### Scenario: Importing (manual)
 
 - **WHEN** a user presses Import and GitHub has not answered yet
 - **THEN** the field is disabled and the button reads "Importing…" with
@@ -76,7 +76,7 @@ Closing the program picker of a repository with several programs
 - **THEN** "Playground can't find acme/escrow-private on GitHub. It may be
   private, renamed or deleted." shows under the field, and New project stays
 
-#### Scenario: Picker closed
+#### Scenario: Picker closed (manual)
 
 - **WHEN** a user imports a repository with several programs and closes the
   program picker
@@ -88,12 +88,12 @@ While the import runs, Start from scratch and the tutorial and program
 cards SHALL wait; while Start or a card's Open runs, Import SHALL be
 disabled.
 
-#### Scenario: A card opens during an import
+#### Scenario: A card opens during an import (manual)
 
 - **WHEN** an import runs and a user presses Open on a program card
 - **THEN** nothing opens and the import goes on
 
-#### Scenario: Import while Start runs
+#### Scenario: Import while Start runs (manual)
 
 - **WHEN** Start from scratch is making a project
 - **THEN** Import is disabled

@@ -202,7 +202,7 @@ it("releases the page and says so when the import itself throws", async () => {
   expect(field().disabled).toBe(false);
   expect(screen.getByText("Could not import it.")).toBeTruthy();
   expect(named("new_project_import_failed")).toEqual([
-    { source: "github", reason: "unexpected" },
+    { source: "unknown", reason: "unexpected" },
   ]);
   expect(logged.entries.map((e) => e.report)).toEqual([true]);
 });

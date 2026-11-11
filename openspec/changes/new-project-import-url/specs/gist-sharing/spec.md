@@ -17,7 +17,7 @@ or `request-failed`.
 - **WHEN** an import from the dialog fails because the gist does not exist
 - **THEN** `gist_import_failed` is sent with `from: dialog` and `reason: not-found`
 
-#### Scenario: An import from New project is told apart
+#### Scenario: An import from New project is told apart (manual)
 
 - **WHEN** a user imports a gist link from New project's Import from GitHub
   card

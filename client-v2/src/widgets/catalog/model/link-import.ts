@@ -4,6 +4,7 @@ import type {
   LinkImportFailure,
   LinkSource,
 } from "@/features/new-project";
+import { IMPORT_FALLBACK } from "@/features/new-project";
 import { GithubNotFoundError, ImportCancelledError, PgGithub } from "@/utils";
 
 /** A link that is neither a GitHub repository nor a gist */
@@ -17,10 +18,16 @@ const notFound = (owner: string, repo: string) =>
   `Playground can't find ${owner}/${repo} on GitHub. It may be private, ` +
   "renamed or deleted.";
 
-/** What a failure that carries no message of its own says */
-const FALLBACK = "Could not import it.";
+/**
+ * A request that never got an answer: `fetch` rejects with a `TypeError`
+ * whose message names the fetch, in each browser's words (Chrome "Failed to
+ * fetch", Firefox "NetworkError when attempting to fetch resource", Safari
+ * "Load failed"). Any other `TypeError` is a fault of ours.
+ */
+const isUnanswered = (error: unknown) =>
+  error instanceof TypeError &&
+  /fetch|network|load failed/i.test(error.message);
 
-/** A request that never got an answer: `fetch` rejects with a `TypeError` */
 const UNREACHABLE =
   "Could not reach GitHub. Check the connection and try again.";
 
@@ -66,7 +73,7 @@ const failed = (
       error,
     };
   }
-  if (error instanceof TypeError) {
+  if (isUnanswered(error)) {
     return {
       outcome: "failed",
       source,
@@ -80,7 +87,7 @@ const failed = (
       outcome: "failed",
       source,
       reason: "unexpected",
-      message: FALLBACK,
+      message: IMPORT_FALLBACK,
       error,
     };
   }
@@ -90,7 +97,7 @@ const failed = (
     outcome: "failed",
     source,
     reason,
-    message: error.message || FALLBACK,
+    message: error.message || IMPORT_FALLBACK,
     error,
   };
 };
