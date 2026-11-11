@@ -1,4 +1,4 @@
-import { ArrowRight, Check, ChevronRight, FileJson } from "lucide-react";
+import { ArrowRight, Check, FileJson } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
@@ -10,11 +10,6 @@ import {
   CodeBlockContent,
   CodeBlockLine,
 } from "@/shared/ui/code-block";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/shared/ui/collapsible";
 import { CopyButton } from "@/shared/ui/copy-button";
 import {
   Dialog,
@@ -25,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/shared/ui/dialog";
 import { DropZone, DropZoneIcon, DropZoneTitle } from "@/shared/ui/drop-zone";
-import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
 
 import type {
   Command,
@@ -61,9 +56,14 @@ export interface BaseIdlBuildGuideProps {
 
 const TRIGGER = "Build the IDL locally";
 
-const METHODS: { value: IdlBuildMethod; label: string }[] = [
-  { value: "docker", label: "Docker" },
-  { value: "local", label: "Local toolchain" },
+/** Both methods stay in view, each with what it needs, so the choice reads before a click */
+const METHODS: { value: IdlBuildMethod; label: string; needs: string }[] = [
+  { value: "docker", label: "Docker", needs: "Only Docker needed" },
+  {
+    value: "local",
+    label: "Local toolchain",
+    needs: "Rust, Solana CLI, Anchor",
+  },
 ];
 
 /** The dialog's gutter, shared by its header, steps and foot */
@@ -128,6 +128,7 @@ const CommandBlock = ({
   </CodeBlock>
 );
 
+/** The toolchain install, open: its commands are what an engineer reads to pick a method */
 const Install = ({
   p,
   step,
@@ -135,23 +136,19 @@ const Install = ({
   p: BaseIdlBuildGuideProps;
   step: Extract<GuideStep, { kind: "install" }>;
 }) => (
-  <Collapsible className="group/install rounded-xl border border-border">
-    <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-xl p-3 text-left hover:bg-surface-hover">
-      <span className="min-w-0 flex-1">
-        {step.title} <span className="text-muted-foreground">if missing</span>
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]/install:rotate-90 motion-reduce:transition-none" />
-    </CollapsibleTrigger>
-    <CollapsibleContent className="flex flex-col gap-4 border-t border-border p-3">
-      {step.tools.map((tool) => (
-        <div key={tool.command.id} className="flex flex-col gap-2">
-          <p className="text-xs text-muted-foreground">{tool.name}</p>
-          <CommandBlock p={p} command={tool.command} />
-        </div>
-      ))}
-      <p className="text-xs text-muted-foreground">{step.note}</p>
-    </CollapsibleContent>
-  </Collapsible>
+  <div className="flex flex-col gap-4">
+    {/* pt-3 matches a code block's padding, so the step number lines up */}
+    <p className="pt-3">
+      {step.title} <span className="text-muted-foreground">if missing</span>
+    </p>
+    {step.tools.map((tool) => (
+      <div key={tool.command.id} className="flex flex-col gap-2">
+        <p className="text-xs text-muted-foreground">{tool.name}</p>
+        <CommandBlock p={p} command={tool.command} />
+      </div>
+    ))}
+    <p className="text-xs text-muted-foreground">{step.note}</p>
+  </div>
 );
 
 const DownloadStep = ({ p }: { p: BaseIdlBuildGuideProps }) => (
@@ -252,20 +249,31 @@ const BaseIdlBuildGuide = (p: BaseIdlBuildGuideProps) => (
             it here.
           </DialogDescription>
         </DialogHeader>
-        <Segmented
+        <RadioGroup
           aria-label="IDL build method"
           value={p.method}
           onValueChange={(value) => {
             if (isIdlBuildMethod(value)) p.onMethod(value);
           }}
-          className="self-start"
+          className="grid-cols-1 gap-3 sm:grid-cols-2"
         >
           {METHODS.map((m) => (
-            <SegmentedItem key={m.value} value={m.value}>
-              {m.label}
-            </SegmentedItem>
+            <label
+              key={m.value}
+              className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-3 hover:bg-surface-hover has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+            >
+              <RadioGroupItem
+                value={m.value}
+                aria-label={m.label}
+                className="mt-0.5"
+              />
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="font-medium">{m.label}</span>
+                <span className="text-xs text-muted-foreground">{m.needs}</span>
+              </span>
+            </label>
           ))}
-        </Segmented>
+        </RadioGroup>
       </div>
       <ol
         aria-label="Steps"

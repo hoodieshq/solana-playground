@@ -73,23 +73,24 @@ stage SHALL NOT show "Download IDL", and "Build the IDL locally" SHALL take its 
 
 ### Requirement: The guide offers a Docker method and a local method
 
-The dialog SHALL hold a two-option control with the `aria-label` "IDL build method", with the options "Docker" and
-"Local toolchain", "Docker" selected when the dialog opens. Each method SHALL list numbered steps, from downloading
+The dialog SHALL hold a radio group with the `aria-label` "IDL build method", with two cards that both stay in view:
+"Docker" ("Only Docker needed") and "Local toolchain" ("Rust, Solana CLI, Anchor"), "Docker" selected when the
+dialog opens. Each method SHALL list numbered steps, from downloading
 the project to uploading the IDL, and a step SHALL be its number and its control, with no step title. Every shell
 command SHALL sit in a code block without line numbers whose long lines wrap, with a copy button whose `aria-label`
-is "Copy command" and which stays visible. The local method SHALL fold its install of Rust, the Solana CLI and Anchor
-into one step, closed when the method is shown, that lists each tool under its own name with its own copy button.
+is "Copy command" and which stays visible. The local method SHALL show its install of Rust, the Solana CLI and Anchor
+as one open step that lists each tool under its own name with its own copy button.
 Only the steps SHALL scroll: the title, the method control and the last step SHALL stay in view.
 
 #### Scenario: Switching method (manual)
 
 - **WHEN** the user selects "Local toolchain"
-- **THEN** a closed step "Install Rust, Solana CLI, Anchor if missing" and the build command replace the Docker command
+- **THEN** the step "Install Rust, Solana CLI, Anchor if missing" and the build command replace the Docker command
 
-#### Scenario: Opening the install (manual)
+#### Scenario: The install is open (manual)
 
-- **WHEN** the user opens the local method's install step
-- **THEN** it lists Rust, the Solana CLI and Anchor through `avm`, each with its own "Copy command"
+- **WHEN** the local method is shown
+- **THEN** its install step lists Rust, the Solana CLI and Anchor through `avm`, each with its own "Copy command"
 
 #### Scenario: The last step (manual)
 

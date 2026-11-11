@@ -110,15 +110,14 @@ describe("features/idl-build-guide", () => {
     expect(dialog.textContent).not.toContain("docker run");
   });
 
-  it("folds the toolchain install until it is opened", () => {
+  it("shows both methods and the toolchain install open", () => {
     const dialog = openFrom("build");
+    expect(dialog.textContent).toContain("Only Docker needed");
+    expect(dialog.textContent).toContain("Rust, Solana CLI, Anchor");
+
     pick(dialog, "Local toolchain");
-    expect(dialog.textContent).not.toContain("rustup.rs");
 
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: /Install Rust/ })
-    );
-
+    expect(dialog.textContent).toContain("rustup.rs");
     expect(dialog.textContent).toContain("rustup.rs");
     expect(dialog.textContent).toContain("release.anza.xyz");
     expect(dialog.textContent).toContain("avm install");
@@ -188,9 +187,6 @@ describe("features/idl-build-guide", () => {
   it("reports the open, the switch, and the copy, in that order", async () => {
     const dialog = openFrom("interact");
     pick(dialog, "Local toolchain");
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: /Install Rust/ })
-    );
 
     const installRust = within(dialog)
       .getByText("Rust")
