@@ -107,12 +107,13 @@ export const describeTutorial = (facts: TutorialFacts): string => {
 /**
  * The foot buttons an open question's card shows (`BaseQuestionCard`): Hint
  * until it was taken, "Type it myself" for a question that writes, which the
- * phone layout leaves out, and Skip always
+ * phone layout (every viewport under the frame's width, `phoneLayoutOf`)
+ * leaves out, and Skip always
  */
 const questionButtons = (live: Extract<Turn, { kind: "ask" }>): string => {
   const buttons: string[] = [];
   if (!live.hinted) buttons.push("Hint");
-  if (live.ask.writes) buttons.push("Type it myself (not on a phone)");
+  if (live.ask.writes) buttons.push("Type it myself (only on a wide screen)");
   if (!buttons.length) return "Skip";
   return `${buttons.join(", ")} or Skip`;
 };
@@ -176,9 +177,9 @@ const WHAT_THE_TERMINAL_RUNS =
 /**
  * What else, if anything, runs the live act outside its card. That the work
  * area has no Build or Deploy is said once, in `WHERE_ACTIONS_ARE`, not
- * here. A build or a deploy the lesson reads runs from the card alone: the terminal's `build`
- * compiles but passes no step. A call has the Call panel and a run has the
- * client file too (`PassedVia`).
+ * here. A build or a deploy the lesson reads runs from the card alone: the
+ * terminal's `build` compiles but passes no step. A call has the Call panel
+ * and a run has the client file too (`PassedVia`).
  */
 const BESIDES_THE_CARD: Record<ActBeat["act"], string> = {
   build:
@@ -484,7 +485,18 @@ if (import.meta.vitest) {
         currentFile: null,
       });
       expect(text).toContain(
-        "The step waits on its question card in this chat first: point the learner to answer it there, or to its Hint, Type it myself (not on a phone) or Skip button. The step's next card appears in this chat once it is answered."
+        "The step waits on its question card in this chat first: point the learner to answer it there, or to its Hint, Type it myself (only on a wide screen) or Skip button. The step's next card appears in this chat once it is answered."
+      );
+      expect(
+        describeTutorial({
+          definition: hello,
+          progress: freshProgress(),
+          live: asked(ask, true),
+          openFiles: [],
+          currentFile: null,
+        })
+      ).toContain(
+        "answer it there, or to its Type it myself (only on a wide screen) or Skip button."
       );
       // Step 2's question writes nothing: no Type it myself, and no Hint once taken
       const deployAsk = hello.steps[1].beats.find(
