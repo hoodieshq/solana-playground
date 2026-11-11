@@ -131,9 +131,9 @@ that says what the user pressed, or where an action started, SHALL be named
 the cross-slice check also enforces, since each slice alone would accept a
 synonym of its own.
 
-The scenarios on the cross-slice check are marked `(manual)`: the unit test
-holds them, not a Playwright test (the repository marks such scenarios
-inconsistently).
+The scenarios on the parameter checks and the cross-slice check are marked
+`(manual)`: `yarn test-types` and the unit test hold them, not a Playwright
+test (the repository marks such scenarios inconsistently).
 
 #### Scenario: A parameter is not snake_case (manual)
 
