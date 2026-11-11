@@ -185,7 +185,7 @@ import {
   reportButtonFailure,
 } from "@/shared/lib/report-button-failure";
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import { PgProgramInfo, PgWallet } from "@/utils";
+import { PgGlobal, PgProgramInfo, PgWallet } from "@/utils";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import { PgTutorial } from "@/utils/tutorial";
@@ -438,17 +438,20 @@ describe("TutorialConversation", () => {
     };
     wallet.accounts = [{ name: "Wallet 1" }];
     wallet.state = "disconnected";
-    render(
-      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Create wallet" })
-    );
-    expect(wallet.state).toBe("pg");
-    expect(PgWallet.add).not.toHaveBeenCalled();
-    expect(PgConversation.act).toHaveBeenCalledWith("s3.run");
-    wallet.accounts = [];
-    wallet.state = "setup";
+    try {
+      render(
+        <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Create wallet" })
+      );
+      expect(wallet.state).toBe("pg");
+      expect(PgWallet.add).not.toHaveBeenCalled();
+      expect(PgConversation.act).toHaveBeenCalledWith("s3.run");
+    } finally {
+      wallet.accounts = [];
+      wallet.state = "setup";
+    }
   });
 
   // HOO-2806: an immutable program's deploy failed with only Try again
@@ -492,6 +495,55 @@ describe("TutorialConversation", () => {
       uuid: null,
     });
     expect(PgConversation.act).toHaveBeenCalledWith("s2.deploy");
+  });
+
+  it("refuses a new program id while a deploy runs, and changes nothing", async () => {
+    const result: Turn = {
+      id: "result:s2.deploy:0",
+      kind: "result",
+      step: "deploy",
+      at: 9,
+      whole: true,
+      beatId: "s2.deploy",
+      act: "deploy",
+      result: {
+        act: "deploy",
+        ok: false,
+        seconds: 1,
+        reason: "not_authority",
+        message: "This program's upgrade authority is Other1…111111.",
+      },
+      took: 0,
+      planned: null,
+      open: true,
+    };
+    store.view.mockReturnValue({
+      turns: [divider, result],
+      live: result,
+      steps: onStep2.steps,
+      placeholder: "Ask about this step",
+      nextAt: null,
+      finishAt: null,
+    });
+    const global = PgGlobal as unknown as { deployState: string };
+    global.deployState = "deploying";
+    try {
+      render(
+        <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Deploy under a new program id" })
+      );
+      expect(PgProgramInfo.update).not.toHaveBeenCalled();
+      expect(PgConversation.act).not.toHaveBeenCalled();
+      expect(markUnavailableHere).toHaveBeenCalledWith(
+        expect.any(Error),
+        "wait for the run to finish"
+      );
+      expect(reportButtonFailure).toHaveBeenCalledWith("use a new program id");
+    } finally {
+      global.deployState = "ready";
+    }
   });
 
   it("judges a client run from outside the run card, until it leaves", () => {

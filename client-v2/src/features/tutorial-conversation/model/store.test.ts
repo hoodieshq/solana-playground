@@ -2237,8 +2237,30 @@ describe("PgCallPanel", () => {
       const watch = PgConversation.watchClientRuns(port);
 
       await run();
+      expect(read).toHaveBeenCalledTimes(1);
+      // Started over and back on step 3: only the restart tells this run's
+      // result from one of the new walk
       PgConversation.startOver();
       await settle();
+      PgConversation.start();
+      await settle();
+      PgConversation.pick("s1.q1", 1);
+      await settle();
+      PgConversation.act("s1.build");
+      await settle();
+      PgConversation.next();
+      await settle();
+      PgConversation.skip("s2.q2");
+      await settle();
+      PgConversation.act("s2.airdrop");
+      await settle();
+      PgConversation.act("s2.deploy");
+      await settle();
+      PgConversation.next();
+      await settle();
+      expect(PgConversation.state.engine.progress.cursor).toMatchObject({
+        stepId: "call-client",
+      });
       land(HELLO);
       await settle();
 

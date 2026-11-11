@@ -239,6 +239,21 @@ describe("a path with no file", () => {
     files.delete("tests/x.test.ts");
   });
 
+  it("runs an empty file rather than calling it missing", async () => {
+    files.set("/client/empty.ts", "");
+    runtime.execute.mockResolvedValueOnce({ ok: true });
+    try {
+      await expect(execute("empty.ts")).resolves.toEqual({ ok: true });
+      expect(runtime.execute).toHaveBeenCalledWith({
+        fileName: "empty.ts",
+        code: "",
+        isTest: false,
+      });
+    } finally {
+      files.delete("/client/empty.ts");
+    }
+  });
+
   it("is refused before the run says it is running, and runs nothing", async () => {
     const { PgTerminal } = await import("../../utils");
     vi.mocked(PgTerminal.println).mockClear();

@@ -432,9 +432,9 @@ const newProgramId = (beatId: string) => {
       (t) => t.kind === "act" && t.state === "running"
     );
   if (busy) {
-    reportButtonFailure("use a new program id")(
-      new Error("A run is in progress. Wait for it to finish.")
-    );
+    const refused = new Error("A run is in progress.");
+    markUnavailableHere(refused, "wait for the run to finish");
+    reportButtonFailure("use a new program id")(refused);
     return;
   }
   // eslint-disable-next-line unicorn/no-null -- `null` clears the persisted values in program-info.json
