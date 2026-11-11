@@ -204,7 +204,7 @@ export class BpfLoaderUpgradeable {
       /**
        * A write the cluster refused for a reason other than a rate limit, with the cluster's message: called for the
        * first such write of each round. Its refused chunks are sent again in the next round, unless the load is
-       * stopped or gives up after rounds that land nothing.
+       * stopped or gives up after rounds that land nothing. A round that reports a refusal skips `onRateLimit`.
        */
       onRefusal?: (message: string) => void;
     } & SendOption
@@ -331,7 +331,8 @@ export class BpfLoaderUpgradeable {
       if (rateLimitReason) {
         // TODO: Make use of the `Retry-After` response header
         const retryAfter = 10; // this is what `Retry-After` returns currently
-        opts?.onRateLimit?.(retryAfter, rateLimitReason);
+        // One line a round: a round whose refusal is already in the terminal waits without a second one
+        if (!refusalReported) opts?.onRateLimit?.(retryAfter, rateLimitReason);
         await pause(retryAfter * 1000);
         if (opts?.abortController?.signal.aborted) return;
       }

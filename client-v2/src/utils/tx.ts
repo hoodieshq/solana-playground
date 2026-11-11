@@ -33,6 +33,18 @@ type Transactionable =
   | PgWeb3.Transaction
   | Arrayable<PgWeb3.TransactionInstruction>;
 
+/** Answers to a send that `PgTx.send` meets by signing again with a fresh blockhash */
+const RESENT_ON = [
+  "This transaction has already been processed",
+  "Blockhash not found",
+];
+
+/**
+ * Sends with a fresh blockhash after one of {@link RESENT_ON}, at most: a cluster that still answers so is stalled
+ * or behind, and the error then reaches the caller, whose own retries (a deploy's rounds and its stall limit) see it
+ */
+const MAX_FRESH_BLOCKHASH_SENDS = 3;
+
 export class PgTx {
   /** All transaction event names */
   static readonly events = {
@@ -61,10 +73,20 @@ export class PgTx {
    * @param txable transaction to send
    * @param opts send options
    * @returns the transaction signature
+   * @throws the RPC's error, also a "Blockhash not found" or "already processed" one that is still answered after
+   * {@link MAX_FRESH_BLOCKHASH_SENDS} sends with a fresh blockhash
    */
   static async send(
     txable: Transactionable,
     opts?: TransactionSendOptions
+  ): Promise<string> {
+    return await this._send(txable, { ...opts, resent: 0 });
+  }
+
+  /** {@link PgTx.send}, after `opts.resent` sends with a fresh blockhash */
+  private static async _send(
+    txable: Transactionable,
+    opts: TransactionSendOptions & { resent: number }
   ): Promise<string> {
     const { connection, tx } = await this._prepareTx(txable, opts);
 
@@ -78,14 +100,15 @@ export class PgTx {
       });
     } catch (e: any) {
       if (
-        e.message.includes("This transaction has already been processed") ||
-        e.message.includes("Blockhash not found")
+        opts.resent < MAX_FRESH_BLOCKHASH_SENDS &&
+        RESENT_ON.some((answer) => e.message.includes(answer))
       ) {
         // Reset signatures
         tx.signatures = [];
-        return await this.send(tx, {
+        return await this._send(tx, {
           ...opts,
           forceFetchLatestBlockhash: true,
+          resent: opts.resent + 1,
         });
       }
 

@@ -31,12 +31,19 @@ The browser reports an RPC that is down, and a 429 sent without CORS headers, th
 - **WHEN** a deploy to Localnet is writing its buffer and the local validator stops
 - **THEN** the terminal prints "Warning: The cluster refused a buffer write (Failed to fetch), sending it again..."
 
-### Requirement: A rate-limited write prints no refusal line
+### Requirement: A round prints one line for its refusals and rate limits
 
 A buffer write the RPC answers with a rate limit it names (an HTTP 429 or a provider's rate-limit error) SHALL print
-the "Reached rate-limits" line only, and no refusal line.
+the "Reached rate-limits" line, and no refusal line. A round SHALL print one of the two lines at most: the first that
+happens. A round that printed the refusal line and is then rate-limited SHALL print no rate-limit line, and SHALL
+still wait out the rate limit before the next round.
 
 #### Scenario: A rate limit prints no refusal line (manual)
 
 - **WHEN** the RPC answers a buffer write with a rate limit
 - **THEN** the terminal prints "Warning: Reached rate-limits" and no refusal line
+
+#### Scenario: A refusal and then a rate limit print one line (manual)
+
+- **WHEN** the cluster refuses a buffer write and later in the same round the RPC rate-limits another
+- **THEN** the terminal prints the refusal line only, and the next round starts after the rate-limit wait

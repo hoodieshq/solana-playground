@@ -509,6 +509,27 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     expect(onRefusal.mock.calls).toEqual([["Failed to fetch"]]);
   });
 
+  it("prints one line for a round with a refusal and then a rate limit: the refusal", async () => {
+    const answers = [
+      () => new Error("Insufficient funds for fee"),
+      rateLimited,
+    ];
+    chain.failures = 2;
+    chain.failWith = () => (answers.shift() ?? rateLimited)();
+    const onRefusal = vi.fn();
+    const onRateLimit = vi.fn();
+
+    const sentAt = await loadWith(
+      { loadConcurrency: 1, writesPerSecond: 1000, onRefusal, onRateLimit },
+      3
+    );
+
+    expect(onRefusal.mock.calls).toEqual([["Insufficient funds for fee"]]);
+    expect(onRateLimit).not.toHaveBeenCalled();
+    // The round still waits out the rate limit
+    expect(sentAt[2] - sentAt[1]).toBeGreaterThanOrEqual(10_000);
+  });
+
   it("leaves a rate-limited write to onRateLimit, not onRefusal", async () => {
     chain.failures = 1;
     chain.failWith = rateLimited;

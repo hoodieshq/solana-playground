@@ -44,7 +44,7 @@ vi.mock("../../../../utils", () => {
       BpfLoaderUpgradeableProgram: { getBufferAccountSize: (n: number) => n },
       PublicKey: class {},
     },
-    PgTerminal: { println },
+    PgTerminal: { println, warning: (text: string) => `warning: ${text}` },
   };
 });
 vi.mock("../../../../commands/deploy/bpf-loader-upgradeable", () => ({
@@ -105,12 +105,16 @@ describe("realDeployPort().writeBuffer", () => {
     expect(loader.loadBuffer.mock.calls[0][2]).toMatchObject({ onWrite });
   });
 
-  it("prints a write the cluster refused in the terminal, with its message", async () => {
+  it("prints a refused write and a rate limit as warnings, as the Deploy stage does", async () => {
     loader.loadBuffer.mockImplementationOnce(async (...args: unknown[]) => {
-      const opts = args[2] as { onRefusal: (message: string) => void };
+      const opts = args[2] as {
+        onRefusal: (message: string) => void;
+        onRateLimit: (retryAfter: number, reason: string) => void;
+      };
       opts.onRefusal(
         "Transaction simulation failed: Insufficient funds for fee"
       );
+      opts.onRateLimit(10, "Solana RPC: Too many requests");
       return undefined;
     });
 
@@ -120,9 +124,16 @@ describe("realDeployPort().writeBuffer", () => {
       vi.fn()
     );
 
-    expect(println).toHaveBeenCalledWith(
-      "Warning: The cluster refused a buffer write (Transaction simulation failed: Insufficient funds for fee), sending it again..."
-    );
+    expect(println.mock.calls).toEqual([
+      [
+        "warning: Warning: The cluster refused a buffer write (Transaction simulation failed: Insufficient funds for fee), sending it again...",
+        { noColor: true },
+      ],
+      [
+        "warning: Warning: Reached rate-limits (Solana RPC: Too many requests), waiting 10s...",
+        { noColor: true },
+      ],
+    ]);
   });
 
   it("sends on the connection the run started on after the settings switch it", async () => {

@@ -353,11 +353,18 @@ export const realDeployPort = (): DeployPort => {
           wallet: payer,
           connection: conn,
           onWrite,
+          // Warnings, as the Deploy stage prints them
           onRateLimit: (retryAfter, reason) =>
             PgTerminal.println(
-              `Warning: Reached rate-limits (${reason}), waiting ${retryAfter}s...`
+              PgTerminal.warning(
+                `Warning: Reached rate-limits (${reason}), waiting ${retryAfter}s...`
+              ),
+              { noColor: true }
             ),
-          onRefusal: (message) => PgTerminal.println(refusedWriteLine(message)),
+          onRefusal: (message) =>
+            PgTerminal.println(PgTerminal.warning(refusedWriteLine(message)), {
+              noColor: true,
+            }),
         });
       } catch (e) {
         // The buffer already holds its rent: give it back before the write's
