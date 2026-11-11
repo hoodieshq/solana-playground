@@ -45,8 +45,10 @@ site, and the project's rules send agents to them.
   `project_export_failed` replace them with the same `profile` and `files`,
   plus `via`. GA4 reports on the old names stop getting data from the
   release that carries this, and their recorded data keeps its meaning.
-  `export_convert_failed` does not change. No other event in another slice
-  is renamed or removed.
+  `export_convert_failed` does not change. `settings_key_deleted` is removed:
+  Settings sends `assistant_key_deleted {via: "settings"}` instead, one event
+  for the key's deletion from either place (HOO-2752). No other event in
+  another slice is renamed or removed.
 - `openspec/config.yaml` and `client-v2/CLAUDE.md` extend the telemetry rule
   to the legacy roots and point agents at the funnel table.
 
@@ -106,9 +108,9 @@ site, and the project's rules send agents to them.
     to file); this change does not edit `wbdi-flow`.
   - Tutorial events (`tutorial-flow-v2` on `scope/tutorial-flow-2`) and
     assistant turn events (`assistant-usage-events`, #62).
-  - Sharing, which is also left out of the funnel table. The share route
-    never matches (`routes/share/share.tsx`) and nothing opens the Share
-    dialog, so no share event can fire.
+  - Sharing, which is also left out of the funnel table. client-v2 has no
+    server share route or Share dialog (`drop-server-share` removed both),
+    and gist sharing is measured by its own spec, `gist-sharing`.
   - The catalog's program import, which `catalog_item_opened` and
     `catalog_open_failed` already report.
   - The Build stage's export, which `wbdi-flow` names `build_project_exported`.
