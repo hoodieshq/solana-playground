@@ -602,7 +602,10 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
 
   it("refuses a write that never answers within 20 s, ends its round, and fails the load at the stalled-round limit", async () => {
     chain.answersAfterMs = Number.POSITIVE_INFINITY;
-    const onRefusal = vi.fn((_message: string) => Date.now());
+    const refusedAt: number[] = [];
+    const onRefusal = vi.fn<(message: string) => void>(() => {
+      refusedAt.push(Date.now());
+    });
     const bytes = new Uint8Array(8 * CHUNK_SIZE).fill(1);
     chain.data = Buffer.alloc(METADATA_SIZE + bytes.length);
     const start = Date.now();
@@ -623,7 +626,7 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     expect(onRefusal.mock.calls).toEqual(
       new Array(5).fill(["No answer in 20 s"])
     );
-    expect(onRefusal.mock.results[0].value - start).toBe(20_000);
+    expect(refusedAt[0] - start).toBe(20_000);
     // Each round sends its two workers' first writes and nothing more
     expect(chain.sentAt).toHaveLength(10);
   });
