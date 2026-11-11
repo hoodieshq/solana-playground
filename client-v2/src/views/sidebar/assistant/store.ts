@@ -66,6 +66,12 @@ export interface AssistantMode {
   name: string;
   /** Sent with every turn as a system message, after the project's state */
   context(): string;
+  /**
+   * The surface's state as it is now, sent after the thread's history, with
+   * the newest message. The history keeps that message as typed, so an older
+   * turn never carries a state that has since changed
+   */
+  now?(): string;
   /** Tools of the surface's own, offered beside the allowed ones */
   tools: readonly ToolDefinition[];
   /** Whether one of the assistant's own tools may run; a refused one answers

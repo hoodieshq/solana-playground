@@ -111,6 +111,72 @@ export const describeTutorial = (facts: TutorialFacts): string => {
 };
 
 /**
+ * The tutorial now, sent after the thread's history with the newest message
+ * (`AssistantMode.now`): where the learner is and the card the step waits
+ * on. Asked the same "what now?" again, the model repeated its earlier
+ * answers from the history over the context before it ("press Start step 1"
+ * at a live Build card, HOO-2823).
+ */
+export const describeNow = ({
+  definition,
+  progress,
+  live,
+}: Pick<TutorialFacts, "definition" | "progress" | "live">): string => {
+  const lines = [`The tutorial now: ${nowOf(definition, progress)}`];
+  const waits = waitsOn(definition, live);
+  if (waits) lines.push(waits);
+  lines.push(
+    "Earlier turns describe the tutorial as it was then: answer from this " +
+      "and the tutorial context, not from them."
+  );
+  return lines.join(" ");
+};
+
+const nowOf = (
+  definition: TutorialDefinition,
+  progress: ConversationProgress
+): string => {
+  const { cursor } = progress;
+  if (cursor.kind === "intro") return "they have not pressed Start yet.";
+  if (cursor.kind === "finished") return "they finished every step.";
+  const i = definition.steps.findIndex((s) => s.id === cursor.stepId);
+  const step = definition.steps[i];
+  if (!step) return "they are in a step this tutorial no longer has.";
+  return `step ${i + 1} of ${definition.steps.length}, ${step.title}.`;
+};
+
+/** The card the step waits on, in one sentence, or "" when none acts */
+const waitsOn = (definition: TutorialDefinition, live: Turn | null): string => {
+  if (live?.kind === "ask" && live.open) {
+    return `It waits on the open question: "${textOf(live.ask.question)}".`;
+  }
+  if (live?.kind === "act") {
+    let state = "";
+    if (live.state === "running") state = " It is running now.";
+    if (live.state === "interrupted") {
+      state = " A reload interrupted its last run; pressing it runs it again.";
+    }
+    return (
+      `It waits for the "${live.act.button}" button on the ` +
+      `"${live.act.title}" card.${state}`
+    );
+  }
+  if (live?.kind === "win") {
+    const i = definition.steps.findIndex((s) => s.id === live.stepId);
+    const next = i === -1 ? undefined : definition.steps[i + 1];
+    if (live.last || !next) return "The last step is done.";
+    return (
+      "The step is done: the next one opens from the " +
+      `"${nextStepLabel(next.title)}" button.`
+    );
+  }
+  if (live?.kind === "result" && live.open) {
+    return "It waits on the failed result's card.";
+  }
+  return "";
+};
+
+/**
  * The foot buttons an open question's card shows (`BaseQuestionCard`): Hint
  * until it was taken, "Type it myself" for a question that writes, which the
  * phone layout (every viewport under the frame's width, `phoneLayoutOf`)
@@ -733,6 +799,79 @@ if (import.meta.vitest) {
         expectEveryContext(text);
         expect(text).toContain("there is no yarn, npm or npx");
       }
+    });
+
+    it("says where the tutorial is now and the card it waits on, and that earlier turns are older (HOO-2823)", () => {
+      // Only the fields `describeNow` reads
+      const turn = (fields: Record<string, unknown>) =>
+        fields as unknown as Turn;
+      const inStep = freshProgress();
+      inStep.startedAt = 1000;
+      inStep.cursor = {
+        kind: "step",
+        stepId: hello.steps[0].id,
+        beat: 0,
+        fail: false,
+      };
+      const now = (progress: ConversationProgress, live: Turn | null) =>
+        describeNow({ definition: hello, progress, live });
+      const older =
+        "Earlier turns describe the tutorial as it was then: answer from " +
+        "this and the tutorial context, not from them.";
+
+      expect(now(freshProgress(), turn({ kind: "intro" }))).toBe(
+        `The tutorial now: they have not pressed Start yet. ${older}`
+      );
+
+      const ask = hello.steps[0].beats.find((b) => b.kind === "ask");
+      const build = hello.steps[0].beats.find(
+        (b): b is ActBeat => b.kind === "act"
+      );
+      if (ask?.kind !== "ask" || !build) {
+        throw new Error("Hello Anchor's first step has no question or act");
+      }
+      const where = `The tutorial now: step 1 of 4, ${hello.steps[0].title}.`;
+      expect(
+        now(inStep, turn({ kind: "ask", open: true, beatId: ask.id, ask }))
+      ).toBe(
+        `${where} It waits on the open question: "${textOf(
+          ask.question
+        )}". ${older}`
+      );
+      const act = (state: string) =>
+        now(inStep, turn({ kind: "act", beatId: build.id, act: build, state }));
+      expect(act("live")).toBe(
+        `${where} It waits for the "${build.button}" button on the "${build.title}" card. ${older}`
+      );
+      expect(act("running")).toContain("card. It is running now.");
+      expect(act("interrupted")).toContain(
+        "A reload interrupted its last run; pressing it runs it again."
+      );
+      expect(
+        now(
+          inStep,
+          turn({ kind: "win", stepId: hello.steps[0].id, last: false })
+        )
+      ).toBe(
+        `${where} The step is done: the next one opens from the "${nextStepLabel(
+          hello.steps[1].title
+        )}" button. ${older}`
+      );
+      expect(
+        now(
+          inStep,
+          turn({ kind: "win", stepId: hello.steps[3].id, last: true })
+        )
+      ).toContain("The last step is done.");
+      expect(now(inStep, turn({ kind: "result", open: true }))).toContain(
+        "It waits on the failed result's card."
+      );
+      expect(now(inStep, null)).toBe(`${where} ${older}`);
+      const done = freshProgress();
+      done.cursor = { kind: "finished" };
+      expect(now(done, null)).toBe(
+        `The tutorial now: they finished every step. ${older}`
+      );
     });
   });
 }
