@@ -8,6 +8,7 @@ import { PgSession } from "../../features/auth";
 import {
   faucetClosedLineFor,
   faucetUrlFor,
+  isFaucetClosed,
   isFaucetCluster,
 } from "../../shared/lib/faucet";
 import { createLogger } from "../../shared/lib/logger";
@@ -82,8 +83,9 @@ export const automaticAirdrop = () => {
           return;
         }
         // The airdrop's line for a closed faucet already links the web
-        // faucet, with the wallet's address: the log names the reason instead
-        const hasLinkedFaucet = isFaucetKnownClosed(getAirdropEndpoint());
+        // faucet, with the wallet's address: the log names the reason instead.
+        // Read from the error, not the endpoint, which may have changed since
+        const hasLinkedFaucet = e instanceof Error && isFaucetClosed(e.message);
         // Off for this cluster until a reload; the terminal said why
         log.warn("automatic airdrop failed, off for this cluster", {
           context: {

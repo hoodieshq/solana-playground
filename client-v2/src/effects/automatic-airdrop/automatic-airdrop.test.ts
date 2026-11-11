@@ -191,8 +191,25 @@ describe("automaticAirdrop", () => {
         fresh.closed.rememberFaucetClosed(DEVNET_RPC);
         throw new Error(LINE);
       });
-      await fresh.pass();
+      const logger = await import("@/shared/lib/logger");
+      const logged = logger.memoryProvider();
+      logger.initLogger({ providers: [logged] });
+      // The logger hands a new provider what it kept from before
+      const earlier = logged.entries.length;
+      try {
+        await fresh.pass();
+      } finally {
+        logger.resetLogger();
+      }
 
+      // The log names the reason, never the line with the wallet's address
+      const entries = logged.entries.slice(earlier);
+      expect(entries).toEqual([
+        expect.objectContaining({
+          level: "warn",
+          context: { cluster: "devnet", error: "faucet closed" },
+        }),
+      ]);
       const note = String(fresh.println.mock.calls.at(-1)?.[0]);
       expect(note).toContain("automatic airdrop request");
       expect(note).not.toContain("faucet.solana.com");

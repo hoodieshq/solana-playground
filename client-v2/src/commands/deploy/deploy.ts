@@ -420,7 +420,7 @@ const processDeploy = async (
       // stack go to the logs, where a faucet regression can be found. A
       // closed faucet is expected: a warning, never a report, and without
       // the line, which carries the wallet's address
-      if (e instanceof Error && isFaucetClosed(e.message)) {
+      if (e instanceof TerminalLineError && isFaucetClosed(e.message)) {
         log.warn("The faucet is closed", {
           context: { what: "stage deploy airdrop" },
         });

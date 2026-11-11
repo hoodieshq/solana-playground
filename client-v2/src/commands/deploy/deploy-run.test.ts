@@ -4,6 +4,7 @@ import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
 
 import { PgSession } from "../../features/auth";
 import { PgCommand, PgProgramInfo, PgTerminal } from "../../utils";
+import { TerminalLineError } from "../../utils/terminal/line-error";
 import {
   forgetFaucetClosed,
   rememberFaucetClosed,
@@ -425,7 +426,7 @@ describe("deploy run", () => {
       balance.mockResolvedValueOnce(0);
       const line = `The devnet RPC faucet is closed. Request test SOL at https://faucet.solana.com/?walletAddress=${WALLET}&cluster=devnet`;
       vi.mocked(PgCommand.airdrop.execute).mockRejectedValueOnce(
-        new Error(line)
+        new TerminalLineError(line)
       );
 
       const run = PgDeployRun.runWith(answers(true))(handleDeploy);
