@@ -1,11 +1,17 @@
 /* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
-import type { ActBeat, TutorialDefinition } from "@/entities/tutorial";
+import type {
+  ActBeat,
+  ActionWord,
+  TutorialDefinition,
+} from "@/entities/tutorial";
 import type {
   ConversationProgress,
   RunRecord,
   RunResult,
   Turn,
 } from "@/features/tutorial-conversation";
+
+import { nextStepLabel, QUESTION_BUTTONS, stepDoneLabel } from "./card-labels";
 
 /**
  * The names of the tutorial mode's own tools, declared once: the tools
@@ -112,10 +118,11 @@ export const describeTutorial = (facts: TutorialFacts): string => {
  */
 const questionButtons = (live: Extract<Turn, { kind: "ask" }>): string => {
   const buttons: string[] = [];
-  if (!live.hinted) buttons.push("Hint");
-  if (live.ask.writes) buttons.push("Type it myself (only on a wide screen)");
-  if (!buttons.length) return "Skip";
-  return `${buttons.join(", ")} or Skip`;
+  const { hint, typeIt, skip } = QUESTION_BUTTONS;
+  if (!live.hinted) buttons.push(hint);
+  if (live.ask.writes) buttons.push(`${typeIt} (only on a wide screen)`);
+  if (!buttons.length) return skip;
+  return `${buttons.join(", ")} or ${skip}`;
 };
 
 const textOf = (text: string | { text: string }) =>
@@ -150,18 +157,45 @@ const whereOf = (
 };
 
 /**
- * Where the lesson's actions are, in every tutorial context. Asked "how do I
- * build?" or "what now?", the assistant sent learners to a Build or Deploy
- * action on the stage bar, which a tutorial's frame does not draw, nor its
- * Write/Build/Deploy/Interact tabs (HOO-2755, HOO-2801): the general
- * assistant context describes a project's work area, not a tutorial's.
+ * The composer's words that press the live card (`actionFor` in the
+ * conversation's `route.ts`): every `ActionWord` but the start words, which
+ * the type checks both ways. The list itself stays out of the conversation's
+ * entry, whose import loads code that needs the build's globals
+ */
+const CARD_WORDS: Record<Exclude<ActionWord, "start">, true> = {
+  build: true,
+  deploy: true,
+  run: true,
+  call: true,
+  next: true,
+  explain: true,
+};
+
+/** "a, b or c" */
+const listOf = (words: readonly string[]): string =>
+  words.length > 1
+    ? `${words.slice(0, -1).join(", ")} or ${words[words.length - 1]}`
+    : words.join("");
+
+/**
+ * Where the lesson's actions are, in every tutorial context: the cards, the
+ * composer's words that press the live one (`CARD_WORDS`), and the work
+ * area's two other ways.
+ * Asked "how do I build?" or "what now?", the assistant sent learners to a
+ * Build or Deploy action on the stage bar, which a tutorial's frame does not
+ * draw, nor its Write/Build/Deploy/Interact tabs (HOO-2755, HOO-2801): the
+ * general assistant context describes a project's work area, not a
+ * tutorial's.
  */
 const WHERE_ACTIONS_ARE =
   "The lesson's actions (build, deploy, airdrop, run, call) are buttons on " +
   "cards in the tutorial feed, in this chat: the work area has no Build, " +
-  "Deploy or Interact action or tab in a tutorial. Besides the cards, only " +
-  "the Call panel in the work area's head, once the program is deployed, " +
-  "and running the client file act.";
+  "Deploy or Interact action or tab in a tutorial. A message that is only " +
+  `one of the words ${listOf(Object.keys(CARD_WORDS))} presses the live ` +
+  "card's button too, except while a question is open, while the card " +
+  "runs, or on a call card with a field to fill. In the work area, only " +
+  "the Call panel in its head, once the program is deployed, and running " +
+  "the client file act.";
 
 /**
  * What the terminal runs: Playground's own commands (`src/commands`), not a
@@ -227,8 +261,10 @@ const whereNextIs = (
     return "The last step is done: the finish card follows in this chat by itself.";
   }
   return (
-    `The step is done: the "Step ${i + 1} done" card in this chat has the ` +
-    `"Next: ${next.title}" button, which opens the next step. Point the ` +
+    `The step is done: the "${stepDoneLabel(i + 1)}" card in this chat has ` +
+    `the "${nextStepLabel(
+      next.title
+    )}" button, which opens the next step. Point the ` +
     "learner to that button."
   );
 };
@@ -277,8 +313,23 @@ if (import.meta.vitest) {
   const { describe, it, expect, beforeAll } = import.meta.vitest;
 
   describe("widgets/tutorial-conversation/model/context", () => {
-    const NO_WORK_AREA_ACTION =
-      "The lesson's actions (build, deploy, airdrop, run, call) are buttons on cards in the tutorial feed, in this chat: the work area has no Build, Deploy or Interact action or tab in a tutorial. Besides the cards, only the Call panel in the work area's head, once the program is deployed, and running the client file act.";
+    /** The key phrases of where the actions are and what the terminal runs */
+    const expectEveryContext = (text: string) => {
+      expect(text).toContain("buttons on cards in the tutorial feed");
+      expect(text).toContain("no Build, Deploy or Interact action or tab");
+      expect(text).toContain(
+        "build, deploy, run, call, next or explain presses the live card's button"
+      );
+      expect(text).toContain("except while a question is open");
+      expect(text).toContain("on a call card with a field to fill");
+      expect(text).toContain(
+        "only the Call panel in its head, once the program is deployed"
+      );
+      expect(text).toContain("running the client file");
+      expect(text).toContain("Playground's own commands");
+      expect(text).toContain("there is no yarn, npm or npx");
+      expect(text).toContain("a command typed there passes no step");
+    };
     let hello: TutorialDefinition;
     beforeAll(async () => {
       hello = (await import("../../../tutorials/hello-anchor/tutorial.json"))
@@ -321,10 +372,7 @@ if (import.meta.vitest) {
       expect(text).toContain(`Objective: ${hello.steps[1].objective}.`);
       expect(text).toContain("in front: programs/hello/src/lib.rs");
       expect(text).toContain("you cannot change files, build, deploy");
-      expect(text).toContain(NO_WORK_AREA_ACTION);
-      expect(text).toContain(
-        "The terminal runs Playground's own commands (build, deploy, run, test, airdrop, solana, anchor, spl-token, help and a few more), not a shell: there is no yarn, npm or npx. In a tutorial a command typed there passes no step, except where this context says so."
-      );
+      expectEveryContext(text);
       expect(text).toContain(
         `Steps after this one: ${hello.steps[2].title} (3 of 4), ${hello.steps[3].title} (4 of 4).`
       );
@@ -413,7 +461,7 @@ if (import.meta.vitest) {
       expect(text).toContain(
         "It is the only build the lesson reads: a build typed in the terminal passes no step."
       );
-      expect(text.split(NO_WORK_AREA_ACTION)).toHaveLength(2);
+      expect(text.split("the work area has no")).toHaveLength(2);
       expect(text).not.toContain("It is running now.");
       expect(text).not.toContain("A reload interrupted");
       expect(describeTutorial(facts(card(build, "running")))).toContain(
@@ -484,9 +532,11 @@ if (import.meta.vitest) {
         openFiles: [],
         currentFile: null,
       });
+      expect(text).toContain("The step waits on its question card");
       expect(text).toContain(
-        "The step waits on its question card in this chat first: point the learner to answer it there, or to its Hint, Type it myself (only on a wide screen) or Skip button. The step's next card appears in this chat once it is answered."
+        "Hint, Type it myself (only on a wide screen) or Skip button"
       );
+      expect(text).toContain("next card appears in this chat");
       expect(
         describeTutorial({
           definition: hello,
@@ -495,9 +545,7 @@ if (import.meta.vitest) {
           openFiles: [],
           currentFile: null,
         })
-      ).toContain(
-        "answer it there, or to its Type it myself (only on a wide screen) or Skip button."
-      );
+      ).toContain("its Type it myself (only on a wide screen) or Skip button");
       // Step 2's question writes nothing: no Type it myself, and no Hint once taken
       const deployAsk = hello.steps[1].beats.find(
         (b): b is import("@/entities/tutorial").Ask => b.kind === "ask"
@@ -511,13 +559,9 @@ if (import.meta.vitest) {
           openFiles: [],
           currentFile: null,
         });
-      expect(buttonsOf(false)).toContain(
-        "answer it there, or to its Hint or Skip button."
-      );
-      expect(buttonsOf(true)).toContain(
-        "answer it there, or to its Skip button."
-      );
-      expect(text).toContain(NO_WORK_AREA_ACTION);
+      expect(buttonsOf(false)).toContain("its Hint or Skip button");
+      expect(buttonsOf(true)).toContain("its Skip button");
+      expectEveryContext(text);
       expect(text).toContain("Do not give its answer away");
       expect(text).toContain(`${TOOLS.hint} posts the lesson's own hint`);
       expect(text).toContain(
@@ -555,10 +599,9 @@ if (import.meta.vitest) {
         openFiles: [],
         currentFile: null,
       });
-      expect(text).toContain(
-        `The step is done: the "Step 1 done" card in this chat has the "Next: ${hello.steps[1].title}" button, which opens the next step. Point the learner to that button.`
-      );
-      expect(text).toContain(NO_WORK_AREA_ACTION);
+      expect(text).toContain(`the "Step 1 done" card in this chat`);
+      expect(text).toContain(`"Next: ${hello.steps[1].title}" button`);
+      expectEveryContext(text);
       const lastStep = hello.steps[hello.steps.length - 1].id;
       expect(
         describeTutorial({
@@ -568,9 +611,7 @@ if (import.meta.vitest) {
           openFiles: [],
           currentFile: null,
         })
-      ).toContain(
-        "The last step is done: the finish card follows in this chat by itself."
-      );
+      ).toContain("the finish card follows in this chat");
       // The last step without its flag, and a step the tutorial no longer has
       for (const stepId of [lastStep, "gone"]) {
         expect(
@@ -581,9 +622,7 @@ if (import.meta.vitest) {
             openFiles: [],
             currentFile: null,
           })
-        ).toContain(
-          "The last step is done: the finish card follows in this chat by itself."
-        );
+        ).toContain("the finish card follows in this chat");
       }
     });
 
@@ -624,9 +663,7 @@ if (import.meta.vitest) {
           openFiles: [],
           currentFile: null,
         })
-      ).toContain(
-        "The step waits on the failed result's card in this chat: point the learner to its buttons."
-      );
+      ).toContain("The step waits on the failed result's card");
     });
 
     it("names the last result, a failed build with its error", () => {
@@ -693,7 +730,7 @@ if (import.meta.vitest) {
       expect(facts(gone)).toContain("a step this tutorial no longer has");
       expect(facts(gone)).not.toContain("This is the last step.");
       for (const text of [facts(freshProgress()), facts(done), facts(gone)]) {
-        expect(text).toContain(NO_WORK_AREA_ACTION);
+        expectEveryContext(text);
         expect(text).toContain("there is no yarn, npm or npx");
       }
     });
