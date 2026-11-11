@@ -111,10 +111,10 @@ const MAX_BUFFER_READS = 30;
 
 const BUFFER_READ_INTERVAL_MS = 1000;
 
-/** A fetch the browser failed, which is how it reports a 429 sent without CORS headers */
 /** How Chrome, Safari and Firefox word a fetch they could not make */
 const FETCH_FAILURE = /Failed to fetch|Load failed|NetworkError/i;
 
+/** A fetch the browser failed, which is how it reports a 429 sent without CORS headers */
 const isFetchFailure = (e: unknown) =>
   e instanceof TypeError && FETCH_FAILURE.test(e.message);
 

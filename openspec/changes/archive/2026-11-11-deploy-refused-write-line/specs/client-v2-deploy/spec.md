@@ -6,7 +6,7 @@
 
 While a deploy writes its buffer, the first write in each round that the cluster refuses SHALL print one warning line:
 "Warning: The cluster refused a buffer write ({message}), sending it again...". {message} is the first line of the
-cluster's message for the refusal, or of the error's message when the cluster sent none, cut to 200 characters. Further refusals in the same
+cluster's message for the refusal, or of the error's message when the cluster sent none, cut to 200 characters and ended with an ellipsis. Further refusals in the same
 round SHALL print nothing more, and a send that fails after the deploy is stopped SHALL print nothing. This holds for
 the Deploy stage, the terminal and a tutorial's deploy.
 
