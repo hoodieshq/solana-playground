@@ -75,7 +75,7 @@ describe("BaseDeployResultCard", () => {
       line: /Switch to the wallet that deployed it/,
     },
   ])(
-    "a $reason refusal says so and offers a new program id",
+    "the $reason refusal says so and offers a new program id",
     async ({ reason, title, line }) => {
       const onNewProgramId = vi.fn();
       card(

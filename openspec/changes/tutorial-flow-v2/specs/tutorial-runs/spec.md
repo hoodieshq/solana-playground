@@ -291,7 +291,13 @@ build whose card closed on "I'll fix it myself", or on Explain once the
 answer ended, SHALL be followed by "Build again" with "Fix the error, then
 build again."; a planned failure goes on to the step's fix question instead.
 A run or call that found no wallet SHALL offer Create wallet, which makes the
-Playground wallet and runs the act again.
+Playground wallet and runs the act again. A deploy or build-and-deploy the
+program on chain refuses before any SOL is locked SHALL say why and offer
+"Deploy under a new program id", which gives the workspace a new program
+keypair and runs the act again, building for it: "Not upgradable" when the
+program can no longer be upgraded, and "Not your program" when another
+wallet holds its upgrade authority, which also keeps "Try again" with
+"Switch to the wallet that deployed it, then try again".
 
 #### Scenario: Fixing an unplanned build error yourself (manual)
 
@@ -301,6 +307,14 @@ Playground wallet and runs the act again.
   again." with "Build again" follows
 - **AND** after the fix, Build again builds and a passing build passes the
   step
+
+#### Scenario: A program that can no longer be upgraded (manual)
+
+- **WHEN** step 4's build and deploy finds the program on chain immutable
+- **THEN** the card reads "Not upgradable" and offers "Deploy under a new
+  program id", with no Try again
+- **AND** the press builds for a new program id and deploys it to a fresh
+  address
 
 #### Scenario: A run with no wallet (manual)
 

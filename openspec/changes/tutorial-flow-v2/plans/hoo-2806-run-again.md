@@ -81,6 +81,33 @@ beyond the run and call ones above:
 - A run or call with no wallet: `BaseTxResultCard`'s "No wallet" card gets
   the deploy card's Create wallet, wired to the same `createWallet` handler.
 
-The HOO-2356 refusals (immutable program, wrong authority) are `failed`
-deploys, so they keep Try again with the refusal as the card's message; a
-reason of their own stays with HOO-2356.
+## Refusals a retry cannot fix (round 3)
+
+HOO-2356 left a TODO in `retryOf`: the deploy runner's immutable-program and
+wrong-authority refusals were `failed`, so their only way on was Try again.
+
+- `RunResult`: the deploy/airdrop failure gets `immutable` and
+  `not_authority`; `blocker` in `runners/deploy.ts` returns them (the
+  workspace without its keypair stays `failed`). `outcomeOf` reports both as
+  `failed`, so `tutorial_action_run` keeps its values.
+- `BaseDeployResultCard`: "Not upgradable" ("This program can no longer be
+  upgraded, so the new code can't go to its address. Deploy it under a new
+  program id: it builds again and ships to a fresh address.") and "Not your
+  program" (the runner's line, then "Switch to the wallet that deployed it
+  and press Try again, or deploy it under a new program id."), each with
+  "Deploy under a new program id".
+- The button (`newProgramId` in `TutorialConversation.tsx`) makes a new
+  program keypair as the keypair panel's Generate does, clears the build id
+  so the deploy builds again with the new `declare_id!`, and runs the act.
+- `retryOf`: `not_authority` gets Try again with "Switch to the wallet that
+  deployed it, then try again"; `immutable` none, the card's button is the
+  way on.
+
+## The run record through Zod (round 3)
+
+`parseRun` in `progress.ts` reads the record's envelope with
+`runRecordSchema` (a discriminated union on `status`): times are numbers,
+and a failed run's `planned` and its moments (`explainedAt`, `answeredAt`,
+`fixedAt`, `selfFixAt`) are each dropped alone when they do not read, as the
+hand-written checks did. The result inside stays `parseResult`'s. Old saves
+load unchanged; the parse test round-trips them.
