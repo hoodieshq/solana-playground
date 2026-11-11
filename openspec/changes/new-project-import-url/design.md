@@ -57,13 +57,16 @@ rate-limit reset time, "open your copy / fresh copy".
    `GistImportError.reason` for a gist, from the error class for a repository
    (`GithubNotFoundError` → `not-found`), and from the message's known shapes
    for the rest of `PgGithub`'s plain errors (rate limit, too large, no
-   program), `request-failed` otherwise. The funnel's `project_imported`
+   program, and a refusal or server error as `network`). A rejected `fetch`
+   (`TypeError`) and the gist import's `request-failed` are `network` too:
+   GitHub's to fix, the user's to retry, logged as warnings. Only
+   `unexpected`, anything else, is reported. The funnel's `project_imported`
    stays with `funnel-events`, which owns it.
 
 ## Risks / Trade-offs
 
 - `PgGithub`'s other errors are still plain `Error`s, so their `reason` is
-  read from the message: a copy change there drops to `request-failed` in
+  read from the message: a copy change there drops to `unexpected` (and a report) in
   telemetry, never in what the user sees.
 - The e2e stubs GitHub with `page.route`, as `project-without-program` does;
   it proves the wiring, not GitHub's live answers.

@@ -233,6 +233,16 @@ describe("PgGithub.getFiles", () => {
     expect((error as Error).message).toMatch(/may be private/);
   });
 
+  it("keeps any other failed answer a plain error", async () => {
+    mockFetch(() => ({ status: 500, body: "" }));
+
+    const error = await PgGithub.getFiles("https://github.com/acme/x").catch(
+      (e: unknown) => e
+    );
+    expect(error).not.toBeInstanceOf(GithubNotFoundError);
+    expect((error as Error).message).toMatch(/failed with status 500/);
+  });
+
   it("refuses to import a partially listed repository", async () => {
     mockFetch(() => treeResponse(["src/lib.rs"], true));
 

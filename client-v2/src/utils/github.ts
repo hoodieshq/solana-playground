@@ -57,8 +57,10 @@ export class ImportCancelledError extends Error {
 }
 
 /**
- * Thrown when GitHub answers 404 for a repository: private and missing look
- * the same to a request without an account, so the message says both
+ * Thrown when GitHub answers 404 for a repository's tree: a private
+ * repository, a missing one, or a branch the link names that does not exist
+ * all look the same to a request without an account. A 404 for one file of a
+ * tree that exists stays a plain `Error`.
  */
 export class GithubNotFoundError extends Error {
   readonly owner: string;

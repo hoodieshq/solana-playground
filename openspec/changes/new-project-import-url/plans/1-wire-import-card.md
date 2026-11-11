@@ -14,7 +14,7 @@
 
 - Copy, verbatim: `This isn't a GitHub repo or gist link.` · `Playground can't find <owner>/<repo> on GitHub. It may be private, renamed or deleted.` · label `Import from GitHub` · placeholder `Paste a GitHub repo or gist link` · button `Import` / `Importing…`.
 - `features/` never imports `widgets/`; the toast after the page closed stays in `widgets/catalog`.
-- Events: `new_project_imported {source: "github"|"gist"}`, `new_project_import_failed {source: "github"|"gist"|"unknown", reason: "bad-link"|"not-found"|"rate-limited"|"too-large"|"no-program"|"invalid"|"request-failed"}`.
+- Events: `new_project_imported {source: "github"|"gist"}`, `new_project_import_failed {source: "github"|"gist"|"unknown", reason: "bad-link"|"not-found"|"rate-limited"|"too-large"|"no-program"|"invalid"|"network"|"unexpected"}`.
 - `GithubNotFoundError` keeps today's 404 message, so the explorer's dialog reads the same.
 
 ## Review Focus
@@ -44,7 +44,7 @@
 
 **Interfaces — Produces (feature, exported from its index):**
 - `type LinkSource = "github" | "gist"`
-- `type LinkImportFailure = "bad-link" | "not-found" | "rate-limited" | "too-large" | "no-program" | "invalid" | "request-failed"`
+- `type LinkImportFailure = "bad-link" | "not-found" | "rate-limited" | "too-large" | "no-program" | "invalid" | "network" | "unexpected"`
 - `type LinkImport = { outcome: "imported"; source: LinkSource } | { outcome: "cancelled" } | { outcome: "failed"; source: LinkSource | "unknown"; reason: LinkImportFailure; message: string; error?: unknown }`
 
 **Produces (widget):** `importLink(link: string): Promise<LinkImport>` — trims; gist first (`parseGistUrl`), then `PgGithub.isValidUrl`; never throws.
@@ -60,7 +60,7 @@
 **Interfaces — Produces:** `ImportFromUrlProps { importLink: (link: string) => Promise<LinkImport>; held?: boolean; onRunning?: (running: boolean) => void; onImported?: () => void; onFailed?: (message: string) => void }`, exported from the slice's `index.ts` with the type.
 
 - [ ] Tests (`importLink` a stub prop, memory telemetry provider): success → `onRunning(true)` then `(false)`, `onImported` once, `new_project_imported {source:"github"}`; while pending the field is disabled and the button `aria-busy`, reads `Importing…`; bad link → message shown, field `aria-invalid`, `new_project_import_failed {source:"unknown",reason:"bad-link"}`, `onFailed(message)`; cancel → idle, no message, no event, `onImported` not called; typing after a failure clears the message; `held` disables Import.
-- [ ] Run → FAIL. Implement like `StartFromScratch` (log `warn` for user-caused failures, `error` with `report: true` for `request-failed`). Run → PASS. Commit.
+- [ ] Run → FAIL. Implement like `StartFromScratch` (log `warn` for user-caused failures, `error` with `report: true` for `unexpected`). Run → PASS. Commit.
 
 ### Task 4: New project holds the import (tasks.md 2.2)
 

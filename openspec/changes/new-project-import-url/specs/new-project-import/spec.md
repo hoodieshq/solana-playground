@@ -55,9 +55,10 @@ SHALL clear it. The message SHALL be:
 - "Playground can't find <owner>/<repo> on GitHub. It may be private,
   renamed or deleted." when GitHub answers 404 for the repository
   (`GithubNotFoundError`);
+- "Could not reach GitHub. Check the connection and try again." when a
+  request never got an answer;
 - the import's own message for every other failure (a gist not found, the
-  rate limit, a repository too large, no Solana program and no TypeScript, no
-  connection).
+  rate limit, a repository too large, no Solana program and no TypeScript).
 
 Closing the program picker of a repository with several programs
 (`ImportCancelledError`) SHALL return the card to idle with no message.
@@ -106,7 +107,15 @@ The `features/new-project` tracker SHALL declare and send:
 - `new_project_import_failed {source, reason}` when it fails, `source` being
   `"github"`, `"gist"` or `"unknown"` (a link that is neither), and `reason`
   one of `"bad-link"`, `"not-found"`, `"rate-limited"`, `"too-large"`,
-  `"no-program"`, `"invalid"`, `"request-failed"`.
+  `"no-program"`, `"invalid"`, `"network"` (GitHub unreachable, refusing, or
+  answering with a server error) or `"unexpected"` (anything else).
+
+Only an `unexpected` failure SHALL be logged as an error with `report: true`;
+every other failure SHALL be logged as a warning. A request that never got an
+answer SHALL show "Could not reach GitHub. Check the connection and try
+again." A throw from the import itself SHALL end as an `unexpected` failure
+showing "Could not import it.", and SHALL release New project's other
+actions.
 
 A closed program picker SHALL send neither. A gist import SHALL also send
 `gist_import_*` with `from: "new-project"`, a value `GistImportSource` gains.

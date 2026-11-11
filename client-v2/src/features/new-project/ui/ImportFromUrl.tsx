@@ -2,12 +2,22 @@ import { useState } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
 
-import type { LinkImport } from "../model/link-import";
+import type { LinkImport, LinkSource } from "../model/link-import";
 import { newProjectTelemetry } from "../model/telemetry";
 import type { UrlImport } from "./BaseImportFromUrl";
 import BaseImportFromUrl from "./BaseImportFromUrl";
 
 const log = createLogger("new-project:import");
+
+/** What a failure that carries no message of its own says */
+const FALLBACK = "Could not import it.";
+
+/**
+ * The source a throw is counted under: the card cannot route the link
+ * itself (that meets two features), so it guesses from the host
+ */
+const sourceOf = (link: string): LinkSource =>
+  /gist\.github(usercontent)?\.com/i.test(link) ? "gist" : "github";
 
 export interface ImportFromUrlProps {
   /**
@@ -50,8 +60,22 @@ const ImportFromUrl = ({
 
     setStatus({ state: "importing" });
     onRunning?.(true);
-    const result = await importLink(link);
-    onRunning?.(false);
+    let result: LinkImport;
+    try {
+      result = await importLink(link);
+    } catch (error) {
+      // `importLink` answers every failure itself; a throw is a fault of
+      // ours, shown like any other so the page is never left held
+      result = {
+        outcome: "failed",
+        source: sourceOf(link),
+        reason: "unexpected",
+        message: FALLBACK,
+        error,
+      };
+    } finally {
+      onRunning?.(false);
+    }
 
     switch (result.outcome) {
       case "cancelled":
@@ -59,13 +83,16 @@ const ImportFromUrl = ({
         return;
 
       case "failed": {
-        const { source, reason, message, error } = result;
-        // A link GitHub refuses or cannot find is the user's to fix; the
-        // rest is a failure to hear about
-        if (reason === "request-failed") {
-          log.error(error ?? message, { report: true, context: { source } });
+        const { source, reason, message } = result;
+        // Only a fault of ours is reported; a link the user can fix and a
+        // GitHub that is down or refusing are theirs to retry
+        if (reason === "unexpected") {
+          log.error("error" in result ? result.error ?? message : message, {
+            report: true,
+            context: { source },
+          });
         } else {
-          log.warn("import refused", { context: { source, reason } });
+          log.warn("import refused", { context: { source, reason, message } });
         }
         newProjectTelemetry.track("new_project_import_failed", {
           source,

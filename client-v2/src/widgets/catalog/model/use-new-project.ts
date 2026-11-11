@@ -41,7 +41,8 @@ export interface NewProjectState {
  * New project's state, held by its page. Whatever opens or starts from here
  * closes the page (`close`), if this visit still shows it. A failure stays where it happened, or comes up
  * as a toast where nothing shows it: the page was left, or the failing card's
- * list is not the one shown. One Open, Start or import at a time across the page.
+ * list is not the one shown. One Open, Start or import at a time across the
+ * page.
  */
 export const useNewProject = (
   close: () => void,
@@ -140,7 +141,7 @@ export const useNewProject = (
     },
     importHeld: busy || starting,
     onImporting: setImporting,
-    // So does Import from GitHub, under Start
+    // Import sits under Start, so only a left page hides its failure too
     onImportFailed: (message) => {
       if (!open.current) toastImportFailed(message);
     },

@@ -147,7 +147,8 @@ describe("importLink says why an import failed", () => {
       "This doesn't look like a Solana program. Playground opens Anchor, native Rust and Seahorse programs.",
       "no-program",
     ],
-    ['GitHub request for "a/b" failed with status 500.', "request-failed"],
+    ['GitHub request for "a/b" failed with status 500.', "network"],
+    ['GitHub refused the request for "a/b".', "network"],
   ])("reads %s as %s, showing it as it is", async (message, reason) => {
     failWith(new Error(message));
     await expect(importLink(REPO)).resolves.toMatchObject({
@@ -158,11 +159,38 @@ describe("importLink says why an import failed", () => {
     });
   });
 
+  it("says GitHub could not be reached when the request never got an answer", async () => {
+    failWith(new TypeError("Failed to fetch"));
+    await expect(importLink(REPO)).resolves.toMatchObject({
+      outcome: "failed",
+      reason: "network",
+      message: "Could not reach GitHub. Check the connection and try again.",
+    });
+  });
+
+  it("counts a gist request GitHub failed as network, keeping its message", async () => {
+    mockImportGist.mockRejectedValueOnce(
+      new GistImportError("request-failed", "Could not reach GitHub.")
+    );
+    await expect(importLink(GIST)).resolves.toMatchObject({
+      reason: "network",
+      message: "Could not reach GitHub.",
+    });
+  });
+
+  it("calls anything else unexpected, with its message", async () => {
+    failWith(new Error("IndexedDB is closed"));
+    await expect(importLink(REPO)).resolves.toMatchObject({
+      reason: "unexpected",
+      message: "IndexedDB is closed",
+    });
+  });
+
   it("gives a throw that is not an Error a message of its own", async () => {
     failWith("boom");
     await expect(importLink(REPO)).resolves.toMatchObject({
       outcome: "failed",
-      reason: "request-failed",
+      reason: "unexpected",
       message: "Could not import it.",
     });
   });

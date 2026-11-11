@@ -144,8 +144,8 @@ it("reports a failure that is not the link's", async () => {
       importLink={async () => ({
         outcome: "failed",
         source: "github",
-        reason: "request-failed",
-        message: "GitHub request failed with status 500.",
+        reason: "unexpected",
+        message: "IndexedDB is closed",
         error: new Error("500"),
       })}
     />
@@ -185,4 +185,36 @@ it("waits while something else on the page runs", async () => {
   expect(button().disabled).toBe(true);
   fireEvent.keyDown(field(), { key: "Enter" });
   expect(importLink).not.toHaveBeenCalled();
+});
+
+it("releases the page and says so when the import itself throws", async () => {
+  const onRunning = vi.fn();
+  render(
+    <ImportFromUrl
+      importLink={() => Promise.reject(new Error("bug"))}
+      onRunning={onRunning}
+    />
+  );
+
+  await typeAndImport(REPO);
+
+  expect(onRunning.mock.calls).toEqual([[true], [false]]);
+  expect(field().disabled).toBe(false);
+  expect(screen.getByText("Could not import it.")).toBeTruthy();
+  expect(named("new_project_import_failed")).toEqual([
+    { source: "github", reason: "unexpected" },
+  ]);
+  expect(logged.entries.map((e) => e.report)).toEqual([true]);
+});
+
+it("imports once however often Import is pressed while it runs", async () => {
+  const { importLink, settle } = deferred();
+  render(<ImportFromUrl importLink={importLink} />);
+
+  await typeAndImport(REPO);
+  fireEvent.keyDown(field(), { key: "Enter" });
+  fireEvent.click(button());
+
+  expect(importLink).toHaveBeenCalledTimes(1);
+  await act(async () => settle({ outcome: "imported", source: "github" }));
 });

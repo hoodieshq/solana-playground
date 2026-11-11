@@ -20,22 +20,32 @@ const notFound = (owner: string, repo: string) =>
 /** What a failure that carries no message of its own says */
 const FALLBACK = "Could not import it.";
 
+/** A request that never got an answer: `fetch` rejects with a `TypeError` */
+const UNREACHABLE =
+  "Could not reach GitHub. Check the connection and try again.";
+
+/** Every reason but a bad link, which never reaches an import */
+type ImportFailure = Exclude<LinkImportFailure, "bad-link">;
+
 /**
  * `PgGithub`'s failures other than a 404 are plain errors; their reason is
- * read from the message's known shapes, for the events only. A copy change
- * there counts as `request-failed` and shows the user the same message.
+ * read from the message's known shapes, for the events and the log level
+ * only. A copy change there counts as `unexpected` and shows the user the
+ * same message.
  */
-const REASONS: [RegExp, LinkImportFailure][] = [
+const REASONS: [RegExp, ImportFailure][] = [
   [/hourly request limit/, "rate-limited"],
   [/too large to import/, "too-large"],
   [/^No program code found/, "no-program"],
   [/doesn't look like a Solana program/, "no-program"],
+  [/^GitHub refused the request/, "network"],
+  [/^GitHub request for .+ failed with status/, "network"],
 ];
 
 const failed = (
   source: LinkSource,
   error: unknown
-): Extract<LinkImport, { outcome: "failed" }> => {
+): Extract<LinkImport, { source: LinkSource }> => {
   if (error instanceof GithubNotFoundError) {
     return {
       outcome: "failed",
@@ -46,11 +56,22 @@ const failed = (
     };
   }
   if (error instanceof GistImportError) {
+    // The gist import reported its own faults already; what it calls a
+    // failed request is GitHub's, which the user can only retry
     return {
       outcome: "failed",
       source,
-      reason: error.reason,
+      reason: error.reason === "request-failed" ? "network" : error.reason,
       message: error.message,
+      error,
+    };
+  }
+  if (error instanceof TypeError) {
+    return {
+      outcome: "failed",
+      source,
+      reason: "network",
+      message: UNREACHABLE,
       error,
     };
   }
@@ -58,14 +79,13 @@ const failed = (
     return {
       outcome: "failed",
       source,
-      reason: "request-failed",
+      reason: "unexpected",
       message: FALLBACK,
       error,
     };
   }
   const reason =
-    REASONS.find(([shape]) => shape.test(error.message))?.[1] ??
-    "request-failed";
+    REASONS.find(([shape]) => shape.test(error.message))?.[1] ?? "unexpected";
   return {
     outcome: "failed",
     source,
@@ -83,9 +103,10 @@ const sourceOf = (url: string): LinkSource | undefined => {
 };
 
 /**
- * Import New project's link as the explorer's dialog does: a gist link to
- * the gist import, a repository or folder link to `PgGithub.import`. A link that is neither is
- * refused before any request. Never throws: the outcome says how it ended.
+ * Import New project's link as the explorer's dialog does: a gist link
+ * to the gist import, a repository or folder link to `PgGithub.import`. A
+ * link that is neither is refused before any request. Never throws: the
+ * outcome says how it ended.
  *
  * @param link the field's text
  * @returns how the import ended

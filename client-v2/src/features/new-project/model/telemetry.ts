@@ -20,7 +20,9 @@ type NewProjectEvents = {
   new_project_imported: { source: LinkSource };
   /**
    * Import from GitHub stopped; the message shows under the field. `source`
-   * is `unknown` for a link that is neither a repository nor a gist.
+   * is `unknown` for a link that is neither a repository nor a gist. A gist
+   * import also sends `gist_import_failed` with `from: "new-project"`: that
+   * one counts the gist import wherever it runs, this one the card.
    */
   new_project_import_failed: {
     source: LinkSource | "unknown";
