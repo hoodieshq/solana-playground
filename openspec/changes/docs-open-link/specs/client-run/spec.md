@@ -119,17 +119,27 @@ undeclared name fails the run.
 
 The `docs-link` slice SHALL send:
 
-- `docs_link_run_started` when a `run` starts, from the stage row's Run or
-  typed in the terminal. Its `via` is `link` when a docs link opened the
-  project, else `project`, taken when the run starts.
+- `docs_link_run_started` when a `run` starts in a project a docs link
+  opened, from the stage row's Run or typed in the terminal, with no
+  parameters. Whether a docs link opened the project is taken when the run
+  starts.
 - `docs_link_run_finished` when such a run ends. Its `outcome` is `done`,
-  `failed` or `missing-package`, its `via` as above, and `seconds` is the
-  run's whole seconds.
+  `failed` or `missing-package`, and `seconds` is the run's whole seconds.
 - `docs_link_run_funding_shown` when the funding card shows. Its `funding_state` is
   `new` when Run had to create the wallet, else `existing`.
+
+A run in a project no docs link opened, from the terminal, the stage row's
+Run or a tutorial's act card, SHALL send no `docs_link_run_*` event; the
+`run` command's own `run_finished` and `run_errored` count every run. The
+scenario on it is marked `(manual)`: `features/docs-link/model/run.test.ts`
+holds it, not a Playwright test.
 
 #### Scenario: A funded run (manual)
 - **WHEN** a user with enough SOL presses Run on the Quickstart and it
   succeeds
-- **THEN** `docs_link_run_started` with `via: "link"` is sent, then
-  `docs_link_run_finished` with `outcome: "done"`
+- **THEN** `docs_link_run_started` is sent, then `docs_link_run_finished`
+  with `outcome: "done"`, neither with a `via`
+
+#### Scenario: A run no docs link opened (manual)
+- **WHEN** a user runs a client file in a project no docs link opened
+- **THEN** no `docs_link_run_started` or `docs_link_run_finished` is sent
