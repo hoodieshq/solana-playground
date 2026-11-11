@@ -17,7 +17,7 @@ in order. Plan: [plans/1-wire-import-card.md](plans/1-wire-import-card.md).
 
 ## 2. The card and New project
 
-- [ ] 2.1 `ImportFromUrl` connected for real (presets removed): states,
+- [x] 2.1 `ImportFromUrl` connected for real (presets removed): states,
       events through the memory provider, cancel to idle, toast after the
       page closed; component tests (depends on 1.2).
 - [ ] 2.2 `useNewProject` holds `importing`; `NewProject` passes

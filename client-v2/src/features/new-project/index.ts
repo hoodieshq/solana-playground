@@ -5,6 +5,7 @@ export type {
   LinkSource,
 } from "./model/link-import";
 export { default as ImportFromUrl } from "./ui/ImportFromUrl";
+export type { ImportFromUrlProps } from "./ui/ImportFromUrl";
 export { default as StartFromScratch } from "./ui/StartFromScratch";
 export type { StartFromScratchProps } from "./ui/StartFromScratch";
 export { default as BaseStartFromScratch } from "./ui/BaseStartFromScratch";
