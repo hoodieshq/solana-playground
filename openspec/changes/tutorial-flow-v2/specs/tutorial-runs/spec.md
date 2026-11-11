@@ -154,7 +154,14 @@ meta is the program's error ("NotEnoughEnergy · error 6000") or else the
 plain reason, with the error line and the reason in view and the log behind
 the chevron; the step SHALL not pass. A run that sent no transaction SHALL
 post "No transaction", "client.ts sent none · see the terminal", not red,
-and the step SHALL not pass. A transaction that was sent but that devnet
+and the step SHALL not pass. While a failed run's or call's card, or a "No
+transaction" one, is the act's latest result, a live act card under it SHALL
+run the act again, as a failed deploy's Try again does: its button the act's
+own verb with "again" ("Run again", "Call again", "Chop again"), and its line
+"Fix client.ts, then run it again." for a run, "Fix what the error says,
+then try again." for a call. After "Not enough devnet SOL" it SHALL keep the
+act's own line; after no wallet, or an unconfirmed result, there SHALL be
+none. A run again that lands SHALL be judged on the step's goal as any run. A transaction that was sent but that devnet
 did not read back in the read window SHALL post "Not confirmed yet ·
 <short signature> ↗", not red, the short signature linking to the
 transaction in Explorer, the reason in its body, and, while it is the live
@@ -169,6 +176,15 @@ the one they landed with and the goal SHALL be judged on it.
 - **THEN** the result reads "Not confirmed yet" and the step does not fail
 - **AND** "Check again", once devnet has the transaction, posts "Confirmed"
   and passes the step without sending a second transaction
+
+#### Scenario: A failed run runs again
+
+- **WHEN** on Hello Anchor's step 3 `client.ts` throws and the card reads
+  "Run failed"
+- **THEN** a live act card under it reads "Fix client.ts, then run it
+  again." with "Run again"
+- **AND** after the learner fixes `client.ts`, Run again runs it, and the
+  run that lands passes the step
 
 #### Scenario: Hello from devnet (manual)
 

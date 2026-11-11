@@ -266,28 +266,64 @@ const isLandedAirdrop = (
  * `failed` too, and running again cannot fix them; they need a reason of
  * their own in `RunResult`, as the build's `unreachable` has, before they
  * can go without a Try again.
+ *
+ * A failed run or call (HOO-2806) is run again from the same slot, its
+ * button the act's own verb ("Run again"): after a failure the learner can
+ * fix (`fix`), whose line says to fix it first, and after `no_funds` with
+ * the act's own line. Not after no wallet, nor after an unconfirmed result,
+ * whose own Check again reads it again.
  */
-type Retry = "faucet" | "balance" | "again";
+type Retry = "faucet" | "balance" | "again" | "fix";
 
 const retryOf = (result: RunResult): Retry | null => {
-  if (!isFundedAct(result) || result.ok) return null;
+  if (result.ok) return null;
+  if (result.act === "run" || result.act === "call") {
+    if (result.reason === undefined || result.reason === "no_transaction") {
+      return "fix";
+    }
+    return result.reason === "no_funds" ? "again" : null;
+  }
+  if (!isFundedAct(result)) return null;
   if (result.reason === "no_funds") {
     return result.act === "airdrop" ? "faucet" : "balance";
   }
   return result.reason === "failed" ? "again" : null;
 };
 
-const RETRY_CONTEXT: Record<Exclude<Retry, "again">, string> = {
+const RETRY_CONTEXT: Record<Exclude<Retry, "again" | "fix">, string> = {
   faucet: ASKS_THE_FAUCET,
   balance: CHECKS_THE_BALANCE,
 };
 
-/** A failed airdrop's or deploy's act as its Try again card shows it */
+/** A failed run's retry line: the file it runs is the one to fix */
+export const FIX_AND_RUN = "Fix client.ts, then run it again.";
+
+/** A failed call's: it is sent from the chat, so there is no file to name */
+export const FIX_AND_CALL = "Fix what the error says, then try again.";
+
+/** The line a failed act's retry card shows */
+const retryContext = (act: ActBeat, retry: Retry | null): string => {
+  if (retry === "fix") return act.act === "run" ? FIX_AND_RUN : FIX_AND_CALL;
+  return retry === null || retry === "again"
+    ? act.context
+    : RETRY_CONTEXT[retry];
+};
+
+/**
+ * The retry card's button: a run or call keeps its own verb, the first word
+ * of its button ("Run again", "Call again", "Chop again"); any other act
+ * reads "Try again"
+ */
+const retryButton = (act: ActBeat): string =>
+  act.act === "run" || act.act === "call"
+    ? `${act.button.split(" ")[0]} again`
+    : TRY_AGAIN;
+
+/** A failed act as its retry card shows it */
 const tryAgain = (act: ActBeat, retry: Retry | null): ActBeat =>
   Object.assign({}, act, {
-    button: TRY_AGAIN,
-    context:
-      retry === null || retry === "again" ? act.context : RETRY_CONTEXT[retry],
+    button: retryButton(act),
+    context: retryContext(act, retry),
     // The retry is one press; the card above keeps the others
     repeat: undefined,
   });
@@ -1298,9 +1334,22 @@ if (import.meta.vitest) {
             log: "",
           },
         };
-        const { v, card } = cardOf(stateOf({ beat: 1, runs: [failed] }));
-        expect(card.id).toBe("s1.grow");
-        expect(v.turns.map((t) => t.id)).toContain("result:s1.grow:0");
+        const v = view(repeating(), stateOf({ beat: 1, runs: [failed] }), {
+          now: 99999,
+          loadedAt: 0,
+          probing: [],
+        });
+        // The card stays where it was; one press runs again under the result
+        // (HOO-2806)
+        expect(v.turns.map((t) => t.id).slice(-3)).toEqual([
+          "s1.grow",
+          "result:s1.grow:0",
+          "s1.grow:retry",
+        ]);
+        expect(v.live).toMatchObject({
+          id: "s1.grow:retry",
+          act: { button: "Grow again", repeat: undefined },
+        });
       });
 
       it("hands the card its account's newest reading, from the save alone", () => {
@@ -2112,6 +2161,149 @@ if (import.meta.vitest) {
       expect(retryOf(result)).toBe("again");
       expect(retryOf(NO_FUNDS)).toBe("balance");
       expect(retryOf(OK_BUILD)).toBeNull();
+    });
+
+    describe("a failed run or call (HOO-2806)", () => {
+      const toRun = (): Action[] =>
+        toDeploy().concat([
+          {
+            type: "ended",
+            beatId: "s2.deploy",
+            result: {
+              act: "deploy",
+              ok: true,
+              seconds: 2,
+              programId: "p",
+              signature: "s",
+              upgraded: false,
+              lamports: 1,
+              instructions: ["hello"],
+            },
+            at: 12000,
+          },
+          { type: "next", at: 13000 },
+          { type: "skip", beatId: "s3.q3", at: 13500 },
+          { type: "act", beatId: "s3.run", at: 14000 },
+        ]);
+      const RUN_FAILED: RunResult = {
+        act: "run",
+        ok: false,
+        seconds: 1,
+        message: "Package `not-a-real-package` is not available.",
+        log: "",
+      };
+      const runEnded = (result: RunResult, at: number): Action => ({
+        type: "ended",
+        beatId: "s3.run",
+        result,
+        at,
+      });
+
+      it("posts a live Run again card under the failed card, saying to fix client.ts first", () => {
+        const v = view(
+          hello,
+          play(toRun().concat([runEnded(RUN_FAILED, 15000)])),
+          LATE
+        );
+        expect(ids(v).slice(-2)).toEqual(["result:s3.run:0", "s3.run:retry"]);
+        expect(v.live).toMatchObject({
+          id: "s3.run:retry",
+          kind: "act",
+          beatId: "s3.run",
+          state: "live",
+          act: { button: "Run again", context: FIX_AND_RUN },
+        });
+      });
+
+      it("pressing Run again is a second run, and a landed one passes the step", () => {
+        const state = play(
+          toRun().concat([
+            runEnded(RUN_FAILED, 15000),
+            { type: "act", beatId: "s3.run", at: 20000 },
+          ])
+        );
+        const running = view(hello, state, LATE);
+        expect(ids(running)).not.toContain("s3.run:retry");
+        expect(running.live).toMatchObject({
+          id: "s3.run:1",
+          state: "running",
+        });
+
+        const landed = play(
+          toRun().concat([
+            runEnded(RUN_FAILED, 15000),
+            { type: "act", beatId: "s3.run", at: 20000 },
+            runEnded(
+              {
+                act: "run",
+                ok: true,
+                seconds: 1,
+                signatures: ["x"],
+                line: "Program log: Hello, World!",
+                called: [],
+              },
+              21000
+            ),
+          ])
+        );
+        expect(landed.progress.passed).toContain("call-client");
+        expect(ids(view(hello, landed, LATE))).not.toContain("s3.run:retry");
+      });
+
+      it("a call keeps its own verb, and a short wallet keeps the act's line", () => {
+        const call = hello.steps
+          .flatMap((s) => s.beats)
+          .find((b) => b.id === "s4.call");
+        if (call?.kind !== "act") throw new Error("no s4.call act");
+        const failedCall: RunResult = {
+          act: "call",
+          ok: false,
+          seconds: 1,
+          message: "Simulation failed",
+          log: "",
+        };
+        expect(tryAgain(call, retryOf(failedCall))).toMatchObject({
+          button: "Call again",
+          context: FIX_AND_CALL,
+        });
+        const short: RunResult = {
+          act: "call",
+          ok: false,
+          seconds: 1,
+          message: "Not enough devnet SOL",
+          log: "",
+          reason: "no_funds",
+          funding: { balance: 0, cost: 5000, address: "WaLLet" },
+        };
+        expect(tryAgain(call, retryOf(short))).toMatchObject({
+          button: "Call again",
+          context: call.context,
+        });
+      });
+
+      it("offers no retry after no wallet, or a result devnet has not confirmed", () => {
+        const failed = (reason: "no_wallet" | "no_transaction"): RunResult => ({
+          act: "run",
+          ok: false,
+          seconds: 1,
+          message: "It did not run",
+          log: "",
+          reason,
+        });
+        expect(retryOf(failed("no_wallet"))).toBeNull();
+        expect(
+          retryOf({
+            act: "run",
+            ok: false,
+            seconds: 1,
+            message: "Not confirmed",
+            log: "",
+            reason: "unconfirmed",
+            unconfirmed: [],
+          })
+        ).toBeNull();
+        expect(retryOf(failed("no_transaction"))).toBe("fix");
+      });
     });
 
     it("a running act shows its stage and changes the placeholder", () => {

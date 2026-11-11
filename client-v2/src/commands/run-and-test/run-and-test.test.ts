@@ -203,6 +203,37 @@ describe("run telemetry", () => {
   });
 });
 
+// HOO-2806: the terminal checked the path before `processCommon`, so a
+// rejected one sent no `run_errored`, and with no script it listed nothing
+describe("a path with no file", () => {
+  it("is left to the command to refuse, so the refusal is counted", () => {
+    expect(run.args?.[0]?.suggestOnly).toBe(true);
+    expect(test.args?.[0]?.suggestOnly).toBe(true);
+  });
+
+  it("says where to add a test when there is none to choose from", async () => {
+    await expect(executeTests("missing.ts")).rejects.toThrow(
+      "No test file to run: add one under tests/"
+    );
+  });
+
+  it("names the client files there are", async () => {
+    await expect(execute("missing.ts")).rejects.toThrow(
+      "File 'missing.ts' doesn't exist (files you can run: client.ts)"
+    );
+  });
+
+  it("is refused before the run says it is running, and runs nothing", async () => {
+    const { PgTerminal } = await import("../../utils");
+    vi.mocked(PgTerminal.println).mockClear();
+
+    await expect(execute("a.ts", "missing.ts")).rejects.toThrow();
+
+    expect(PgTerminal.println).not.toHaveBeenCalled();
+    expect(runtime.execute).not.toHaveBeenCalled();
+  });
+});
+
 describe("run's paths", () => {
   it("accepts a client file named without its folder", () => {
     const [paths] = run.args ?? [];
