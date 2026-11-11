@@ -1,6 +1,5 @@
 import { createLogger } from "@/shared/lib/logger";
 
-import { PgCodec } from "./codec";
 import { PgCommon } from "./common";
 import { PgConnection } from "./connection";
 import { PgSettings } from "./settings";
@@ -39,13 +38,13 @@ type Transactionable =
 const log = createLogger("utils:tx");
 
 /**
- * The answer to a transaction whose signature the cluster has seen: with a cached blockhash, an earlier one with the
- * same data, so `PgTx.send` signs again with a fresh blockhash
+ * Answers to a send that `PgTx.send` meets by signing again with a fresh blockhash: "already processed" names an
+ * earlier transaction with the same data and the cached blockhash
  */
-const ALREADY_PROCESSED = "This transaction has already been processed";
-
-/** Answers to a send that `PgTx.send` meets by signing again with a fresh blockhash */
-const RESENT_ON = [ALREADY_PROCESSED, "Blockhash not found"];
+const RESENT_ON = [
+  "This transaction has already been processed",
+  "Blockhash not found",
+];
 
 /**
  * Sends with a fresh blockhash after one of {@link RESENT_ON}, at most: a cluster that still answers so is stalled
@@ -53,10 +52,14 @@ const RESENT_ON = [ALREADY_PROCESSED, "Blockhash not found"];
  */
 const MAX_FRESH_BLOCKHASH_SENDS = 3;
 
-/** The host of a connection's RPC, for logs: its path or query may carry an API key */
-const hostOf = (connection: PgWeb3.Connection) =>
-  /^[a-z]+:\/\/([^/?#]+)/i.exec(connection.rpcEndpoint)?.[1] ??
-  connection.rpcEndpoint;
+/** The host of a connection's RPC, for logs: its user info, path or query may carry an API key */
+const hostOf = (connection: PgWeb3.Connection) => {
+  try {
+    return new URL(connection.rpcEndpoint).host;
+  } catch {
+    return "an RPC with an unreadable URL";
+  }
+};
 
 export class PgTx {
   /** All transaction event names */
@@ -86,9 +89,8 @@ export class PgTx {
    * @param txable transaction to send
    * @param opts send options
    * @returns the transaction signature
-   * @returns the transaction signature; after {@link MAX_FRESH_BLOCKHASH_SENDS} sends with a fresh blockhash that
-   * the cluster still answers "already processed", the signature of the transaction it has
-   * @throws the RPC's error, also "Blockhash not found" still answered after
+   * @returns the transaction signature
+   * @throws the RPC's error, also a "Blockhash not found" or "already processed" one still answered after
    * {@link MAX_FRESH_BLOCKHASH_SENDS} sends with a fresh blockhash
    */
   static async send(
@@ -134,14 +136,11 @@ export class PgTx {
           resent: resent + 1,
         });
       }
+      // With preflight on, a refused send was not forwarded: the caller gets the error, never another send's signature
       if (answer) {
         log.warn("The cluster still refused the send after fresh blockhashes", {
           context: { answer, resent, endpoint: hostOf(connection) },
         });
-        // The cluster has this very transaction: it landed, and the caller confirms it by its signature
-        if (answer === ALREADY_PROCESSED && tx.signature) {
-          return PgCodec.encodeBinary(tx.signature, "base58");
-        }
       }
 
       throw e;

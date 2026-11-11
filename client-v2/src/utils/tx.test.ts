@@ -46,6 +46,9 @@ const ix = PgWeb3.SystemProgram.transfer({
   lamports: 1,
 });
 
+/** Slot waits end at once, and are counted */
+const sleep = vi.spyOn(PgCommon, "sleep").mockResolvedValue(undefined as never);
+
 describe("utils/tx", () => {
   beforeEach(() => {
     // The blockhash is cached on the class between tests
@@ -54,6 +57,7 @@ describe("utils/tx", () => {
     vi.spyOn(PgCommon, "createAndDispatchCustomEvent").mockReturnValue(
       undefined as never
     );
+    sleep.mockClear();
   });
 
   it("sends again with a fresh blockhash after Blockhash not found, and returns the signature", async () => {
@@ -81,20 +85,21 @@ describe("utils/tx", () => {
       PgTx.send(ix, { wallet, connection: connection as never })
     ).rejects.toThrow("Blockhash not found");
     expect(connection.sendRawTransaction).toHaveBeenCalledTimes(4);
+    // The second and third resends wait a slot, so the cluster's blockhash can move on
+    expect(sleep.mock.calls).toEqual([
+      [PgWeb3.DEFAULT_MS_PER_SLOT],
+      [PgWeb3.DEFAULT_MS_PER_SLOT],
+    ]);
   });
 
-  it("gives the transaction's own signature once three sends with a fresh blockhash were already processed", async () => {
+  it("throws already processed once three sends with a fresh blockhash answered it too, never another send's signature", async () => {
     const { connection } = connectionAnswering(
       new Array(10).fill("This transaction has already been processed")
     );
 
-    const signature = await PgTx.send(ix, {
-      wallet,
-      connection: connection as never,
-    });
-
-    // The cluster has the transaction: the caller confirms it by this signature
-    expect(signature).toMatch(/^[1-9A-HJ-NP-Za-km-z]{64,88}$/);
+    await expect(
+      PgTx.send(ix, { wallet, connection: connection as never })
+    ).rejects.toThrow("This transaction has already been processed");
     expect(connection.sendRawTransaction).toHaveBeenCalledTimes(4);
   });
 
