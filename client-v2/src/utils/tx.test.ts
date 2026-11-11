@@ -57,7 +57,8 @@ describe("utils/tx", () => {
     vi.spyOn(PgCommon, "createAndDispatchCustomEvent").mockReturnValue(
       undefined as never
     );
-    sleep.mockClear();
+    // `mockReset` in the config drops the spy's implementation before each test
+    sleep.mockReset().mockResolvedValue(undefined as never);
   });
 
   it("sends again with a fresh blockhash after Blockhash not found, and returns the signature", async () => {

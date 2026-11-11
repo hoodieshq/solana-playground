@@ -541,6 +541,30 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     expect(onRefusal.mock.calls).toEqual([["Failed to fetch"]]);
   });
 
+  it("names a failed blockhash fetch Failed to fetch, as web3.js words it in text", async () => {
+    chain.failures = 1;
+    chain.failWith = () =>
+      new Error("failed to get recent blockhash: TypeError: Load failed");
+    const onRefusal = vi.fn();
+
+    await loadWith({ loadConcurrency: 1, writesPerSecond: 1000, onRefusal }, 2);
+
+    expect(onRefusal.mock.calls).toEqual([["Failed to fetch"]]);
+  });
+
+  it("cuts a long refusal message, such as an RPC's error page", async () => {
+    chain.failures = 1;
+    chain.failWith = () =>
+      new Error(`502 Bad Gateway: ${"<html>".repeat(100)}`);
+    const onRefusal = vi.fn();
+
+    await loadWith({ loadConcurrency: 1, writesPerSecond: 1000, onRefusal }, 2);
+
+    const [[message]] = onRefusal.mock.calls as [[string]];
+    expect(message.startsWith("502 Bad Gateway: <html>")).toBe(true);
+    expect(message).toHaveLength(201);
+  });
+
   it("leaves a rate-limited write to onRateLimit, not onRefusal", async () => {
     chain.failures = 1;
     chain.failWith = rateLimited;

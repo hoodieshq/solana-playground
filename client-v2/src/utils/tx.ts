@@ -57,6 +57,7 @@ const hostOf = (connection: PgWeb3.Connection) => {
   try {
     return new URL(connection.rpcEndpoint).host;
   } catch {
+    // Silent on purpose: this only names the RPC in a log line, and the send itself reports a URL it cannot use
     return "an RPC with an unreadable URL";
   }
 };

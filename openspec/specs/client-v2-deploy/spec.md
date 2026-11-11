@@ -300,7 +300,7 @@ network selected now. The scenarios are held by unit tests
 
 While a deploy writes its buffer, the first write in each round that the cluster refuses SHALL print one warning line:
 "Warning: The cluster refused a buffer write ({message}), sending it again...". {message} is the first line of the
-cluster's message for the refusal, or of the error's message when the cluster sent none. Further refusals in the same
+cluster's message for the refusal, or of the error's message when the cluster sent none, cut to 200 characters. Further refusals in the same
 round SHALL print nothing more, and a send that fails after the deploy is stopped SHALL print nothing. This holds for
 the Deploy stage, the terminal and a tutorial's deploy.
 
@@ -323,7 +323,7 @@ the Deploy stage, the terminal and a tutorial's deploy.
 
 ### Requirement: A write the browser could not send counts as refused
 
-A buffer write the browser could not send at all SHALL print the refusal line with "Failed to fetch" as its message,
+A buffer write the browser could not send at all, or whose blockhash it could not fetch, SHALL print the refusal line with "Failed to fetch" as its message,
 in every browser, whatever the browser's own words for it ("Load failed" in Safari, a "NetworkError" in Firefox). The
 browser reports an RPC that is down, and a 429 sent without CORS headers, this way.
 

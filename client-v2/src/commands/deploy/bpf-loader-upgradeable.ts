@@ -112,24 +112,35 @@ const MAX_BUFFER_READS = 30;
 const BUFFER_READ_INTERVAL_MS = 1000;
 
 /** A fetch the browser failed, which is how it reports a 429 sent without CORS headers */
+/** How Chrome, Safari and Firefox word a fetch they could not make */
+const FETCH_FAILURE = /Failed to fetch|Load failed|NetworkError/i;
+
 const isFetchFailure = (e: unknown) =>
-  e instanceof TypeError &&
-  /Failed to fetch|Load failed|NetworkError/i.test(e.message);
+  e instanceof TypeError && FETCH_FAILURE.test(e.message);
+
+/** The longest message a refused-write line carries: an RPC's error page can put a whole body on one line */
+const MAX_REFUSAL_MESSAGE_LENGTH = 200;
 
 /**
  * The cluster's own words for a refused send, on one line: web3.js keeps them in a `SendTransactionError`'s
  * `transactionMessage`, and adds the simulation's logs to its `message`
  */
 const clusterMessageOf = (e: unknown) => {
-  // Each browser words a fetch it could not make its own way; the line names it the same in all
-  if (isFetchFailure(e)) return "Failed to fetch";
+  // Each browser words a fetch it could not make its own way, and web3.js keeps that wording only as text when the
+  // blockhash fetch fails ("failed to get recent blockhash: TypeError: Load failed"); the line names it the same in all
+  if (isFetchFailure(e) || FETCH_FAILURE.test(toError(e).message)) {
+    return "Failed to fetch";
+  }
   const message = (e as { transactionMessage?: unknown } | null)
     ?.transactionMessage;
   const words =
     typeof message === "string" && message.trim()
       ? message
       : toError(e).message;
-  return words.trim().split("\n")[0];
+  const line = words.trim().split("\n")[0];
+  return line.length > MAX_REFUSAL_MESSAGE_LENGTH
+    ? `${line.slice(0, MAX_REFUSAL_MESSAGE_LENGTH)}…`
+    : line;
 };
 
 /** The host of an RPC URL, for logs and errors: its path or query may carry an API key */
