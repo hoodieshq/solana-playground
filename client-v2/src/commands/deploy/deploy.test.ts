@@ -305,7 +305,9 @@ describe("commands/deploy", () => {
         const opts = args[2];
         opts.onMissing(2);
         opts.onRateLimit(3);
-        opts.onRefusal("Transaction simulation failed: Blockhash not found");
+        opts.onRefusal(
+          "Transaction simulation failed: Insufficient funds for fee"
+        );
         env.controller.abort();
         throw new Error("the segment was aborted");
       }
@@ -322,7 +324,7 @@ describe("commands/deploy", () => {
       { noColor: true }
     );
     expect(PgTerminal.println).toHaveBeenCalledWith(
-      "warning: Warning: The cluster refused a buffer write (Transaction simulation failed: Blockhash not found), sending it again...",
+      "warning: Warning: The cluster refused a buffer write (Transaction simulation failed: Insufficient funds for fee), sending it again...",
       { noColor: true }
     );
   });

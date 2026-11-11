@@ -436,11 +436,11 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     chain.failWith = () =>
       Object.assign(
         new Error(
-          "Simulation failed. \nMessage: Transaction simulation failed: Blockhash not found. \nLogs: \n[]."
+          "Simulation failed. \nMessage: Transaction simulation failed: Insufficient funds for fee. \nLogs: \n[]."
         ),
         {
           transactionMessage:
-            "Transaction simulation failed: Blockhash not found",
+            "Transaction simulation failed: Insufficient funds for fee",
         }
       );
     const onRefusal = vi.fn();
@@ -448,8 +448,8 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     await loadWith({ loadConcurrency: 4, writesPerSecond: 1000, onRefusal }, 3);
 
     expect(onRefusal.mock.calls).toEqual([
-      ["Transaction simulation failed: Blockhash not found"],
-      ["Transaction simulation failed: Blockhash not found"],
+      ["Transaction simulation failed: Insufficient funds for fee"],
+      ["Transaction simulation failed: Insufficient funds for fee"],
     ]);
   });
 
@@ -461,6 +461,51 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     await loadWith({ loadConcurrency: 1, writesPerSecond: 1000, onRefusal }, 2);
 
     expect(onRefusal.mock.calls).toEqual([["connection reset"]]);
+  });
+
+  it("names a refusal by its error when the cluster's message is blank", async () => {
+    chain.failures = 1;
+    chain.failWith = () =>
+      Object.assign(new Error("Simulation failed.\nLogs: []"), {
+        transactionMessage: "  ",
+      });
+    const onRefusal = vi.fn();
+
+    await loadWith({ loadConcurrency: 1, writesPerSecond: 1000, onRefusal }, 2);
+
+    expect(onRefusal.mock.calls).toEqual([["Simulation failed."]]);
+  });
+
+  it("reports no refusal for a send that fails after a stop", async () => {
+    const abortController = new AbortController();
+    chain.failures = 1;
+    chain.failWith = () => {
+      abortController.abort();
+      return new TypeError("Failed to fetch");
+    };
+    const onRefusal = vi.fn();
+    const bytes = new Uint8Array(2 * CHUNK_SIZE).fill(1);
+    chain.data = Buffer.alloc(METADATA_SIZE + bytes.length);
+
+    const loading = BpfLoaderUpgradeable.loadBuffer({} as never, bytes, {
+      loadConcurrency: 1,
+      abortController,
+      onRefusal,
+    });
+    await vi.runAllTimersAsync();
+    await loading;
+
+    expect(onRefusal).not.toHaveBeenCalled();
+  });
+
+  it("reports a write the browser could not send as refused, naming the failed fetch", async () => {
+    chain.failures = 1;
+    chain.failWith = fetchFailed;
+    const onRefusal = vi.fn();
+
+    await loadWith({ loadConcurrency: 1, writesPerSecond: 1000, onRefusal }, 2);
+
+    expect(onRefusal.mock.calls).toEqual([["Failed to fetch"]]);
   });
 
   it("leaves a rate-limited write to onRateLimit, not onRefusal", async () => {

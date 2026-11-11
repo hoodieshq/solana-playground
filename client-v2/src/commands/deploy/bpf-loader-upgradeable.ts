@@ -203,7 +203,8 @@ export class BpfLoaderUpgradeable {
       onRateLimit?: (retryAfter: number, reason: string) => void;
       /**
        * A write the cluster refused for a reason other than a rate limit, with the cluster's message: called for the
-       * first such write of each round, whose refused chunks are sent again in the next
+       * first such write of each round. Its refused chunks are sent again in the next round, unless the load is
+       * stopped or gives up after rounds that land nothing.
        */
       onRefusal?: (message: string) => void;
     } & SendOption
@@ -308,7 +309,8 @@ export class BpfLoaderUpgradeable {
                 break;
               }
               lastRefusal = { error, words: `last refusal: ${error.message}` };
-              if (!refusalReported) {
+              // A send that fails after a stop is not sent again, so it is not reported
+              if (!refusalReported && !opts?.abortController?.signal.aborted) {
                 refusalReported = true;
                 opts?.onRefusal?.(clusterMessageOf(e));
               }

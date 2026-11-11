@@ -108,7 +108,9 @@ describe("realDeployPort().writeBuffer", () => {
   it("prints a write the cluster refused in the terminal, with its message", async () => {
     loader.loadBuffer.mockImplementationOnce(async (...args: unknown[]) => {
       const opts = args[2] as { onRefusal: (message: string) => void };
-      opts.onRefusal("Transaction simulation failed: Blockhash not found");
+      opts.onRefusal(
+        "Transaction simulation failed: Insufficient funds for fee"
+      );
       return undefined;
     });
 
@@ -119,7 +121,7 @@ describe("realDeployPort().writeBuffer", () => {
     );
 
     expect(println).toHaveBeenCalledWith(
-      "Warning: The cluster refused a buffer write (Transaction simulation failed: Blockhash not found), sending it again..."
+      "Warning: The cluster refused a buffer write (Transaction simulation failed: Insufficient funds for fee), sending it again..."
     );
   });
 
