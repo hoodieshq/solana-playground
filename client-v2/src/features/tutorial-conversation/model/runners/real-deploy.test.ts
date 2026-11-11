@@ -12,14 +12,14 @@ const h = vi.hoisted(() => ({
   rentRead: vi.fn(),
   requestAirdrop: vi.fn(),
   confirm: vi.fn(),
-  /** The selected connection's balance read: a platform RPC, never asked for funding */
-  platformGetBalance: vi.fn(),
+  /** The native RPC's balance read, which funding never asks */
+  nativeGetBalance: vi.fn(),
 }));
 
-/** The cluster's native RPC, which funding reads and airdrops through */
+/** The cluster's native RPC, which airdrops go through */
 const native = vi.hoisted(() => ({
   rpcEndpoint: "https://native.test",
-  getBalance: (...args: unknown[]) => h.getBalance(...args),
+  getBalance: (...args: unknown[]) => h.nativeGetBalance(...args),
   requestAirdrop: (...args: unknown[]) => h.requestAirdrop(...args),
 }));
 
@@ -32,7 +32,10 @@ vi.mock("@/utils", () => ({
     },
     current: {
       rpcEndpoint: "https://platform.test",
-      getBalance: h.platformGetBalance,
+      getBalance: h.getBalance,
+      requestAirdrop: () => {
+        throw new Error("500 : internal error: please contact Helius support");
+      },
       getMinimumBalanceForRentExemption: h.rentRead,
     },
     getAirdropConnection: () => native,
@@ -85,7 +88,7 @@ beforeEach(() => {
   h.rentRead.mockReset().mockResolvedValue(RENT);
   h.requestAirdrop.mockReset().mockResolvedValue("airdropSig");
   h.confirm.mockReset().mockResolvedValue(undefined);
-  h.platformGetBalance.mockReset();
+  h.nativeGetBalance.mockReset();
 });
 
 describe("features/tutorial-conversation/model/runners/real-deploy: tutorialRunner.isFunded", () => {
@@ -124,10 +127,10 @@ describe("features/tutorial-conversation/model/runners/real-deploy: tutorialRunn
 });
 
 describe("features/tutorial-conversation/model/runners/real-deploy: devnetFunding", () => {
-  it("reads the balance through the cluster's native RPC", async () => {
+  it("reads the balance through the selected connection, which the deploy spends on", async () => {
     h.balance = 2 * SOL;
     await expect(devnetFunding.balance(WALLET)).resolves.toBe(2 * SOL);
-    expect(h.platformGetBalance).not.toHaveBeenCalled();
+    expect(h.nativeGetBalance).not.toHaveBeenCalled();
   });
 
   it("requests the airdrop through the cluster's native RPC", async () => {
@@ -145,6 +148,13 @@ describe("features/tutorial-conversation/model/runners/real-deploy: devnetFundin
     expect(h.confirm).toHaveBeenCalledWith("airdropSig", {
       connection: native,
     });
+  });
+
+  it("counts a confirmation that timed out as not confirmed", async () => {
+    h.confirm.mockRejectedValueOnce(
+      new Error("TransactionExpiredTimeoutError")
+    );
+    await expect(devnetFunding.confirm("airdropSig")).resolves.toBe(false);
   });
 
   it("counts a transaction error as not confirmed", async () => {
