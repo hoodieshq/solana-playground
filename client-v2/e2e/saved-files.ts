@@ -4,10 +4,8 @@ import type { Page } from "@playwright/test";
  * Whether a file lightning-fs keeps in IndexedDB holds `needle`: the editor's
  * autosave, or any other write, has reached the store a reload reads. A test
  * polls it before it reloads or before it judges what the save changed.
- * `buildIsSaved` in `client-v2-status.e2e.spec.ts` reads the store the same
- * way.
  */
-export const savedFileHolds = (page: Page, needle: string) =>
+export const hasSavedText = (page: Page, needle: string) =>
   page.evaluate(async (wanted) => {
     const dbs = await indexedDB.databases();
     const name = dbs.map((d) => d.name).find((n) => n?.includes("solana"));

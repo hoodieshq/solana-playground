@@ -12,7 +12,7 @@ import { fakeBuildServer } from "./fake-build-server";
 import type { FakeDevnet } from "./fake-devnet";
 import { fakeDevnet } from "./fake-devnet";
 import { expect, LONG, test } from "./fixtures";
-import { savedFileHolds } from "./saved-files";
+import { hasSavedText } from "./saved-files";
 
 /**
  * Hello Anchor from the intro card to the finish card on the desktop, with
@@ -311,7 +311,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     );
     // Once the editor's autosave has stored the edit, the file holds it
     await expect
-      .poll(() => savedFileHolds(page, EDIT), { timeout: 10_000 })
+      .poll(() => hasSavedText(page, EDIT), { timeout: 10_000 })
       .toBe(true);
     await expect(card()).toContainText(LESSON);
     await expect(card()).not.toContainText(EDIT);
@@ -324,6 +324,34 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     );
     await expect(card()).toContainText(LESSON);
     await expect(card()).not.toContainText(EDIT);
+  });
+
+  test("tutorial-conversation: The learner adds lines above the written lines", async ({
+    page,
+  }) => {
+    test.skip(isLive, "needs no build or devnet");
+    test.setTimeout(120_000);
+    const MINE = "// mine";
+    const card = (range: string) =>
+      feed(page).getByRole("button", {
+        name: new RegExp(`^Show lines ${range} in .*lib\\.rs$`),
+      });
+    await start(page);
+    await expect(card("1 to 3")).toBeVisible(LONG);
+    // Two lines typed at the top of the file the block landed in
+    await card("1 to 3").click();
+    await page.locator(".monaco-editor .view-lines").first().click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.type(`${MINE}\n${MINE}\n`);
+    await expect
+      .poll(() => hasSavedText(page, `${MINE}\n${MINE}\nuse anchor_lang`), {
+        timeout: 10_000,
+      })
+      .toBe(true);
+    // The card names the block where it is now, and Show goes there
+    await expect(card("3 to 5")).toBeVisible();
+    await expect(card("1 to 3")).toHaveCount(0);
   });
 
   test("tutorial-conversation: The planned E0412", async ({ page }) => {
