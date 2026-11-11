@@ -426,12 +426,12 @@ const createWallet = (beatId: string) => {
 const newProgramId = (beatId: string) => {
   // As the keypair panel's Generate: never under a running deploy, which
   // would land at one address with another keypair stored
-  const busy =
+  const isBusy =
     PgGlobal.deployState !== "ready" ||
     !!PgConversation.view()?.turns.some(
       (t) => t.kind === "act" && t.state === "running"
     );
-  if (busy) {
+  if (isBusy) {
     const refused = new Error("A run is in progress.");
     markUnavailableHere(refused, "wait for the run to finish");
     reportButtonFailure("use a new program id")(refused);

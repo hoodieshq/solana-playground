@@ -4,7 +4,7 @@ import type { Disposable } from "../../../../utils/types";
 import type { RunInput } from "../ports";
 import type { RunResult } from "../progress";
 import type { Captured } from "./capture";
-import { CAPTURE_BUSY } from "./capture";
+import { CAPTURE_BUSY, isCaptureBusy } from "./capture";
 
 const log = createLogger("tutorial-conversation:client-run-watch");
 
@@ -106,8 +106,7 @@ export const watchClientRuns = (
         .capture(until)
         .then(async (sends) => {
           const isBusy =
-            sends.error instanceof Error &&
-            sends.error.message === CAPTURE_BUSY;
+            sends.error instanceof Error && isCaptureBusy(sends.error.message);
           // The card's own run, or another act sending: theirs to judge
           if (isBusy) {
             log.debug("A client run while another capture held the send path");

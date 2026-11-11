@@ -35,7 +35,7 @@ import { answerOf, existsLine, existsOf, isMismatch } from "./progress";
 import type { EngineState, Stage } from "./reducer";
 import { hasRepeatEnded } from "./reducer";
 import { wordOf } from "./route";
-import { CAPTURE_BUSY } from "./runners/capture";
+import { CAPTURE_BUSY, isCaptureBusy } from "./runners/capture";
 import { MISMATCH } from "./runners/run-call";
 
 /**
@@ -293,7 +293,7 @@ const retryOf = (result: RunResult): Retry | null => {
   if (result.ok) return null;
   if (result.act === "run" || result.act === "call") {
     // Refused because another run held the send path: nothing to fix
-    if (result.message === CAPTURE_BUSY) return "again";
+    if (isCaptureBusy(result.message)) return "again";
     if (result.reason === undefined || result.reason === "no_transaction") {
       return "fix";
     }
