@@ -1,6 +1,6 @@
 /* Bake the drawn page into dist/index.html.
  *
- * Studio reads the specimens by fetching this page and parsing it, without
+ * Tools read the specimens by fetching this page and parsing it, without
  * running it. So the page ships with a copy of itself as the browser drew
  * it: every block, every specimen, the values the swatches read. The app's
  * first render replaces the copy, so nothing is hydrated and nothing can

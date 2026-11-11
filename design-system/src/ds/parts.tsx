@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { install } from "./site"
 
 /*
- * The page's own parts. A component block is what Studio reads: an element
+ * The page's own parts. A component block is what review tools read: an element
  * with data-ds-block and an id that starts with "c-", a title in its h4,
  * and a first .row whose children are the specimens the Add tab offers.
  * Anything after that row is for people reading the page.
@@ -92,7 +92,7 @@ function InstallLine({ name }: { name: string }) {
   )
 }
 
-/** A second or third line of specimens, for people rather than for Studio */
+/** A second or third line of specimens, for people rather than for review tools */
 function More({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className="mt-3">
@@ -147,7 +147,7 @@ function Section({
 }
 
 /* The value of a token, read off the page as it is drawn now, so it follows
-   the theme and whatever Studio has changed. Empty until the page runs. */
+   the theme and whatever a review tool has changed. Empty until the page runs. */
 function useTokenValue(token: string, version: number) {
   const [value, setValue] = React.useState("")
   React.useEffect(() => {
