@@ -163,7 +163,12 @@ const composerTurns = (
         step,
         at: proposal.settledAt ?? proposal.at,
         beatId: proposal.id,
-        wrote: { file: proposal.file, lines: [proposal.line] },
+        // The line as Apply wrote it, not as the file holds it now
+        wrote: {
+          file: proposal.file,
+          lines: [proposal.line],
+          text: [proposal.after],
+        },
         failed: false,
       });
     }
