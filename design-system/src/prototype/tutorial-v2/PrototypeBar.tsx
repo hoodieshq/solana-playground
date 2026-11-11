@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronDown, RotateCcw } from "lucide-react"
+import { ChevronDown, RotateCcw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -20,7 +20,9 @@ import { SettingsControls } from "./settings/BarControls"
 import { NAV_STATES, setNavState, useNavState, type NavStateId } from "./navStates"
 import { switchView, view, type View } from "./view"
 
-const NAV_IDS = Object.keys(NAV_STATES) as NavStateId[]
+/** The states the bar offers: the ones a review walks through. The rest stay in navStates.ts for a
+ * state that sets one of them (New project's environment picks) (Almaz, 11 Nov: the bar had too many) */
+const NAV_IDS: NavStateId[] = ["first-visit", "returning", "all-set", "half-set", "network-down", "ai-limit", "offline"]
 
 /** Which state the nav draws, to compare them */
 function NavStatePicker() {
@@ -46,9 +48,6 @@ function NavStatePicker() {
     </DropdownMenu>
   )
 }
-
-// v1 is on this server in development and on its own stand once deployed (prototype/vercel-v2/build.sh)
-const V1 = import.meta.env.VITE_V1_URL ?? "/prototype/tutorial/"
 
 /** The prototype's own controls, in one place for both views: a thin strip across the top, over
  * the phone and tablet frames and over the desktop screen alike, so switching never moves them. A lighter
@@ -119,14 +118,6 @@ export function PrototypeBar({ onReset }: { onReset: () => void }) {
         <ProgramsControls />
         <SettingsControls />
         <AirdropPicker />
-        {/* v1 as shown on 10/23, for the side by side. It gets no link back: it stays as it was */}
-        {/* Short, so the bar fits at 1440 with Tutorials in it; the full words are in the tips */}
-        <Button variant="ghost" size="sm" asChild>
-          <a href={`${V1}${view === "phone" ? "" : `?view=${view}`}`} title="Open v1" aria-label="Open v1">
-            v1
-            <ArrowUpRight />
-          </a>
-        </Button>
         <Button variant="ghost" size="icon-sm" onClick={onReset} title="Reset" aria-label="Reset">
           <RotateCcw />
         </Button>

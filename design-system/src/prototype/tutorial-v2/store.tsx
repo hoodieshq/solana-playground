@@ -264,7 +264,8 @@ const built = (s: State): State => ({
 
 export const initial = (): State => ({
   v: 2,
-  screen: "gallery",
+  // A first visit lands on Home (Almaz, 11 Nov); a saved lesson opens where it was left
+  screen: "home",
   step: 0,
   started: false,
   files: { ...INITIAL_FILES },

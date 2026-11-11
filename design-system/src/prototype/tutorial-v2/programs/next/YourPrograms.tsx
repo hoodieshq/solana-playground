@@ -1,4 +1,4 @@
-import { Ellipsis, FolderClosed, Plus } from "lucide-react"
+import { Ellipsis, Plus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -14,13 +14,12 @@ import { LESSONS } from "../../lessons"
 import { useNavState } from "../../navStates"
 import { progressOf, savedProgress, useStore } from "../../store"
 import { CATALOG as CATALOG_TUTORIALS, shownName } from "../../ui/catalog"
-import { FrameworkLogo } from "../../newProject/next/FrameworkCard"
-import { frameworkOf } from "../../newProject/next/data"
 import { openFirstLight } from "../../newProject/next/open"
 import { ResumeList, type ResumeItem } from "../../ui/ResumeList"
 import { CATALOG } from "../data"
 import { deleteProject, go, steps, usePrograms, type Project } from "../store"
 import { ProgramIcon } from "./catalog-parts"
+import { ProjectCover } from "./ProjectCover"
 import { deletable, deleteQuestion, startRename } from "./shell/GuideColumn"
 
 /** Where a project of yours stands, in its step strip's words: the step it's on, or how it ended */
@@ -93,17 +92,9 @@ export function YourPrograms({ empty = false }: { empty?: boolean }) {
         // and Native's bare stripes made a ragged column (Almaz, 10 Nov)
         // TypeScript's mark is a square of its own, so it is the tile: inside the grey one it sat as a box in
         // a box (Almaz, 10 Nov)
-        cover: meta ? (
-          <ProgramIcon p={meta} className="shrink-0" />
-        ) : p.framework === "ts-client" ? (
-          <span aria-hidden="true" className="size-11 shrink-0 overflow-hidden rounded-[9px]">
-            <FrameworkLogo f={frameworkOf(p.framework)} size={44} />
-          </span>
-        ) : (
-          <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06]">
-            <FrameworkLogo f={frameworkOf(p.framework)} size={26} />
-          </span>
-        ),
+        // Every cover on one 44 tile in the tile style: a catalog program's picture, or the framework yours
+        // was started on (Almaz, 11 Nov: the framework's logo was the last old cover left)
+        cover: meta ? <ProgramIcon p={meta} className="shrink-0" /> : <ProjectCover framework={p.framework} />,
         name: p.name,
         ...whereNow(p),
         onOpen: () => go({ at: "project", id: p.id }),
@@ -151,11 +142,7 @@ export function YourPrograms({ empty = false }: { empty?: boolean }) {
   for (const r of rows.filter((r) => !r.lesson && !mine.has(r.name))) {
     items.push({
       key: `account-${r.name}`,
-      cover: (
-        <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06] text-muted-foreground">
-          <FolderClosed className="size-5" strokeWidth={1.75} />
-        </span>
-      ),
+      cover: <ProjectCover framework="account" />,
       name: r.name,
       // Where its work lives, as the nav marks it; the prototype knows nothing else about these
       where: r.marker ?? "Saved to your account",
@@ -169,11 +156,7 @@ export function YourPrograms({ empty = false }: { empty?: boolean }) {
     const name = `${PAD_NAMES[i % PAD_NAMES.length]}${i >= PAD_NAMES.length ? `-${Math.floor(i / PAD_NAMES.length) + 1}` : ""}`
     items.push({
       key: `pad-${name}`,
-      cover: (
-        <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06] text-muted-foreground">
-          <FolderClosed className="size-5" strokeWidth={1.75} />
-        </span>
-      ),
+      cover: <ProjectCover framework="account" />,
       name,
       where: "Saved to your account",
       onOpen: soon,

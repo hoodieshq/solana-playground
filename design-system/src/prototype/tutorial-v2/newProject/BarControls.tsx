@@ -15,7 +15,21 @@ import { StatusDot } from "@/components/ui/status-dot"
 import { setNavState } from "../navStates"
 import { NP_NEXT_STATES, setNewProjectState, useNewProjectState, type NextStateId } from "./design"
 
-const NEXT_IDS = Object.keys(NP_NEXT_STATES) as NextStateId[]
+/** The states the bar offers, one or two a source: the rest stay reachable by ?npState= (Almaz, 11 Nov:
+ * forty two read as a spec, not a menu) */
+const NEXT_IDS: NextStateId[] = [
+  "live",
+  "idle",
+  "creating",
+  "create-failed",
+  "example-picked",
+  "import-typed",
+  "import-choose",
+  "import-private",
+  "describe-typed",
+  "describe-off",
+  "offline",
+]
 
 /** First Light's states under their groups, in the spec's order */
 const NEXT_GROUPS = NEXT_IDS.reduce<{ group?: string; ids: NextStateId[] }[]>((all, id) => {

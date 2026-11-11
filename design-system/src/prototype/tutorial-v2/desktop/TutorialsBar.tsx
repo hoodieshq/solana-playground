@@ -80,6 +80,9 @@ export function BannerIconsLink() {
   )
 }
 
+/** The bar's picks: one in progress, and enough to fold under Show all */
+const SHOWN: TutState[] = ["live", "first-done", "in-progress-1", "in-progress-5"]
+
 export function TutorialsControls() {
   const state = read()
   return (
@@ -93,7 +96,7 @@ export function TutorialsControls() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-[80vh] w-56 overflow-y-auto">
         <DropdownMenuRadioGroup value={state} onValueChange={(v) => apply(v as TutState)}>
-          {(Object.keys(STATES) as TutState[]).map((id) => (
+          {SHOWN.map((id) => (
             <DropdownMenuRadioItem key={id} value={id}>
               {STATES[id]}
             </DropdownMenuRadioItem>

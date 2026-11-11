@@ -6,7 +6,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenu
 import { applySettingsState } from "./bar"
 import { SETTINGS_STATES, useSettingsState, type SettingsState } from "./design"
 
-const IDS = Object.keys(SETTINGS_STATES) as SettingsState[]
+/** The bar's picks; every other state is still reachable by ?settings= */
+const IDS: SettingsState[] = ["closed", "open", "mainnet", "rpc-form", "rpc-unreachable", "assistant-off", "limit", "account-delete"]
 
 /** The prototype bar's Settings control: one menu of states, as Programs folds its own. A pick sets the
  * state up once, even the one already picked; from there it's the live page */
