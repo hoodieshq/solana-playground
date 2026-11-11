@@ -466,6 +466,40 @@ test.describe("client-v2-stages: Interact", () => {
       cardBox.x + cardBox.width + 0.5
     );
   });
+
+  // At 1024 px with the navigation and the assistant open, the stage is about
+  // 240 px wide, less the scrollbar gutter on both edges: Upload IDL, the
+  // IDL's name and "Build the IDL locally" on one centred row lost both ends
+  test("Interact keeps its IDL actions inside a narrow stage", async ({
+    seededPage: page,
+  }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    // eslint-disable-next-line unicorn/no-null -- the cluster's answer for an account that does not exist
+    await stubProgramAccount(page, null);
+    const panel = await buildThenInteract(page);
+    await expect(
+      panel.getByRole("heading", { name: "Nothing to call yet" })
+    ).toBeVisible(LONG);
+
+    const frame = requireFor("the stage frame's bounding box")(
+      await panel.locator("div.overflow-y-auto").first().boundingBox()
+    );
+    const buttons = panel
+      .locator('[data-slot="stage-empty-actions"]')
+      .getByRole("button");
+    await expect(
+      buttons.filter({ hasText: "Build the IDL locally" })
+    ).toBeVisible();
+    for (const button of await buttons.all()) {
+      const box = requireFor("an action's bounding box")(
+        await button.boundingBox()
+      );
+      expect(box.x).toBeGreaterThanOrEqual(frame.x - 0.5);
+      expect(box.x + box.width).toBeLessThanOrEqual(
+        frame.x + frame.width + 0.5
+      );
+    }
+  });
 });
 
 test.describe("client-v2-stages on a phone", () => {
