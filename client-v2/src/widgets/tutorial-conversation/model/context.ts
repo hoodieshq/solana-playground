@@ -39,8 +39,10 @@ export interface TutorialFacts {
 
 /**
  * The tutorial as the assistant's context: where the learner is, what the
- * step asks, the last result, the files and the docs it may link, and what
- * it may and may not do here. Copy from the definition, facts from the save.
+ * step asks and the steps still to come, where the lesson's actions are and
+ * what the terminal runs, the card the step waits on, the last result, the
+ * files and the docs it may link, and what it may and may not do here. Copy
+ * from the definition, facts from the save.
  */
 export const describeTutorial = (facts: TutorialFacts): string => {
   const { definition, progress, live } = facts;
@@ -55,7 +57,7 @@ export const describeTutorial = (facts: TutorialFacts): string => {
     lines.push(
       `A question is open: "${textOf(live.ask.question)}". The step waits ` +
         "on its question card in this chat first: point the learner to " +
-        "answer it there, or to its Hint, Type it myself or Skip button. " +
+        `answer it there, or to its ${questionButtons(live)} button. ` +
         "The step's next card appears in this chat once it is answered. " +
         `Do not give its answer away; ${TOOLS.hint} posts the lesson's own ` +
         `hint, and ${TOOLS.skip} skips it, as its buttons do.`
@@ -100,6 +102,19 @@ export const describeTutorial = (facts: TutorialFacts): string => {
     );
   }
   return lines.join("\n");
+};
+
+/**
+ * The foot buttons an open question's card shows (`BaseQuestionCard`): Hint
+ * until it was taken, "Type it myself" for a question that writes, which the
+ * phone layout leaves out, and Skip always
+ */
+const questionButtons = (live: Extract<Turn, { kind: "ask" }>): string => {
+  const buttons: string[] = [];
+  if (!live.hinted) buttons.push("Hint");
+  if (live.ask.writes) buttons.push("Type it myself (not on a phone)");
+  if (!buttons.length) return "Skip";
+  return `${buttons.join(", ")} or Skip`;
 };
 
 const textOf = (text: string | { text: string }) =>
@@ -159,8 +174,9 @@ const WHAT_THE_TERMINAL_RUNS =
   "passes no step, except where this context says so.";
 
 /**
- * What else, if anything, runs the live act outside its card. A build or a
- * deploy the lesson reads runs from the card alone: the terminal's `build`
+ * What else, if anything, runs the live act outside its card. That the work
+ * area has no Build or Deploy is said once, in `WHERE_ACTIONS_ARE`, not
+ * here. A build or a deploy the lesson reads runs from the card alone: the terminal's `build`
  * compiles but passes no step. A call has the Call panel and a run has the
  * client file too (`PassedVia`).
  */
@@ -196,9 +212,9 @@ const whereActIs = (live: Extract<Turn, { kind: "act" }>): string => {
 };
 
 /**
- * Where the step goes on from a passed step: the win card's "Next: <step>"
- * button (`BaseWinCard`), or, on the last step, the finish card that follows
- * by itself
+ * Where the learner goes on from a passed step: the win card's "Next:
+ * <step>" button (`BaseWinCard`), or, after the last step or a step the
+ * definition no longer has, the finish card that follows by itself
  */
 const whereNextIs = (
   definition: TutorialDefinition,
@@ -405,6 +421,11 @@ if (import.meta.vitest) {
       expect(describeTutorial(facts(card(build, "interrupted")))).toContain(
         "A reload interrupted its last run; pressing it runs it again."
       );
+      for (const act of hello.steps.flatMap((s) => s.beats)) {
+        if (act.kind !== "act" || act.act === "build") continue;
+        const other = describeTutorial(facts(card(act, "live")));
+        expect(other.split("the work area has no")).toHaveLength(2);
+      }
       const called = describeTutorial(facts(card(call, "live")));
       expect(called).toContain("The Call panel in the work area's head");
       expect(called).not.toContain("only way");
@@ -415,21 +436,25 @@ if (import.meta.vitest) {
         (b): b is import("@/entities/tutorial").Ask => b.kind === "ask"
       );
       if (!ask) throw new Error("Hello Anchor has no question in step 1");
-      const live: Turn = {
-        id: ask.id,
+      const asked = (
+        question: import("@/entities/tutorial").Ask,
+        hinted: boolean
+      ): Turn => ({
+        id: question.id,
         kind: "ask",
         step: hello.steps[0].id,
         at: 1,
         whole: false,
-        beatId: ask.id,
-        ask,
+        beatId: question.id,
+        ask: question,
         open: true,
         wrong: [],
-        hinted: false,
+        hinted,
         writeFailed: false,
         outcome: null,
         attempts: 0,
-      };
+      });
+      const live = asked(ask, false);
       const withDocs: TutorialDefinition = {
         version: hello.version,
         name: hello.name,
@@ -459,7 +484,26 @@ if (import.meta.vitest) {
         currentFile: null,
       });
       expect(text).toContain(
-        "The step waits on its question card in this chat first: point the learner to answer it there, or to its Hint, Type it myself or Skip button. The step's next card appears in this chat once it is answered."
+        "The step waits on its question card in this chat first: point the learner to answer it there, or to its Hint, Type it myself (not on a phone) or Skip button. The step's next card appears in this chat once it is answered."
+      );
+      // Step 2's question writes nothing: no Type it myself, and no Hint once taken
+      const deployAsk = hello.steps[1].beats.find(
+        (b): b is import("@/entities/tutorial").Ask => b.kind === "ask"
+      );
+      if (!deployAsk) throw new Error("Hello Anchor has no question in step 2");
+      const buttonsOf = (hinted: boolean) =>
+        describeTutorial({
+          definition: hello,
+          progress: freshProgress(),
+          live: asked(deployAsk, hinted),
+          openFiles: [],
+          currentFile: null,
+        });
+      expect(buttonsOf(false)).toContain(
+        "answer it there, or to its Hint or Skip button."
+      );
+      expect(buttonsOf(true)).toContain(
+        "answer it there, or to its Skip button."
       );
       expect(text).toContain(NO_WORK_AREA_ACTION);
       expect(text).toContain("Do not give its answer away");
@@ -515,6 +559,20 @@ if (import.meta.vitest) {
       ).toContain(
         "The last step is done: the finish card follows in this chat by itself."
       );
+      // The last step without its flag, and a step the tutorial no longer has
+      for (const stepId of [lastStep, "gone"]) {
+        expect(
+          describeTutorial({
+            definition: hello,
+            progress,
+            live: win(stepId, false),
+            openFiles: [],
+            currentFile: null,
+          })
+        ).toContain(
+          "The last step is done: the finish card follows in this chat by itself."
+        );
+      }
     });
 
     it("points an open failed result to its card's buttons", () => {
@@ -618,6 +676,14 @@ if (import.meta.vitest) {
       const done = freshProgress();
       done.cursor = { kind: "finished" };
       expect(facts(done)).toContain("They finished every step.");
+      const gone = freshProgress();
+      gone.cursor = { kind: "step", stepId: "gone", beat: 0, fail: false };
+      expect(facts(gone)).toContain("a step this tutorial no longer has");
+      expect(facts(gone)).not.toContain("This is the last step.");
+      for (const text of [facts(freshProgress()), facts(done), facts(gone)]) {
+        expect(text).toContain(NO_WORK_AREA_ACTION);
+        expect(text).toContain("there is no yarn, npm or npx");
+      }
     });
   });
 }
