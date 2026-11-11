@@ -492,9 +492,8 @@ jobs:
           fail-on-cache-miss: true
 
       # The browser binary is cached by Playwright version, so only a bump
-      # re-downloads it. The runner's system libraries are not cached: on a
-      # hit they are installed alone (`install-deps`), on a miss together
-      # with the browser (`--with-deps`).
+      # re-downloads it. The runner's system libraries are not cached: they
+      # are installed by `install-deps` after the browser, hit or miss.
       #
       # restore + save rather than `actions/cache`, whose post step saves
       # only when the job succeeds: while the suite is red, every run would
@@ -511,7 +510,7 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: yarn playwright install --with-deps chromium
+        run: yarn playwright install chromium
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -519,8 +518,16 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
+      # Not fatal: on 11 Nov 2026 from about 19:40 (+05) apt on the runners
+      # could not resolve archive.ubuntu.com, azure.archive.ubuntu.com or
+      # security.ubuntu.com ("Temporary failure resolving", exit 100), and
+      # every e2e shard died here before a test ran (foundation runs
+      # 43043378831, 43041435016, 43044985461, 43039934457, 43037748693).
+      # The ubuntu-latest image ships Chrome, so the libraries Chromium needs
+      # are already installed; this step only tops them up. A browser that
+      # still lacks one fails the first test, loudly.
       - name: Install Playwright system dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        continue-on-error: true
         run: yarn playwright install-deps chromium
 
       # `yarn dev` runs `generate-fast` and `generate-dev-crates` (current by key
