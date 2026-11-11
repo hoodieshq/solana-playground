@@ -54,7 +54,7 @@ export const describeTutorial = (facts: TutorialFacts): string => {
     lines.push(
       `A question is open: "${textOf(live.ask.question)}". The step waits ` +
         "on its question card in this chat first: point the learner to " +
-        "answer it there, or to its Hint or Skip button. " +
+        "answer it there, or to its Hint, Type it myself or Skip button. " +
         "The step's next card appears in this chat once it is answered. " +
         `Do not give its answer away; ${TOOLS.hint} posts the lesson's own ` +
         `hint, and ${TOOLS.skip} skips it, as its buttons do.`
@@ -135,7 +135,9 @@ const whereOf = (
 const WHERE_ACTIONS_ARE =
   "The lesson's actions (build, deploy, airdrop, run, call) are buttons on " +
   "cards in the tutorial feed, in this chat: the work area has no Build, " +
-  "Deploy or Interact action or tab in a tutorial.";
+  "Deploy or Interact action or tab in a tutorial. Besides the cards, only " +
+  "the Call panel in the work area's head, once the program is deployed, " +
+  "and running the client file act.";
 
 /**
  * What else, if anything, runs the live act outside its card. A build or a
@@ -184,7 +186,7 @@ const whereNextIs = (
   live: Extract<Turn, { kind: "win" }>
 ): string => {
   const i = definition.steps.findIndex((s) => s.id === live.stepId);
-  const next = definition.steps[i + 1];
+  const next = i === -1 ? undefined : definition.steps[i + 1];
   if (live.last || !next) {
     return "The last step is done: the finish card follows in this chat by itself.";
   }
@@ -240,7 +242,7 @@ if (import.meta.vitest) {
 
   describe("widgets/tutorial-conversation/model/context", () => {
     const NO_WORK_AREA_ACTION =
-      "The lesson's actions (build, deploy, airdrop, run, call) are buttons on cards in the tutorial feed, in this chat: the work area has no Build, Deploy or Interact action or tab in a tutorial.";
+      "The lesson's actions (build, deploy, airdrop, run, call) are buttons on cards in the tutorial feed, in this chat: the work area has no Build, Deploy or Interact action or tab in a tutorial. Besides the cards, only the Call panel in the work area's head, once the program is deployed, and running the client file act.";
     let hello: TutorialDefinition;
     beforeAll(async () => {
       hello = (await import("../../../tutorials/hello-anchor/tutorial.json"))
@@ -404,7 +406,7 @@ if (import.meta.vitest) {
         currentFile: null,
       });
       expect(text).toContain(
-        "The step waits on its question card in this chat first: point the learner to answer it there, or to its Hint or Skip button. The step's next card appears in this chat once it is answered."
+        "The step waits on its question card in this chat first: point the learner to answer it there, or to its Hint, Type it myself or Skip button. The step's next card appears in this chat once it is answered."
       );
       expect(text).toContain(NO_WORK_AREA_ACTION);
       expect(text).toContain("Do not give its answer away");
