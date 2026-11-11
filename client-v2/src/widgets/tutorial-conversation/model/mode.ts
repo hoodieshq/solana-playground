@@ -24,6 +24,9 @@ const NO_PARAMS = {
   additionalProperties: false as const,
 };
 
+/** The context and the state now, outside a tutorial */
+const NOT_IN_A_TUTORIAL = "The learner is not in a tutorial right now.";
+
 /** The open question's beat id, or null */
 const openQuestion = (): string | null => {
   const live = PgConversation.view()?.live;
@@ -56,7 +59,7 @@ export const tutorialMode = ({
     `step does it, or offer a change with ${TOOLS.propose}.`,
   now: () => {
     const { context, engine } = PgConversation.state;
-    if (!context) return "The learner is not in a tutorial right now.";
+    if (!context) return NOT_IN_A_TUTORIAL;
     return describeNow({
       definition: context.definition,
       progress: engine.progress,
@@ -65,7 +68,7 @@ export const tutorialMode = ({
   },
   context: () => {
     const { context, engine } = PgConversation.state;
-    if (!context) return "The learner is not in a tutorial right now.";
+    if (!context) return NOT_IN_A_TUTORIAL;
     return describeTutorial({
       definition: context.definition,
       progress: engine.progress,

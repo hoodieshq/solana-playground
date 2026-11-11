@@ -71,7 +71,8 @@ const modeContext = () => {
  * after the user's words, as a second text part, so the model reads it after
  * the history, whose turns describe the surface as it was then (HOO-2823). A
  * system message after the history would need a beta on Anthropic's API and
- * is not one every OpenAI-compatible backend takes; a text part is
+ * not every OpenAI-compatible backend takes one; every backend takes a text
+ * part
  */
 const withModeNow = (said: UserModelMessage & { content: string }) => {
   const mode = PgAssistant.mode;

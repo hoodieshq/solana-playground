@@ -320,7 +320,7 @@ describe("the assistant's provider", () => {
     ]);
   });
 
-  it("still sends the turn when a mode's state now throws, as typed, and reports it", async () => {
+  it("sends the turn as typed when a mode's state now throws, and reports it", async () => {
     const memory = memoryLog();
     initLogger({ providers: [memory] });
     const sent = respond(openAiText("Hi."));
