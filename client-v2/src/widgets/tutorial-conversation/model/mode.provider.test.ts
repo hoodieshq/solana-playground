@@ -127,7 +127,7 @@ describe("the tutorial assistant asked again at a later card (HOO-2823)", () => 
       await provider.send("show me the steps");
       const before = messagesOf(sent[0].body);
       expect(textOf(before[before.length - 1])).toContain(
-        "The tutorial now: they have not pressed Start yet."
+        `The tutorial now: they have not pressed Start yet: end your reply with "${BEGIN_INVITATION}"`
       );
 
       const cases: Array<{ live: unknown; now: string }> = [

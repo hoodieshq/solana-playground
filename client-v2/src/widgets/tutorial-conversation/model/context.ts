@@ -115,7 +115,9 @@ export const describeTutorial = (facts: TutorialFacts): string => {
  * (`AssistantMode.now`): where the learner is and the card the step waits
  * on. When the learner asked "what now?" again, the model repeated its
  * earlier answers from the history over the context before it ("press Start
- * step 1" at a live Build card, HOO-2823).
+ * step 1" at a live Build card, HOO-2823). Before Start it repeats the
+ * invitation to begin: the note is never stored, so it cannot outlive Start
+ * as the menu's result did.
  */
 export const describeNow = ({
   definition,
@@ -137,7 +139,9 @@ const nowOf = (
   progress: ConversationProgress
 ): string => {
   const { cursor } = progress;
-  if (cursor.kind === "intro") return "they have not pressed Start yet.";
+  if (cursor.kind === "intro") {
+    return `they have not pressed Start yet: end your reply with "${BEGIN_INVITATION}"`;
+  }
   if (cursor.kind === "finished") return "they finished every step.";
   const i = definition.steps.findIndex((s) => s.id === cursor.stepId);
   const step = definition.steps[i];
@@ -162,9 +166,8 @@ const waitsOn = (definition: TutorialDefinition, live: Turn | null): string => {
     );
   }
   if (live?.kind === "win") {
-    const i = definition.steps.findIndex((s) => s.id === live.stepId);
-    const next = i === -1 ? undefined : definition.steps[i + 1];
-    if (live.last || !next) return "The last step is done.";
+    const { next } = nextAfter(definition, live);
+    if (!next) return "The last step is done.";
     return (
       "The step is done: the next one opens from the " +
       `"${nextStepLabel(next.title)}" button.`
@@ -323,9 +326,8 @@ const whereNextIs = (
   definition: TutorialDefinition,
   live: Extract<Turn, { kind: "win" }>
 ): string => {
-  const i = definition.steps.findIndex((s) => s.id === live.stepId);
-  const next = i === -1 ? undefined : definition.steps[i + 1];
-  if (live.last || !next) {
+  const { i, next } = nextAfter(definition, live);
+  if (!next) {
     return "The last step is done: the finish card follows in this chat by itself.";
   }
   return (
@@ -335,6 +337,19 @@ const whereNextIs = (
     )}" button, which opens the next step. Point the ` +
     "learner to that button."
   );
+};
+
+/**
+ * The passed step's index and the step its Next button opens: none after the
+ * last step, or after a step the definition no longer has
+ */
+const nextAfter = (
+  definition: TutorialDefinition,
+  live: Extract<Turn, { kind: "win" }>
+) => {
+  const i = definition.steps.findIndex((s) => s.id === live.stepId);
+  const next = i === -1 || live.last ? undefined : definition.steps[i + 1];
+  return { i, next };
 };
 
 /** The latest run to start, of any act, that has ended */
@@ -822,7 +837,7 @@ if (import.meta.vitest) {
         "this and the tutorial context, not from them.";
 
       expect(now(freshProgress(), turn({ kind: "intro" }))).toBe(
-        `The tutorial now: they have not pressed Start yet. ${older}`
+        `The tutorial now: they have not pressed Start yet: end your reply with "${BEGIN_INVITATION}" ${older}`
       );
 
       const ask = hello.steps[0].beats.find((b) => b.kind === "ask");
