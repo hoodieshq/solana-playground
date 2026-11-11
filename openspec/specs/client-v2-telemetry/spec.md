@@ -131,9 +131,10 @@ that says what the user pressed, or where an action started, SHALL be named
 the cross-slice check also enforces, since each slice alone would accept a
 synonym of its own.
 
-The scenarios on the parameter checks and the cross-slice check are marked
-`(manual)`: `yarn test-types` and the unit test hold them, not a Playwright
-test (the repository marks such scenarios inconsistently).
+The six scenarios below are marked `(manual)` only so `spec:coverage` does not
+count them as owed a Playwright test; nobody checks them by hand. `yarn
+test-types` holds the first three, `src/app/telemetry-parameters.test.ts` the
+last three (the repository marks such scenarios inconsistently).
 
 #### Scenario: A parameter is not snake_case (manual)
 
