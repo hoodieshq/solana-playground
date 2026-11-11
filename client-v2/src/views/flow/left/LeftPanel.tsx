@@ -125,9 +125,10 @@ export default LeftPanel;
  *
  * Every rule here is structural (`nth-child`), anchored either on
  * `#root-dir` (`PgView.ids.ROOT_DIR`, a stable id upstream itself relies
- * on) or on this wrapper's own DOM position; the one attribute,
- * `[data-temporary-warning]`, exempts that warning rather than hiding
- * anything. None of the elements being hidden carry a stable `id`/`class`
+ * on) or on this wrapper's own DOM position. Two attribute selectors are
+ * the exceptions: `[data-temporary-warning]` exempts that warning from the
+ * hiding, and `[data-section]` reaches each section to zero its margins.
+ * None of the elements being hidden carry a stable `id`/`class`
  * of their own -- their generated class names are build-dependent, and
  * `SectionHeader`/`SectionButton` carry no `title`/`aria-label` that would
  * differ between "Build" and "Deploy" etc. Verified against the live DOM

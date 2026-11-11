@@ -203,7 +203,7 @@ const TemporaryWarning = () => {
     // `data-temporary-warning`: the Flow view's left panel hides the
     // project picker in this position but must keep this warning and its
     // Import (`EXPLORER_CONTAINER` in `views/flow/left/LeftPanel.tsx`).
-    // Keep it on this root: the rule matches Explorer's 1st child only
+    // Keep it on this root: the rule matches Explorer's 1st child only.
     <div data-temporary-warning className="px-2 py-4 [&>button]:mt-3">
       <Callout variant="info">
         <InfoIcon />
