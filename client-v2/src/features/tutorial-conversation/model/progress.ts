@@ -280,8 +280,8 @@ export type RunRecord =
       /** When "Show me the fix" wrote the step's target; it works once */
       fixedAt?: number;
       /**
-       * An unplanned failure: when "I'll fix it myself" closed its card, and
-       * the act's Build again card follows (HOO-2806)
+       * A failed build: when "I'll fix it myself" closed its card. For an
+       * unplanned failure the act's Build again card follows (HOO-2806)
        */
       selfFixAt?: number;
     };
@@ -446,7 +446,8 @@ export type RunResult =
   | {
       /**
        * A deploy's failures, and an airdrop's, which share its cards. A
-       * deploy the program on chain refuses before any SOL is locked is
+       * deploy refused before any SOL is locked, from the program's on-chain
+       * state, is
        * `immutable` (it can no longer be upgraded) or `not_authority`
        * (another wallet holds its upgrade authority): running it again as it
        * is cannot fix either (HOO-2806)

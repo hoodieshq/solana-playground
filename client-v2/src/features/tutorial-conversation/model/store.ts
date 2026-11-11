@@ -252,7 +252,7 @@ export class PgConversation {
 
   /**
    * A run of the client file outside its card (the terminal's `run`, the
-   * explorer's or the editor's Run) is judged as the run act's and passes the
+   * explorer's Run, the docs' Run) is judged as the run act's and passes the
    * live step's call goal it meets, as `client` (HOO-2806). A run that starts
    * while the step waits on no call, or while an act runs, is not judged; a
    * result that lands after another tutorial opened, this one started over,
@@ -281,6 +281,8 @@ export class PgConversation {
             cursor.stepId === judged.stepId
           ) {
             PgConversation.passed("client", result);
+          } else {
+            log.debug("A client run ended after its step or tutorial moved on");
           }
         },
       };

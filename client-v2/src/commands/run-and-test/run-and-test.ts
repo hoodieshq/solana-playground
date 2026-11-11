@@ -41,8 +41,8 @@ const createCommonArgs = (parentPath: string) =>
 
         return scriptsIn(parentPath);
       },
-      // A path the list does not hold is refused in `runFiles`, so the
-      // refusal is counted as a run that errored (`processCommon`)
+      // Any path is handed to `runFiles`, which refuses one with no file, so
+      // the refusal is counted as a run that errored (`processCommon`)
       suggestOnly: true,
     },
   ]);
@@ -74,7 +74,7 @@ const SCRIPT_KIND: Record<string, string> = {
  * add one, else the scripts there are.
  *
  * @param folder the folder the command runs in, `client` or `tests`
- * @returns the message to throw for a path as given
+ * @returns a function from the path as given to the message to throw
  */
 const missingFileLineFor = (folder: string) => (path: string) => {
   const scripts = scriptsIn(folder);
@@ -155,15 +155,17 @@ const runFiles = async (params: ProcessParams): Promise<RunResult> => {
   // The path can be a file name that's expected to run inside the `client`
   // or `tests` directory based on the command that's running
   const scripts = (paths ?? []).map((path) => {
-    // A full path, or one in the command's folder, as given; any other name
-    // is in that folder, so `run` never runs a test file, nor `test` a client
+    // A full path, or one in the command's folder, as given; a bare name or
+    // any other relative path is looked up in the command's folder only
     const inFolder =
       path.startsWith(PgExplorer.PATHS.ROOT_DIR_PATH) ||
       path.startsWith(PgCommon.appendSlash(folderPath));
     const code = PgExplorer.getFileContent(
       inFolder ? path : PgCommon.joinPaths(folderPath, path)
     );
-    if (!code) throw new Error(missingFileLineFor(folderPath)(path));
+    // An empty file is there, and runs as one: only a missing one is refused
+    if (code === undefined)
+      throw new Error(missingFileLineFor(folderPath)(path));
 
     const fileName = PgExplorer.getItemNameFromPath(path);
     if (!PgLanguage.getIsPathJsLike(fileName)) {

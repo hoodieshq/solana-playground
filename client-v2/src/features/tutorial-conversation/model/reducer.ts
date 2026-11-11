@@ -559,7 +559,8 @@ export const panelInput = (
 
 /**
  * The input a run of the client file started outside its card is judged with
- * (HOO-2806), as the run act's would be: the live step's call goal, while it
+ * (HOO-2806), as the run act's would be: the live step's call or refused
+ * goal, while it
  * has not passed and no act runs, with the step it is for. Undefined on any
  * other step, which no client run can pass.
  */
@@ -1596,9 +1597,9 @@ const reduceAction = (
             : "landing",
       };
       if (!run.planned || p.cursor.fail) {
-        // A build's card closes, and its Build again card follows
-        // (HOO-2806): without it the learner fixed the code with no Build
-        // to press
+        // A build's card closes, and for an unplanned failure its Build
+        // again card follows (HOO-2806): without it the learner fixed the
+        // code with no Build to press
         if (
           run.result.act !== "build" ||
           run.selfFixAt !== undefined ||

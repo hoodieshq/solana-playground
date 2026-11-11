@@ -537,6 +537,49 @@ if (import.meta.vitest) {
       };
     };
 
+    // HOO-2806: a run started outside its card, read as the card reads its own
+    describe("readOutsideRun", () => {
+      const SENT = {
+        captured: [{ kind: "sent" as const, signature: "5ig", encoded: "tx" }],
+        error: undefined,
+      };
+      const INPUT = { beatId: "client-run", log: "Hello, World!" };
+
+      it("reads what it sent as the act would, and funds nothing", async () => {
+        const port = portWith({});
+        await expect(
+          readOutsideRun(port, INPUT, SENT, 0)
+        ).resolves.toMatchObject({ act: "run", ok: true });
+        expect(port.funding.balance).not.toHaveBeenCalled();
+        expect(port.funding.airdrop).not.toHaveBeenCalled();
+      });
+
+      it("judges nothing off devnet, or with no program deployed", async () => {
+        await expect(
+          readOutsideRun(
+            portWith({ refusal: "Switch to devnet." }),
+            INPUT,
+            SENT,
+            0
+          )
+        ).resolves.toBeUndefined();
+        await expect(
+          readOutsideRun(portWith({ programId: null }), INPUT, SENT, 0)
+        ).resolves.toBeUndefined();
+      });
+
+      it("is a run that threw when the script threw after sending", async () => {
+        await expect(
+          readOutsideRun(
+            portWith({}),
+            INPUT,
+            { captured: SENT.captured, error: new Error("x is undefined") },
+            0
+          )
+        ).resolves.toMatchObject({ ok: false, message: "x is undefined" });
+      });
+    });
+
     describe("the account an act draws", () => {
       const CHOP: Captured = { kind: "sent", signature: "sig", encoded: "tx" };
       const portOf = (fetchIt: RunPort["fetchAccount"]): RunPort => ({

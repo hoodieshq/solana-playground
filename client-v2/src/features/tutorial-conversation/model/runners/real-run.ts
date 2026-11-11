@@ -251,7 +251,10 @@ export const realRunPort = (funding: FundingChain, capSol: number): RunPort => {
         async () => {
           if (act === "run") {
             withDeployedIdl(input);
-            await PgCommand.run.execute(CLIENT_FILE);
+            const ran = await PgCommand.run.execute(CLIENT_FILE);
+            // A script that threw is a run that did not finish, even after
+            // its transactions landed (HOO-2806 review)
+            if (ran && !ran.ok) throw new Error(ran.error);
             return;
           }
           if (!input.call) throw new Error("The call act names no instruction");
@@ -342,9 +345,13 @@ export const realClientRunWatch = (
 ): ClientRunWatchPort => ({
   onDidStart: (cb) => PgCommand.run.onDidStart(cb),
   onDidFinish: (cb) =>
-    PgCommand.run.onDidFinish((result) =>
-      cb("err" in result ? { err: result.err } : {})
-    ),
+    PgCommand.run.onDidFinish((result) => {
+      if ("err" in result) return cb({ err: result.err });
+      // A script that threw comes back as a result, not a throw: the run act
+      // reads it as one that did not finish, and so does this
+      const ran = result.ok;
+      cb(ran && !ran.ok ? { err: new Error(ran.error) } : {});
+    }),
   onDidEnd: (cb) => PgCommand.run.onDidEnd(cb),
   prepare: withDeployedIdl,
   capture: async (until) => {

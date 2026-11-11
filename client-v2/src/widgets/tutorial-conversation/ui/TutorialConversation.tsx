@@ -39,7 +39,7 @@ import {
   reportButtonFailure,
 } from "@/shared/lib/report-button-failure";
 import { Spinner } from "@/shared/ui/spinner";
-import { PgProgramInfo, PgWallet, PgWeb3 } from "@/utils";
+import { PgGlobal, PgProgramInfo, PgWallet, PgWeb3 } from "@/utils";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import { PgTutorial } from "@/utils/tutorial";
@@ -424,6 +424,19 @@ const createWallet = (beatId: string) => {
  * again with the new `declare_id!` and ships to a fresh address (HOO-2806)
  */
 const newProgramId = (beatId: string) => {
+  // As the keypair panel's Generate: never under a running deploy, which
+  // would land at one address with another keypair stored
+  const busy =
+    PgGlobal.deployState !== "ready" ||
+    !!PgConversation.view()?.turns.some(
+      (t) => t.kind === "act" && t.state === "running"
+    );
+  if (busy) {
+    reportButtonFailure("use a new program id")(
+      new Error("A run is in progress. Wait for it to finish.")
+    );
+    return;
+  }
   // eslint-disable-next-line unicorn/no-null -- `null` clears the persisted values in program-info.json
   PgProgramInfo.update({
     kp: PgWeb3.Keypair.generate(),

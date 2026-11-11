@@ -35,6 +35,7 @@ import { answerOf, existsLine, existsOf, isMismatch } from "./progress";
 import type { EngineState, Stage } from "./reducer";
 import { hasRepeatEnded } from "./reducer";
 import { wordOf } from "./route";
+import { CAPTURE_BUSY } from "./runners/capture";
 import { MISMATCH } from "./runners/run-call";
 
 /**
@@ -281,15 +282,18 @@ const isLandedAirdrop = (
  * fix (`fix`), whose line says to fix it first, and after `no_funds` with
  * the act's own line. Not after no wallet, whose card's Create wallet runs
  * it, nor after an unconfirmed result, whose own Check again reads it again.
- * A failed build gets "Build again" (`fix`) once its card closed on "I'll
- * fix it myself", or on Explain once the answer ended; a planned failure goes
- * on to the step's `onFail` instead.
+ * A failed build gets "Build again" (`fix`), set in `view` (`fixingAt`), not
+ * here: once its card closed on "I'll fix it myself", or on Explain once the
+ * answer ended or a reload came; a planned failure goes on to the step's
+ * `onFail` instead.
  */
 type Retry = "faucet" | "balance" | "again" | "fix" | "authority";
 
 const retryOf = (result: RunResult): Retry | null => {
   if (result.ok) return null;
   if (result.act === "run" || result.act === "call") {
+    // Refused because another run held the send path: nothing to fix
+    if (result.message === CAPTURE_BUSY) return "again";
     if (result.reason === undefined || result.reason === "no_transaction") {
       return "fix";
     }
@@ -2343,6 +2347,17 @@ if (import.meta.vitest) {
           })
         ).toBeNull();
         expect(retryOf(failed("no_transaction"))).toBe("fix");
+      });
+
+      it("a run another run's send held up runs again with its own line, nothing to fix", () => {
+        const held: RunResult = {
+          act: "run",
+          ok: false,
+          seconds: 0,
+          message: CAPTURE_BUSY,
+          log: "",
+        };
+        expect(retryOf(held)).toBe("again");
       });
 
       // The learner's ask (HOO-2806): no failure of any act may leave the feed

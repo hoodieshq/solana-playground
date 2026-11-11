@@ -66,7 +66,7 @@ const isClientRun = (input: string | null) => {
 
 /**
  * Judge every run of the client file that did not start from its act card
- * (the terminal's `run`, the explorer's or the editor's Run) as the run act
+ * (the terminal's `run`, the explorer's Run, the docs' Run) as the run act
  * judges its own (HOO-2806): `begin` says, as the run starts, whether the
  * live step waits on a call and with what input; the run's transactions are
  * captured until it finishes, read back, and the result handed on. A run the
@@ -82,6 +82,8 @@ export const watchClientRuns = (
   port: ClientRunWatchPort
 ): Disposable => {
   let release: ((error: unknown) => void) | undefined;
+  /** Stopped watching: a run still captured is left unjudged */
+  let disposed = false;
   const settle = (error: unknown) => {
     release?.(error);
     release = undefined;
@@ -107,7 +109,13 @@ export const watchClientRuns = (
             sends.error instanceof Error &&
             sends.error.message === CAPTURE_BUSY;
           // The card's own run, or another act sending: theirs to judge
-          if (isBusy) return;
+          if (isBusy) {
+            log.debug("A client run while another capture held the send path");
+            return;
+          }
+          // Cut short by the watcher's end, not by the run: what it sent so
+          // far is not the run's result
+          if (disposed) return;
           const result = await port.read(
             judging.input,
             { captured: sends.captured, error },
@@ -116,7 +124,13 @@ export const watchClientRuns = (
           if (result) judging.onResult(result);
         })
         .catch((e) => {
-          log.error(e, { report: true, context: { stage: "a client run" } });
+          log.error(e, {
+            report: true,
+            context: {
+              stage: "judging a client run",
+              beatId: judging.input.beatId,
+            },
+          });
         });
     }),
     port.onDidFinish((result) => settle(result.err)),
@@ -124,6 +138,7 @@ export const watchClientRuns = (
   ];
   return {
     dispose: () => {
+      disposed = true;
       settle(undefined);
       subs.forEach((s) => s.dispose());
     },
@@ -144,10 +159,10 @@ if (import.meta.vitest) {
       called: [{ instruction: "hello", args: {} }],
     };
 
-    /** A `run` command whose runs the test starts and ends, and a chain that sent `sent` */
     const SENT: Captured[] = [
       { kind: "sent", signature: "sig", encoded: "tx" },
     ];
+    /** A `run` command whose runs the test starts and ends, and a chain that sent `sent` */
     const fakePort = ({
       isBusy,
       sent,
@@ -187,7 +202,9 @@ if (import.meta.vitest) {
         await vi.waitFor(() => Promise.resolve());
         await new Promise((r) => setTimeout(r, 0));
       };
-      return { port, read, run };
+      /** Only the start: the run has not finished */
+      const startOnly = (input: string) => start.forEach((cb) => cb(input));
+      return { port, read, run, startOnly };
     };
 
     it("reads a run the terminal started against the live step, and hands the result on", async () => {
@@ -234,6 +251,17 @@ if (import.meta.vitest) {
       expect(read).not.toHaveBeenCalled();
       expect(onResult).not.toHaveBeenCalled();
       watch.dispose();
+    });
+
+    it("judges nothing a run sent before the watcher stopped", async () => {
+      const { port, read, startOnly } = fakePort({ isBusy: false, sent: SENT });
+      const onResult = vi.fn();
+      const watch = watchClientRuns(() => ({ input: INPUT, onResult }), port);
+      startOnly("run");
+      watch.dispose();
+      await new Promise((r) => setTimeout(r, 0));
+      expect(read).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
     });
 
     it("captures nothing when no step waits on a run, for help, or for another script", async () => {

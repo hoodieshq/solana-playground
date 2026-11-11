@@ -66,7 +66,7 @@ export interface TurnHandlers {
   keep: (id: string) => void;
   /** Open the terminal, where a run printed its lines */
   showLog: () => void;
-  /** Make the Playground wallet a deploy found missing, then run it again */
+  /** Make or reconnect the Playground wallet an act found missing, then run the act again */
   createWallet: (beatId: string) => Promise<unknown> | void;
   /** A new program id for a program this wallet cannot upgrade, then deploy again */
   newProgramId: (beatId: string) => void;

@@ -94,7 +94,9 @@ vi.mock("@/views/flow/state/stage", () => ({
   PgFlow: { deployStarted: vi.fn(), deployFinished: vi.fn() },
 }));
 vi.mock("@/utils", () => ({
-  PgProgramInfo: { idl: null, pk: null },
+  PgProgramInfo: { idl: null, pk: null, update: vi.fn() },
+  PgGlobal: { deployState: "ready" },
+  PgWeb3: { Keypair: { generate: () => "new keypair" } },
   PgWallet: {
     accounts: [] as unknown[],
     state: "setup",
@@ -183,7 +185,7 @@ import {
   reportButtonFailure,
 } from "@/shared/lib/report-button-failure";
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import { PgWallet } from "@/utils";
+import { PgProgramInfo, PgWallet } from "@/utils";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import { PgTutorial } from "@/utils/tutorial";
@@ -447,6 +449,49 @@ describe("TutorialConversation", () => {
     expect(PgConversation.act).toHaveBeenCalledWith("s3.run");
     wallet.accounts = [];
     wallet.state = "setup";
+  });
+
+  // HOO-2806: an immutable program's deploy failed with only Try again
+  it("Deploy under a new program id makes a new keypair, drops the build id, then deploys", async () => {
+    const result: Turn = {
+      id: "result:s2.deploy:0",
+      kind: "result",
+      step: "deploy",
+      at: 9,
+      whole: true,
+      beatId: "s2.deploy",
+      act: "deploy",
+      result: {
+        act: "deploy",
+        ok: false,
+        seconds: 1,
+        reason: "immutable",
+        message: "This program is not upgradable.",
+      },
+      took: 0,
+      planned: null,
+      open: true,
+    };
+    store.view.mockReturnValue({
+      turns: [divider, result],
+      live: result,
+      steps: onStep2.steps,
+      placeholder: "Ask about this step",
+      nextAt: null,
+      finishAt: null,
+    });
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Deploy under a new program id" })
+    );
+    expect(PgProgramInfo.update).toHaveBeenCalledWith({
+      kp: "new keypair",
+      customPk: null,
+      uuid: null,
+    });
+    expect(PgConversation.act).toHaveBeenCalledWith("s2.deploy");
   });
 
   it("judges a client run from outside the run card, until it leaves", () => {

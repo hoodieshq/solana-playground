@@ -125,7 +125,8 @@ const FailedCard = ({
  * card says how short the wallet is (and, after an airdrop, that the faucet
  * is at its limit), gives its address to copy and the faucet;
  * the feed's Try again act card under it runs the deploy again. No wallet
- * offers to make one. Once the step moves on, a failure folds to its head.
+ * offers to make one. A program this wallet cannot upgrade, immutable or
+ * another wallet's, offers "Deploy under a new program id" (HOO-2806). Once the step moves on, a failure folds to its head.
  */
 const BaseDeployResultCard = ({
   result,

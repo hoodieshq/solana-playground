@@ -2225,6 +2225,29 @@ describe("PgCallPanel", () => {
       watch.dispose();
     });
 
+    it("passes nothing when it lands after the tutorial started over", async () => {
+      await toDeployed();
+      PgConversation.next();
+      await settle();
+      let land: (r: RunResult) => void = () => {};
+      const { port, read, run } = runCommand(HELLO, false);
+      read.mockImplementationOnce(
+        () => new Promise<RunResult>((resolve) => (land = resolve))
+      );
+      const watch = PgConversation.watchClientRuns(port);
+
+      await run();
+      PgConversation.startOver();
+      await settle();
+      land(HELLO);
+      await settle();
+
+      expect(PgConversation.state.engine.progress.passed).not.toContain(
+        "call-client"
+      );
+      watch.dispose();
+    });
+
     it("is not judged on a step whose goal is no call", async () => {
       await toDeployed();
       const { port, read, run } = runCommand(HELLO, false);
