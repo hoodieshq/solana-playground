@@ -79,7 +79,9 @@ function AsyncButton({
             aria-hidden={!loading || undefined}
             className={cn(LABEL_LAYER, !loading && "invisible")}
           >
-            <Spinner data-icon="inline-start" />
+            {/* No data-icon: it would give the idle button, too, the
+                narrower inline-start padding and set its label off centre */}
+            <Spinner />
             {loadingText}
           </span>
         </span>
