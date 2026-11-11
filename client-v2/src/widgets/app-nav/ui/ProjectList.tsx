@@ -150,9 +150,11 @@ const ProjectList = ({
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const names = PgExplorer.allWorkspaceNames ?? [];
+  // Stored, not in memory: a repository or gist link's view holds no list of
+  // its own, and the user's projects stay listed beside it
+  const names = PgExplorer.storedWorkspaceNames ?? [];
   const liveIds = names
-    .map((name) => PgExplorer.workspaceIdOf(name))
+    .map((name) => PgExplorer.storedWorkspaceIdOf(name))
     .filter((id): id is string => id !== undefined);
   const livePins = prunePins(pins, liveIds);
 
@@ -187,7 +189,7 @@ const ProjectList = ({
   const projects = listProjects(
     names,
     {
-      idOf: (name) => PgExplorer.workspaceIdOf(name),
+      idOf: (name) => PgExplorer.storedWorkspaceIdOf(name),
       isLesson: (name) => PgTutorial.isWorkspaceTutorial(name),
       markerOf: (name) => markers.get(name),
       progressOf,
@@ -344,7 +346,7 @@ const ProjectList = ({
       projects={projects}
       // A preview has no workspaces at all, rather than none read yet
       loading={
-        !PgExplorer.isTemporary && PgExplorer.allWorkspaceNames === undefined
+        !PgExplorer.isTemporary && PgExplorer.storedWorkspaceNames === undefined
       }
       current={PgExplorer.currentWorkspaceName}
       renaming={renamingGone ? undefined : renaming}

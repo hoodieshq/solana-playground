@@ -673,6 +673,80 @@ describe("creating a workspace from a temporary view", () => {
   });
 });
 
+// The project list read `allWorkspaceNames`, which a temporary view leaves
+// undefined, so it went blank while a repository link was open (HOO-2794).
+// The list reads the stored workspaces instead, and none becomes current
+describe("the stored workspaces beside a temporary view", () => {
+  beforeEach(reset);
+
+  const LINK_FILES: Array<[string, string]> = [["/src/lib.rs", "from a link"]];
+  const openLink = async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    await PgExplorer.init({ files: LINK_FILES });
+  };
+  const storedIdOf = (name: string) =>
+    readConfig().workspaces.find((w) => w.name === name)?.id;
+  const expectLinkStillOpen = () => {
+    expect(PgExplorer.isTemporary).toBe(true);
+    expect(PgExplorer.currentWorkspaceName).toBeUndefined();
+    expect(PgExplorer.allWorkspaceNames).toBeUndefined();
+    expect(PgExplorer.getFileContent("/src/lib.rs")).toBe("from a link");
+  };
+
+  it("lists them, with their ids, while the link's project stays open", async () => {
+    await openLink();
+
+    expect(PgExplorer.storedWorkspaceNames).toEqual(["alpha", "beta"]);
+    expect(PgExplorer.storedWorkspaceIdOf("alpha")).toBe(storedIdOf("alpha"));
+    expectLinkStillOpen();
+  });
+
+  it("opens one picked from the list", async () => {
+    await openLink();
+
+    await PgExplorer.switchWorkspace("alpha");
+
+    expect(PgExplorer.isTemporary).toBe(false);
+    expect(PgExplorer.currentWorkspaceName).toBe("alpha");
+    expect(PgExplorer.allWorkspaceNames).toEqual(["alpha", "beta"]);
+    expect(PgExplorer.getFileContent("/alpha/src/lib.rs")).toBe(
+      "declare_id!();"
+    );
+  });
+
+  it("renames one in place, leaving the link's project open", async () => {
+    await openLink();
+    const id = storedIdOf("alpha");
+
+    await PgExplorer.renameWorkspace("gamma", { from: "alpha" });
+
+    expect(PgExplorer.storedWorkspaceNames).toEqual(["gamma", "beta"]);
+    expect(storedIdOf("gamma")).toBe(id);
+    expect(stored().get("/gamma/src/lib.rs")).toBe("declare_id!();");
+    expect(stored().has("/alpha/src/lib.rs")).toBe(false);
+    expectLinkStillOpen();
+  });
+
+  it("deletes one, leaving the link's project open", async () => {
+    await openLink();
+
+    await PgExplorer.deleteWorkspace("alpha");
+
+    expect(PgExplorer.storedWorkspaceNames).toEqual(["beta"]);
+    expect(readConfig().workspaces.map((w) => w.name)).toEqual(["beta"]);
+    expect(stored().has("/alpha/src/lib.rs")).toBe(false);
+    expectLinkStillOpen();
+  });
+
+  it("reads the names for an import without making one current", async () => {
+    await openLink();
+
+    expect(await PgExplorer.readAllWorkspaceNames()).toEqual(["alpha", "beta"]);
+    expectLinkStillOpen();
+  });
+});
+
 // The tree finds an item by its path on every render while a file waits to
 // be shown (`useHandleItemState`), so a path the selector cannot hold must
 // not throw: a file name may carry a quote
