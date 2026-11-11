@@ -687,6 +687,15 @@ describe("the stored workspaces beside a temporary view", () => {
   };
   const storedIdOf = (name: string) =>
     readConfig().workspaces.find((w) => w.name === name)?.id;
+  /** What another tab's create leaves in the store */
+  const anotherTabCreatesDelta = () =>
+    writeConfig({
+      workspaces: readConfig().workspaces.concat({
+        id: "w-delta",
+        name: "delta",
+      }),
+      currentId: readConfig().currentId,
+    });
   const expectLinkStillOpen = () => {
     expect(PgExplorer.isTemporary).toBe(true);
     expect(PgExplorer.currentWorkspaceName).toBeUndefined();
@@ -728,7 +737,7 @@ describe("the stored workspaces beside a temporary view", () => {
     expectLinkStillOpen();
   });
 
-  it("announces a rename with the stored id, so sync uploads the new name", async () => {
+  it("announces a rename with the stored id", async () => {
     await openLink();
     const id = storedIdOf("alpha");
     const announced: unknown[] = [];
@@ -756,6 +765,58 @@ describe("the stored workspaces beside a temporary view", () => {
     expect(readConfig().workspaces.map((w) => w.name)).toEqual(["beta"]);
     expect(stored().has("/alpha/src/lib.rs")).toBe(false);
     expectLinkStillOpen();
+  });
+
+  // Another tab's change lands after the view read the list; a save of the
+  // list the view read would drop it, folder left behind with no name
+  it("keeps another tab's new workspace through a rename made beside the link", async () => {
+    await openLink();
+    anotherTabCreatesDelta();
+
+    await PgExplorer.renameWorkspace("gamma", { from: "alpha" });
+
+    expect(readConfig().workspaces.map((w) => w.name)).toEqual([
+      "gamma",
+      "beta",
+      "delta",
+    ]);
+    expect(PgExplorer.storedWorkspaceNames).toEqual(["gamma", "beta", "delta"]);
+  });
+
+  it("keeps another tab's new workspace through a delete made beside the link", async () => {
+    await openLink();
+    anotherTabCreatesDelta();
+
+    await PgExplorer.deleteWorkspace("alpha");
+
+    expect(readConfig().workspaces.map((w) => w.name)).toEqual([
+      "beta",
+      "delta",
+    ]);
+  });
+
+  it("keeps a current workspace when the one open before the link is deleted", async () => {
+    await openLink();
+    expect(readConfig().currentId).toBe(storedIdOf("beta"));
+
+    await PgExplorer.deleteWorkspace("beta");
+
+    expect(readConfig().currentId).toBe(storedIdOf("alpha"));
+    expectLinkStillOpen();
+  });
+
+  it("opens the link's files and lists nothing when the stored list cannot be read", async () => {
+    await openLink();
+    clearFailures();
+    stored().set(PgWorkspace.WORKSPACES_CONFIG_PATH, "{ not json");
+
+    await PgExplorer.init({ files: LINK_FILES });
+
+    expect(PgExplorer.getFileContent("/src/lib.rs")).toBe("from a link");
+    expect(PgExplorer.storedWorkspaceNames).toBeUndefined();
+    expect(getFailures()).toEqual([
+      expect.objectContaining({ what: "read the stored workspaces" }),
+    ]);
   });
 
   it("reads the names for an import without making one current", async () => {
