@@ -20,7 +20,7 @@ in order. Plan: [plans/1-wire-import-card.md](plans/1-wire-import-card.md).
 - [x] 2.1 `ImportFromUrl` connected for real (presets removed): states,
       events through the memory provider, cancel to idle, toast after the
       page closed; component tests (depends on 1.2).
-- [ ] 2.2 `useNewProject` holds `importing`; `NewProject` passes
+- [x] 2.2 `useNewProject` holds `importing`; `NewProject` passes
       `importHeld`/`onImporting`/`closePage`; Start and the cards wait on the
       import and Import on them; `NewProject.test.tsx` covers it (depends on
       2.1).
