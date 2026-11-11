@@ -275,8 +275,8 @@ export const PgClientRun = {
 
   /**
    * Start following `run`, so every run is shown, typed in the terminal or
-   * not, and a run in a project a docs link opened is measured. The stage row calls it once it mounts; it is safe to
-   * call again.
+   * not, and a run in a project a docs link opened is measured. The stage
+   * row calls it once it mounts; it is safe to call again.
    */
   follow() {
     listen();
