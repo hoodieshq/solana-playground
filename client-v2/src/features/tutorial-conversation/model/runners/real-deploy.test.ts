@@ -188,6 +188,22 @@ describe("features/tutorial-conversation/model/runners/real-deploy: realDeployPo
     });
   });
 
+  it("gives a build refused for sign-in the spec's line", async () => {
+    h.runBuild.mockResolvedValue({
+      act: "build",
+      ok: false,
+      seconds: 0,
+      reason: "signed_out",
+      // eslint-disable-next-line unicorn/no-null -- a build result with no compiler error holds null
+      error: null,
+      log: "Sign in with GitHub to build.",
+    });
+    await expect(realDeployPort().build()).resolves.toEqual({
+      ok: false,
+      message: "Sign in with GitHub to build.",
+    });
+  });
+
   it("gives a failed build its line, not a stop", async () => {
     h.runBuild.mockResolvedValue({
       act: "build",

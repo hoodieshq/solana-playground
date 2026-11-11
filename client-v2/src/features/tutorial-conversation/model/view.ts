@@ -294,8 +294,8 @@ const isLandedAirdrop = (
  * `onFail` instead.
  *
  * An act the learner stopped (HOO-2822) runs again at once from its own
- * button (`stopped`, `retryButton`: "Build again", or "Build and deploy
- * again" for a build-and-deploy): nothing failed, so there is nothing to
+ * button (`stopped`, `retryButton`: "Build again", "Deploy again", or
+ * "Build and deploy again" for a build-and-deploy): nothing failed, so there is nothing to
  * explain or fix first.
  */
 type Retry = "faucet" | "balance" | "again" | "fix" | "authority" | "stopped";

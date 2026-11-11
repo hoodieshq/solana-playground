@@ -533,10 +533,10 @@ export type RunResult =
       log: string;
       /**
        * Why nothing reached the chain: no wallet, or the run sent no
-       * transaction. `stopped`: it ended with a stop (HOO-2822), which no
-       * run or call can do today, since neither runs through a stoppable
-       * command. Absent for a run that sent and failed, or that could not
-       * run at all.
+       * transaction. `stopped`: it ended with a stop (HOO-2822), whatever
+       * it sent before, which no run or call can do today, since neither
+       * runs through a stoppable command. Absent for a run that sent and
+       * failed, or that could not run at all.
        */
       reason?: "no_wallet" | "no_transaction" | "stopped";
       /**

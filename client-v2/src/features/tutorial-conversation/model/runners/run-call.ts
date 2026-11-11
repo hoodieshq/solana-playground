@@ -297,7 +297,8 @@ const fromSends = async ({
   // A try `PgTx.send` answered by sending again is not a refusal; after its last resend the answer arrives as `error`
   const captured = sends.captured.filter((c) => !isRetriedSend(c));
   const { error } = sends;
-  // Stopped, even after some sends: the run did not finish
+  // A guard (see `stoppedOf`): a stop after some sends is still a stop,
+  // since the run did not finish
   if (isStopped(error)) return stoppedOf(act, seconds, error);
 
   if (!captured.length) {
@@ -821,6 +822,7 @@ if (import.meta.vitest) {
           ok: false,
           reason: "stopped",
         });
+        expect(after.report).not.toHaveBeenCalled();
       }
     );
 
