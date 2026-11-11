@@ -701,6 +701,66 @@ describe("BaseDeploy", () => {
     expect(screen.queryByLabelText("Who pays")).toBeNull();
   });
 
+  // HOO-2796: the steps over the pill pushed the centred column 51 px taller
+  // when a first deploy started, and the title and the pill moved
+  it("before the first deploy, puts the steps in the who-pays row and keeps its height", () => {
+    const p = props({ built: true, history: [] });
+    const { container, rerender } = render(<BaseDeploy {...p} />);
+    const rowOf = () =>
+      requireFor("the who-pays row")(
+        container.querySelector('[data-slot="deploy-payer-or-steps"]')
+      );
+    const row = rowOf();
+    /** The four-step list the row is kept as tall as, out of the a11y tree */
+    const reserve = () =>
+      requireFor("the row's reserve")(
+        row.querySelector('[aria-hidden="true"]')
+      ).querySelectorAll("li").length;
+    expect(row.contains(screen.getByLabelText("Who pays"))).toBe(true);
+    expect(reserve()).toBe(4);
+
+    rerender(
+      <BaseDeploy
+        {...props({
+          built: true,
+          view: RUNNING,
+          history: [],
+          run: { step: "buffer", percent: 0, funds: false, upgrade: false },
+        })}
+      />
+    );
+    // The same row, now with the steps, and nothing over the pill
+    expect(rowOf()).toBe(row);
+    const steps = screen.getByRole("status", { name: "Deploy progress" });
+    expect(row.contains(steps)).toBe(true);
+    expect(steps.querySelectorAll("li")).toHaveLength(3);
+    expect(reserve()).toBe(4);
+    const actions = requireFor("the stage's actions")(
+      container.querySelector('[data-slot="stage-empty-actions"]')
+    );
+    expect(actions.querySelector('[aria-label="Deploy progress"]')).toBeNull();
+  });
+
+  it("after a deploy, shows the steps over the held pill", () => {
+    const { container } = render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          view: RUNNING,
+          history: [record("a", NONE)],
+          run: { step: "deploy", percent: 100, funds: false, upgrade: true },
+        })}
+      />
+    );
+    const actions = requireFor("the stage's actions")(
+      container.querySelector<HTMLElement>('[data-slot="stage-empty-actions"]')
+    );
+    expect(
+      within(actions).getByRole("status", { name: "Deploy progress" })
+        .textContent
+    ).toContain("Upgrading");
+  });
+
   it("shows why the wallet could not be funded, not a console failure", () => {
     const p = props({
       built: true,

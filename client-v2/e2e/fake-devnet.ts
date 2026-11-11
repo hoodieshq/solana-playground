@@ -118,6 +118,8 @@ export interface FakeDevnet {
   balance(address: string): number;
   /** The programs the fake holds, by program id */
   programs(): string[];
+  /** Credits `sol` to `address`, as a wallet funded before the test */
+  fund(address: string, sol: number): void;
 }
 
 /**
@@ -169,6 +171,10 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
       Array.from(accounts.entries())
         .filter(([, a]) => a.owner === LOADER && a.executable)
         .map(([key]) => key),
+    fund: (address, sol) => {
+      account(address).lamports += sol * LAMPORTS_PER_SOL;
+      changed([address]);
+    },
   };
 
   const account = (key: string): Account => {

@@ -449,6 +449,59 @@ const IdlRow = ({ name }: { name: string }) => (
 );
 
 /**
+ * The run's steps at their tallest, four with "Funding wallet": drawn
+ * invisibly under the slot's content, so the slot keeps that height whether it
+ * holds the who-pays line, three steps or four
+ */
+const TALLEST_RUN: DeployRunState = {
+  step: "funding",
+  percent: 0,
+  funds: true,
+  upgrade: false,
+};
+
+/**
+ * One slot for who pays and the running deploy's steps: the line before a
+ * deploy, the steps while one runs. It is as tall as the longest list of steps
+ * at all times, so starting or ending a deploy moves nothing above or below it
+ * (HOO-2796). A row of the facts card, before the first deploy on the network
+ * picked.
+ */
+const PayerOrSteps = ({
+  p,
+  running,
+}: {
+  p: BaseDeployProps;
+  running: boolean;
+}) => (
+  <div
+    data-slot="deploy-payer-or-steps"
+    // One grid cell for the reserve and the content: the cell takes the
+    // taller of the two, and the content sits in its middle
+    className="grid border-t border-border px-4 py-2.5 [&>*]:[grid-area:1/1]"
+  >
+    <div aria-hidden className="invisible">
+      <BaseDeployProgress state={TALLEST_RUN} />
+    </div>
+    {running ? (
+      // Mounted with the run's first step; until then the reserve holds the room
+      p.run.step && (
+        <div className="self-center">
+          <BaseDeployProgress state={p.run} />
+        </div>
+      )
+    ) : (
+      <p
+        aria-label="Who pays"
+        className="m-0 self-center text-caption font-read text-muted-foreground"
+      >
+        {payerLine(p)}
+      </p>
+    )}
+  </div>
+);
+
+/**
  * Before the first deploy on the network picked (Spec 08's EMPTY-03, Spec
  * 03's "Deploy stage before a deploy"): the facts of the deploy in one card of
  * rows, as review screens set them (PayPal, Remote, v0), not a stack of
@@ -487,14 +540,8 @@ const BeforeDeploySummary = ({
       )}
       {p.idlName && <IdlRow name={p.idlName} />}
     </dl>
-    {p.built && !running && (
-      <p
-        aria-label="Who pays"
-        className="m-0 border-t border-border px-4 py-2.5 text-caption font-read text-muted-foreground"
-      >
-        {payerLine(p)}
-      </p>
-    )}
+    {/* Who pays, then the run's steps in its place while a deploy runs */}
+    {(p.built || running) && <PayerOrSteps p={p} running={running} />}
     {/* The last row: the program id, which unfolds into its keypair */}
     <div className="border-t border-border">{p.programKeypair}</div>
   </div>
@@ -638,7 +685,11 @@ const BaseDeploy = (p: BaseDeployProps) => {
             "max-md:order-last max-md:bg-background max-md:bg-none"
           )}
         >
-          {running && p.run.step && <BaseDeployProgress state={p.run} />}
+          {/* After a deploy the steps sit over the held pill; before the
+              first, they take the who-pays row of the facts card */}
+          {latest && running && p.run.step && (
+            <BaseDeployProgress state={p.run} />
+          )}
           {/* One pill, the way on: Go to Build until there is a build, then
               the deploy. A faded Deploy beside a link read as three kinds of
               button for two steps */}
