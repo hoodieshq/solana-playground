@@ -71,10 +71,11 @@ export class PgExplorer {
   private static _workspace: PgWorkspace | null = null;
   /**
    * The stored workspaces, read for a temporary view, which keeps
-   * `_workspace` empty: sync, the tutorials and the tab reload take a defined
+   * `_workspace` empty: sync and the tab reload take a defined
    * `allWorkspaceNames` or `currentWorkspaceName` to mean a stored workspace
-   * is open. Only the project list and the actions it runs on a workspace
-   * that is not open read it, through `storedWorkspaceNames`.
+   * is open. What lists or looks up the user's projects whether or not one is
+   * open reads it through `storedWorkspaceNames`: the project list, its sync
+   * markers, lesson progress and `PgTutorial.isStarted`.
    */
   private static _storedList: PgWorkspace | undefined;
   /** Current initialized workspace name */
@@ -992,9 +993,15 @@ export class PgExplorer {
    * renames a project renamed on another device when it takes that device's
    * copy, and the project need not be the one the user is in.
    *
+   * A temporary view (a repository, gist or docs link) renames in the stored
+   * list, read again from the store, and only with `from`: the view has no
+   * current workspace.
+   *
    * @param newName new workspace name
    * @param opts -
    * - `from`: the workspace to rename; defaults to the current one
+   * - `announce`: send `ON_DID_RENAME_WORKSPACE` with the renamed workspace's
+   *   id, for a rename the user asked for
    */
   static async renameWorkspace(
     newName: string,
@@ -1021,22 +1028,28 @@ export class PgExplorer {
       const fromPath = PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, from);
       const newPath = PgCommon.joinPaths(this.PATHS.ROOT_DIR_PATH, newName);
       await this.fs.rename(fromPath, newPath);
+      // Whether this call renamed the list: only then is there a change to
+      // undo and save. A re-read that failed, or a rename refused because the
+      // list moved meanwhile, wrote nothing, and saving the list held here
+      // would write an older copy over the store
+      let renamed = false;
       try {
         // Once more after the move, so the list saved is the store's latest
         if (!this._workspace) list = await this._readStoredList();
         list.rename(newName, from);
+        renamed = true;
         await this._saveList(list);
       } catch (e) {
         // Put back what moved, or the list names a directory that is gone
-        if (list.allNames.includes(newName)) {
-          list.rename(from, newName);
-        }
+        if (renamed) list.rename(from, newName);
         await this.fs.rename(newPath, fromPath);
         // The rename's own error is the one rethrown; a failed save of the
         // restored list is reported beside it rather than lost
-        await this._saveList(list).catch((saveError: unknown) =>
-          report("save workspaces after a failed rename", saveError)
-        );
+        if (renamed) {
+          await this._saveList(list).catch((saveError: unknown) =>
+            report("save workspaces after a failed rename", saveError)
+          );
+        }
         throw e;
       }
       // The list's own event, unconditional: the project list must follow a
@@ -1080,11 +1093,12 @@ export class PgExplorer {
    *
    * @param name the workspace to delete; defaults to the current one
    * @throws if there is no list to delete from (no workspace and no
-   * temporary view's stored list), or if `name` is not on it
+   * temporary view's stored list), if `name` is omitted and no workspace is
+   * open (always so in a temporary view), or if `name` is not on the list
    *
    * A temporary view (a repository, gist or docs link) deletes from the
-   * stored list the project list shows; none of it is current, so the link's
-   * project stays open.
+   * stored list the project list shows. None of those projects is open, so
+   * the link's files stay open.
    *
    * Deleting a workspace the user is not in leaves them where they are — the
    * switch below would otherwise discard unsaved editor state in the project
@@ -1092,7 +1106,7 @@ export class PgExplorer {
    */
   static async deleteWorkspace(name?: string) {
     // A temporary view deletes from the stored list, read again now as in
-    // `renameWorkspace`; none of it is current, so the view stays open
+    // `renameWorkspace`; the view itself stays open
     let workspace = this._workspace ?? (await this._readListForTemporaryView());
     if (!workspace) throw new Error(PgWorkspace.errors.NOT_FOUND);
     const workspaceName = name ?? this.currentWorkspaceName;
@@ -2175,7 +2189,8 @@ export class PgExplorer {
         { createParents: true }
       );
 
-      // Every structural workspace change funnels through here, and the
+      // Every structural change to the list in memory funnels through here (a
+      // temporary view's goes through `_saveList`, which flushes too), and the
       // backing store defers its directory-tree write by 500ms. Without this,
       // a reload in that window finds the config listing a workspace whose
       // directory was never persisted -- "No project", with the files still

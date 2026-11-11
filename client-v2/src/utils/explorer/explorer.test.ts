@@ -783,6 +783,39 @@ describe("the stored workspaces beside a temporary view", () => {
     expect(PgExplorer.storedWorkspaceNames).toEqual(["gamma", "beta", "delta"]);
   });
 
+  it("writes nothing when the second read of a rename beside the link fails", async () => {
+    await openLink();
+    const real = PgExplorer.fs.readToJSON.bind(PgExplorer.fs);
+    let reads = 0;
+    const failing = vi
+      .spyOn(PgExplorer.fs, "readToJSON")
+      .mockImplementation(async (path: string) => {
+        if (path === PgWorkspace.WORKSPACES_CONFIG_PATH) reads += 1;
+        // Another tab's create lands while the folder moves, and the read
+        // after it fails
+        if (reads === 2) {
+          anotherTabCreatesDelta();
+          throw new Error("store went away");
+        }
+        return real(path);
+      });
+    try {
+      await expect(
+        PgExplorer.renameWorkspace("gamma", { from: "alpha" })
+      ).rejects.toThrow("store went away");
+    } finally {
+      failing.mockRestore();
+    }
+
+    // The folder is back, and the store keeps another tab's workspace
+    expect(stored().get("/alpha/src/lib.rs")).toBe("declare_id!();");
+    expect(readConfig().workspaces.map((w) => w.name)).toEqual([
+      "alpha",
+      "beta",
+      "delta",
+    ]);
+  });
+
   it("keeps another tab's new workspace through a delete made beside the link", async () => {
     await openLink();
     anotherTabCreatesDelta();

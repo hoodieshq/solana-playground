@@ -83,7 +83,7 @@ const liveMetadata = (name: string): TutorialMetadata | undefined => {
 const read = async (): Promise<Map<string, TutorialProgress>> => {
   // Before the explorer is initialised nothing is started yet. The stored
   // names, not `allWorkspaceNames`: the project list shows started lessons
-  // with their progress beside a repository or gist link too
+  // with their progress beside a repository, gist or docs link too
   const names = PgExplorer.storedWorkspaceNames;
   if (!names) return new Map();
 

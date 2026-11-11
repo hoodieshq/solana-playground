@@ -40,7 +40,7 @@ export const useSyncMarkers = (): Markers => {
     const readAll = async () => {
       const next = new Map<string, SyncMarker>();
       const failed: unknown[] = [];
-      // The rows the project list shows, a repository or gist link's view
+      // The rows the project list shows, a repository, gist or docs link's view
       // included
       for (const name of PgExplorer.storedWorkspaceNames ?? []) {
         const id = PgExplorer.storedWorkspaceIdOf(name);

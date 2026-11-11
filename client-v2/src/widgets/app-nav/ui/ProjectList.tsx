@@ -150,8 +150,8 @@ const ProjectList = ({
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Stored, not in memory: a repository or gist link's view holds no list of
-  // its own, and the user's projects stay listed beside it
+  // Stored, not in memory: a repository, gist or docs link's view holds no
+  // list of its own, and the user's projects stay listed beside it
   const names = PgExplorer.storedWorkspaceNames ?? [];
   const liveIds = names
     .map((name) => PgExplorer.storedWorkspaceIdOf(name))
@@ -344,7 +344,9 @@ const ProjectList = ({
   return (
     <BaseProjectList
       projects={projects}
-      // A preview has no workspaces at all, rather than none read yet
+      // A temporary view reads its stored list during init, so one left
+      // without names failed that read: it lists nothing rather than loading
+      // for good
       loading={
         !PgExplorer.isTemporary && PgExplorer.storedWorkspaceNames === undefined
       }

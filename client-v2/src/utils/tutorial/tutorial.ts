@@ -181,7 +181,7 @@ class _PgTutorial {
    * @returns whether the tutorial is started
    */
   static isStarted(name: string) {
-    // The stored names: a lesson listed beside a repository or gist link,
+    // The stored names: a lesson listed beside a repository, gist or docs link,
     // which holds no list in memory, is started and opens from the list
     const names = PgExplorer.storedWorkspaceNames;
     if (!names) throw new Error("Explorer not initialized");
