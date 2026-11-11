@@ -89,7 +89,7 @@ interface Frame {
 }
 
 /**
- * Records, every animation frame until the result card shows, where the
+ * Records, now and then every animation frame until the result card shows, where the
  * Deploy stage's title and pill are, and how many steps the progress region
  * lists. The reserve the region keeps under itself is aria-hidden and is not
  * counted.
@@ -115,7 +115,9 @@ const sampleFrames = (page: Page) =>
       });
       requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
+    // The first frame is taken now, before the evaluate returns, so the
+    // baseline always comes before the press
+    tick();
   });
 
 const recordedFrames = (page: Page) =>

@@ -703,7 +703,7 @@ describe("BaseDeploy", () => {
 
   // HOO-2796: the steps over the pill pushed the centred column 51 px taller
   // when a first deploy started, and the title and the pill moved
-  it("before the first deploy, puts the steps in the who-pays row and keeps its height", () => {
+  it("puts the steps in the who-pays row before the first deploy and keeps its height", () => {
     const p = props({ built: true, history: [] });
     const { container, rerender } = render(<BaseDeploy {...p} />);
     const rowOf = () =>
@@ -741,7 +741,7 @@ describe("BaseDeploy", () => {
     expect(actions.querySelector('[aria-label="Deploy progress"]')).toBeNull();
   });
 
-  it("after a deploy, shows the steps over the held pill", () => {
+  it("shows the steps over the held pill after a deploy", () => {
     const { container } = render(
       <BaseDeploy
         {...props({
