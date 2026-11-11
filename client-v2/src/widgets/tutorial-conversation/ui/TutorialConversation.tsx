@@ -404,12 +404,16 @@ const runner = announceDeploys(
 );
 
 /**
- * "Create wallet" on a deploy that found none: the Playground wallet, made in
+ * "Create wallet" on an act that found none: the Playground wallet, made in
  * this browser as the Setup modal makes it (`PgWallet.add` makes it the
- * current wallet too), then the deploy runs again.
+ * current wallet too), or, when one was made and then disconnected,
+ * connected again as `connect` does; then the act runs again.
  */
 const createWallet = (beatId: string) => {
   if (!PgWallet.accounts.length) PgWallet.add();
+  else if (PgWallet.state !== "pg" && PgWallet.state !== "sol") {
+    PgWallet.state = "pg";
+  }
   PgConversation.act(beatId);
 };
 

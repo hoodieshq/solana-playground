@@ -49,8 +49,8 @@ export interface ClientRunJudging {
   onResult(result: RunResult): void;
 }
 
-/** The client file a run act runs, as `run` is given it */
-const CLIENT_FILE = "client.ts";
+/** The client file a run act runs, as `run` is given it; `real-run` runs it */
+export const CLIENT_FILE = "client.ts";
 
 /**
  * Whether a `run` runs the client file: `run` alone (every client script),

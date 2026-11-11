@@ -76,7 +76,7 @@ const SCRIPT_KIND: Record<string, string> = {
  * @param folder the folder the command runs in, `client` or `tests`
  * @returns the message to throw for a path as given
  */
-const missingFileLineIn = (folder: string) => (path: string) => {
+const missingFileLineFor = (folder: string) => (path: string) => {
   const scripts = scriptsIn(folder);
   if (!scripts.length) {
     return `No ${SCRIPT_KIND[folder]} file to run: add one under ${folder}/`;
@@ -163,7 +163,7 @@ const runFiles = async (params: ProcessParams): Promise<RunResult> => {
     const code = PgExplorer.getFileContent(
       inFolder ? path : PgCommon.joinPaths(folderPath, path)
     );
-    if (!code) throw new Error(missingFileLineIn(folderPath)(path));
+    if (!code) throw new Error(missingFileLineFor(folderPath)(path));
 
     const fileName = PgExplorer.getItemNameFromPath(path);
     if (!PgLanguage.getIsPathJsLike(fileName)) {

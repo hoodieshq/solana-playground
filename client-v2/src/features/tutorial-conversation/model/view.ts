@@ -1105,7 +1105,7 @@ export const view = (
                   ? run.selfFixAt ?? offerAt
                   : null;
               let failedRetry: Retry | null = open ? retryOf(run.result) : null;
-              if (fixingAt != null) failedRetry = "fix";
+              if (fixingAt !== null) failedRetry = "fix";
               if (isTurnedDown || failedRetry !== null) {
                 turn({
                   id: `${b.id}:retry`,

@@ -23,6 +23,7 @@ import type { ActRun } from "./act-runner";
 import type { Sender } from "./capture";
 import { captureSends } from "./capture";
 import type { ClientRunWatchPort } from "./client-run-watch";
+import { CLIENT_FILE } from "./client-run-watch";
 import type { FundingChain } from "./fund";
 import type { Landed, RunPort } from "./run-call";
 import { NoSuchInstructionError, readOutsideRun, runOrCall } from "./run-call";
@@ -32,9 +33,6 @@ import type { DecodedCall } from "./transactions";
 import { accountsWritten, fillRememberedWith } from "./transactions";
 
 const log = createLogger("tutorial-conversation:run");
-
-/** The client file a tutorial's run act runs, in the workspace's `client/` */
-const CLIENT_FILE = "client.ts";
 
 /** Reads of a confirmed transaction before the RPC is taken to not have it */
 const TX_READS = 5;

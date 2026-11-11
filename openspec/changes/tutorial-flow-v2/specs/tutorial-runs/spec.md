@@ -73,11 +73,13 @@ that line. A deploy that cannot be paid for:
   Nov). A refused airdrop posts the same card, whose line ends "The devnet
   faucet is at its limit for now: try again in a minute, or top the wallet up
   yourself.", followed by its own live card, "Asks the faucet again". A deploy that failed otherwise draws no record
-  either and gets the same Try again card with the act's own line. Typing
-  "deploy" in the composer retries too.
+  either and gets the same Try again card with the act's own line, except a
+  refusal by the program on chain, which "No failed act is a dead end"
+  covers. Typing "deploy" in the composer retries too.
 
 A deploy SHALL keep the program's keypair in the workspace, so the program
-keeps its address. Every later deploy of that tutorial's program SHALL upgrade
+keeps its address, until the learner presses "Deploy under a new program id"
+on a program this wallet cannot upgrade. Every later deploy of that tutorial's program SHALL upgrade
 it in place. The result card SHALL be one row, "Deployed to devnet" (or
 "Upgraded <short id>"), and a chevron that opens its details, as Almaz's
 prototype draws it (3 Nov; where the prototype's table and its code differ,

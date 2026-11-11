@@ -96,7 +96,8 @@ vi.mock("@/views/flow/state/stage", () => ({
 vi.mock("@/utils", () => ({
   PgProgramInfo: { idl: null, pk: null },
   PgWallet: {
-    accounts: [],
+    accounts: [] as unknown[],
+    state: "setup",
     add: vi.fn(),
     // `useWallet` and `useBalance` poll every 10 ms without these
     onDidChangeCurrent: () => ({ dispose: () => {} }),
@@ -182,6 +183,7 @@ import {
   reportButtonFailure,
 } from "@/shared/lib/report-button-failure";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+import { PgWallet } from "@/utils";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import { PgTutorial } from "@/utils/tutorial";
@@ -395,6 +397,56 @@ describe("TutorialConversation", () => {
     expect(PgConversation.deployed).toHaveBeenCalledWith(idl);
     unmount();
     expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  // HOO-2806: a run that found no wallet because the Playground wallet was
+  // disconnected made none, ran again, and found none again
+  it("Create wallet on a run connects a disconnected Playground wallet, then runs it", async () => {
+    const result: Turn = {
+      id: "result:s3.run:0",
+      kind: "result",
+      step: "call-client",
+      at: 9,
+      whole: true,
+      beatId: "s3.run",
+      act: "run",
+      result: {
+        act: "run",
+        ok: false,
+        seconds: 0,
+        reason: "no_wallet",
+        message: "Create a Playground wallet or connect one, then try again.",
+        log: "",
+      },
+      took: 0,
+      planned: null,
+      open: true,
+    };
+    store.view.mockReturnValue({
+      turns: [divider, result],
+      live: result,
+      steps: onStep2.steps,
+      placeholder: "Ask about this step",
+      nextAt: null,
+      finishAt: null,
+    });
+    const wallet = PgWallet as unknown as {
+      accounts: unknown[];
+      state: string;
+    };
+    wallet.accounts = [{ name: "Wallet 1" }];
+    wallet.state = "disconnected";
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create wallet" })
+    );
+    expect(wallet.state).toBe("pg");
+    expect(PgWallet.add).not.toHaveBeenCalled();
+    expect(PgConversation.act).toHaveBeenCalledWith("s3.run");
+    wallet.accounts = [];
+    wallet.state = "setup";
   });
 
   it("judges a client run from outside the run card, until it leaves", () => {
