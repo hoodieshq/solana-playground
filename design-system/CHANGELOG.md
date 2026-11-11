@@ -3,6 +3,14 @@
 What changed in the components, newest first. One line per fix; the ticket
 id says where the decision lives.
 
+## 2026-11-11 · A busy button keeps its width (HOO-2795)
+
+- AsyncButton: with a `loadingText`, the idle label and the busy one (the
+  spinner and `loadingText`) share one grid cell, and the one not shown is
+  `invisible` and `aria-hidden`. The button is as wide as the wider of the two
+  at all times, so a row beside it no longer moves when the wait starts or
+  ends. Without a `loadingText` it is unchanged.
+
 ## 2026-11-07 · The lockup's mark alone (HOO-2725)
 
 - Logo: `LogoLockupMark`, the lockup's triangle-and-circle mark without the

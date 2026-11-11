@@ -164,10 +164,17 @@ describe("WorkspaceButton", () => {
     const button = screen.getByRole("button", { name: /Create/ });
     expect(button.getAttribute("aria-busy")).toBe("true");
     expect(button.querySelector('[data-slot="spinner"]')).not.toBeNull();
-    expect(screen.queryByTestId("icon")).toBeNull();
+    // The icon keeps its room, hidden, so the button does not change size
+    expect(
+      screen.getByTestId("icon").closest('[aria-hidden="true"]')
+    ).not.toBeNull();
 
     close();
-    await waitFor(() => expect(screen.getByTestId("icon")).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("icon").closest('[aria-hidden="true"]')
+      ).toBeNull()
+    );
     expect(button).toHaveProperty("disabled", false);
     expect(button.getAttribute("aria-busy")).toBeNull();
   });
