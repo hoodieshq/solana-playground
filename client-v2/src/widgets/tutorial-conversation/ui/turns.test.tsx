@@ -1025,7 +1025,7 @@ describe("TurnView", () => {
       wrote,
       failed: false,
     });
-    const drawWith = (turn: Turn, file: string, handlers = on()) =>
+    const drawWith = (turn: Turn, file: string, handlers: TurnHandlers) =>
       render(
         <TurnView
           turn={turn}
@@ -1089,7 +1089,8 @@ describe("TurnView", () => {
           lines: [1, 2],
           text: ['console.log("My address:", pg.wallet.publicKey);', ""],
         }),
-        edited
+        edited,
+        on()
       );
       expect(
         screen.getByText('console.log("My address:", pg.wallet.publicKey);')
@@ -1100,7 +1101,8 @@ describe("TurnView", () => {
     it("shows the written text in line order when the lines are not", () => {
       drawWith(
         wroteTurn({ file: "a.ts", lines: [2, 1], text: ["second", "first"] }),
-        edited
+        edited,
+        on()
       );
       const rows = screen
         .getAllByText(/^(first|second)$/)
@@ -1109,7 +1111,11 @@ describe("TurnView", () => {
     });
 
     it("reads a save without text from the file, as before", () => {
-      drawWith(wroteTurn({ file: "client/client.ts", lines: [1, 2] }), edited);
+      drawWith(
+        wroteTurn({ file: "client/client.ts", lines: [1, 2] }),
+        edited,
+        on()
+      );
       expect(screen.getByText('import "not-a-real-package";')).toBeTruthy();
     });
   });

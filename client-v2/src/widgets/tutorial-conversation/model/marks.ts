@@ -68,7 +68,7 @@ export const marksOf =
         : [];
     // A block arrives where it landed: once the learner moved it, its lines
     // are lit without flashing in again
-    const moved = written.some((line, i) => line !== saved[i]);
+    const isMoved = written.some((line, i) => line !== saved[i]);
 
     let landing: Landing | null = null;
     if (live?.kind === "ask" && live.open && live.ask.writes?.file === file) {
@@ -88,7 +88,7 @@ export const marksOf =
     return {
       written,
       arriving:
-        written.length > 0 && wrote !== undefined && !wrote.whole && !moved,
+        written.length > 0 && wrote !== undefined && !wrote.whole && !isMoved,
       landing,
     };
   };

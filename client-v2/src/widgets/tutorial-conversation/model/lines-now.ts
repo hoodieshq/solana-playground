@@ -41,14 +41,14 @@ export const linesNow = (
   const want = text.map(idless);
   const first = Math.min(...lines);
   const last = Math.max(...lines);
-  const matchesAt = (shift: number) =>
+  const isBlockAt = (shift: number) =>
     lines.every((line, i) => rows[line + shift - 1] === want[i]);
   // Every shift that keeps the block inside the file, nearest first
   const up = first - 1;
   const down = rows.length - last;
   for (let distance = 0; distance <= Math.max(up, down); distance++) {
     for (const shift of distance ? [-distance, distance] : [0]) {
-      if (-shift <= up && shift <= down && matchesAt(shift)) {
+      if (-shift <= up && shift <= down && isBlockAt(shift)) {
         return lines.map((line) => line + shift);
       }
     }
