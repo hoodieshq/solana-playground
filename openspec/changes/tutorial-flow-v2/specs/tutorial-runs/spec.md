@@ -302,14 +302,16 @@ program can no longer be upgraded, and "Not your program" when another
 wallet holds its upgrade authority, which also keeps "Try again" with
 "Switch to the wallet that deployed it, then try again".
 An act the learner stopped (Stop or Ctrl+C while it ran) SHALL NOT read as a
-failure (HOO-2822): its result card SHALL read "<act> stopped" ("Build
-stopped"), with no error line, no Explain the error and no "I'll fix it
-myself", and SHALL be followed at once by an act card that runs it again
-with the act's own verb ("Build again", "Deploy again", "Build and deploy
-again", "Run again", "Call again") and the line "Stopped. Press <button>
-when you're ready.". The act's word in the composer presses that card. A
-stop SHALL NOT be reported to error tracking, and `tutorial_action_run`
-counts it as `failed`.
+failure (HOO-2822). Today a build can be stopped, and a deploy or
+build-and-deploy while it builds; a run, a call and a deploy's chain stages
+cannot. Its result card SHALL read "<act> stopped" ("Build stopped"), with
+no error line, no Explain the error and no "I'll fix it myself", and SHALL
+be followed at once by an act card that runs it again with the act's own
+verb ("Build again", "Deploy again", "Build and deploy again"; "Run again"
+and "Call again" should a run or call become stoppable) and the line
+"Stopped. Press <button> when you're ready.". The act's word in the
+composer presses that card. A stop SHALL NOT be reported to error
+tracking, and `tutorial_action_run` counts it as `failed`.
 
 #### Scenario: Fixing an unplanned build error yourself (manual)
 

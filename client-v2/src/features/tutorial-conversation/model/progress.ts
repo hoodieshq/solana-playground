@@ -464,7 +464,8 @@ export type RunResult =
        * `immutable` (it can no longer be upgraded) or `not_authority`
        * (another wallet holds its upgrade authority): running it again as it
        * is cannot fix either (HOO-2806). `stopped`: the learner stopped
-       * the build it ran first (HOO-2822)
+       * the act (HOO-2822); today only its build stage can be stopped, and
+       * an airdrop never is
        */
       act: "airdrop" | "deploy" | "buildDeploy";
       ok: false;
@@ -531,9 +532,11 @@ export type RunResult =
       message: string;
       log: string;
       /**
-       * Why nothing reached the chain: no wallet, the run sent no
-       * transaction, or the learner stopped it (HOO-2822). Absent for a run
-       * that sent and failed, or that could not run at all.
+       * Why nothing reached the chain: no wallet, or the run sent no
+       * transaction. `stopped`: it ended with a stop (HOO-2822), which no
+       * run or call can do today, since neither runs through a stoppable
+       * command. Absent for a run that sent and failed, or that could not
+       * run at all.
        */
       reason?: "no_wallet" | "no_transaction" | "stopped";
       /**

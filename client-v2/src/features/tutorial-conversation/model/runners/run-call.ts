@@ -101,7 +101,11 @@ export interface RunPort {
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** A run or call the learner stopped (HOO-2822): no failure, never reported */
+/**
+ * A run or call that ended with a `StoppedError` (HOO-2822): no failure,
+ * never reported. A guard: the `run` command is not stoppable and a call
+ * runs through no command, so neither can be stopped today
+ */
 const stoppedOf = (
   act: "run" | "call",
   seconds: () => number,
@@ -293,9 +297,10 @@ const fromSends = async ({
   // A try `PgTx.send` answered by sending again is not a refusal; after its last resend the answer arrives as `error`
   const captured = sends.captured.filter((c) => !isRetriedSend(c));
   const { error } = sends;
+  // Stopped, even after some sends: the run did not finish
+  if (isStopped(error)) return stoppedOf(act, seconds, error);
 
   if (!captured.length) {
-    if (isStopped(error)) return stoppedOf(act, seconds, error);
     if (error instanceof NoSuchInstructionError) {
       return mismatched(fail(messageOf(error)));
     }
@@ -805,6 +810,17 @@ if (import.meta.vitest) {
           reason: "stopped",
         });
         expect(thrown.report).not.toHaveBeenCalled();
+        const after = portWith({
+          send: async () => ({
+            captured: [{ kind: "sent", signature: "5ig", encoded: "tx" }],
+            error: new StoppedError("Stopped."),
+          }),
+        });
+        expect((await stagesOf(after, act)).result).toMatchObject({
+          act,
+          ok: false,
+          reason: "stopped",
+        });
       }
     );
 

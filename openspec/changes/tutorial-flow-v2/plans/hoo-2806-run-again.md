@@ -121,8 +121,10 @@ ended; the stop was reported as a fault.
 - Detection is typed: `PgCommand.build` (the one stoppable command a tutorial
   act runs) ends a stop with `StoppedError` (`utils/stopped.ts`). `runBuild`
   answers it as `reason: "stopped"` and logs it at info; the deploy runner's
-  build port carries it on as a deploy `stopped`, and a `StoppedError` a
-  deploy stage, a run or a call throws is `stopped` too, never reported.
+  build port carries it on as a deploy `stopped`. A `StoppedError` a
+  deploy stage, a run or a call throws is `stopped` too, never reported;
+  none can throw one today (`run` is not stoppable, a call and the chain
+  stages run through no command), so those branches are guards.
 - `RunResult`: `stopped` joins the build's, the deploy's and the run's or
   call's reasons; `isStoppedRun` reads it. `parseResult` keeps a saved
   build's `stopped` (it no longer reads as `compiler`); old saves load

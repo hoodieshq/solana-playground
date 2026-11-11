@@ -449,7 +449,6 @@ const buildFailureOf = (r: Extract<RunResult, { act: "build"; ok: false }>) => {
   // so an in-source block cannot reach it. The line is the one the
   // tutorial-runs spec names for a build-and-deploy refused for sign-in
   if (r.reason === "signed_out") return "Sign in with GitHub to build.";
-  if (r.reason === "stopped") return r.log;
   const e = r.error;
   if (!e) return "The build failed. See the terminal.";
   const where = e.line !== null ? ` (line ${e.line})` : "";

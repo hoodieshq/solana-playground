@@ -293,9 +293,10 @@ const isLandedAirdrop = (
  * answer ended or a reload came; a planned failure goes on to the step's
  * `onFail` instead.
  *
- * An act the learner stopped (HOO-2822), whatever the act, runs again from
- * its own verb ("Build again") at once (`stopped`): nothing failed, so there
- * is nothing to explain or fix first.
+ * An act the learner stopped (HOO-2822) runs again at once from its own
+ * button (`stopped`, `retryButton`: "Build again", or "Build and deploy
+ * again" for a build-and-deploy): nothing failed, so there is nothing to
+ * explain or fix first.
  */
 type Retry = "faucet" | "balance" | "again" | "fix" | "authority" | "stopped";
 

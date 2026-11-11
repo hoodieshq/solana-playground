@@ -329,7 +329,8 @@ export const runDeploy = async (
       instructions: port.instructions(),
     };
   } catch (e) {
-    // The learner's Stop is no fault of the deploy's: not reported (HOO-2822)
+    // A stop is no fault of the deploy's: not reported (HOO-2822). A guard:
+    // only the build stage can be stopped today, and it answers `stopped`
     if (!isStopped(e)) port.report(e, current);
     return failed(
       act,
