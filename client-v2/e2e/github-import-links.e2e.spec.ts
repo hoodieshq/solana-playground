@@ -175,6 +175,12 @@ test("github-import: A temporary project's Import keeps it", async ({
 
   await expect(dialog).toHaveCount(0);
   await expect(warning).toHaveCount(0);
+  // Kept: the picker, now in the warning's place, names the project, and
+  // the column still hides it
+  const picker = page.locator('[aria-label="Project"]');
+  await expect(picker).toHaveCount(1);
+  await expect(picker).toHaveText("hello-kept");
+  await expect(picker).toBeHidden();
 });
 
 // A failed route's error stayed in the main view over the next route's
