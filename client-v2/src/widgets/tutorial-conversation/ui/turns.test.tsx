@@ -1020,6 +1020,7 @@ describe("TurnView", () => {
       kind: "wrote",
       step: null,
       at: 1,
+      whole: true,
       beatId: "s3.client",
       wrote,
       failed: false,

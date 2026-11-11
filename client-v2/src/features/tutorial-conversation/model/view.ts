@@ -1636,11 +1636,16 @@ if (import.meta.vitest) {
         at: 4000,
         proposal: { state: "applied", settledAt: 6000 },
       });
-      // The wrote card sits where Apply landed, not where the card was posted
+      // The wrote card sits where Apply landed, not where the card was
+      // posted, and draws the line Apply wrote, not the file's line now
       expect(byId("wrote:p1")).toMatchObject({
         kind: "wrote",
         at: 6000,
-        wrote: { file: "programs/hello/src/lib.rs", lines: [10] },
+        wrote: {
+          file: "programs/hello/src/lib.rs",
+          lines: [10],
+          text: ["new"],
+        },
       });
     });
 
