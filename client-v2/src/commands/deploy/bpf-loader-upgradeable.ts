@@ -103,6 +103,31 @@ const nextBackoff = (previous: number) =>
     MAX_FAILED_WRITE_BACKOFF_MS
   );
 
+/**
+ * How long a buffer write may wait for an answer before it counts as refused: a send is at most 4 `sendTransaction`
+ * calls and their blockhash fetches (`PgTx.send`'s fresh-blockhash resends), each well under a second on an RPC that
+ * answers, so 20 s passes a slow one and still prints the line soon after the 10 s slow-run notice
+ */
+const WRITE_ANSWER_TIMEOUT_MS = 20_000;
+
+/** A buffer write that got no answer within {@link WRITE_ANSWER_TIMEOUT_MS} */
+class UnansweredWriteError extends Error {}
+
+/**
+ * `promise`, or a rejection with {@link UnansweredWriteError} once `ms` pass; the request itself is not aborted, and
+ * a late answer or failure is dropped
+ */
+const answeredWithin =
+  (ms: number) =>
+  <T>(promise: Promise<T>) =>
+    new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new UnansweredWriteError(`No answer in ${ms / 1000} s`)),
+        ms
+      );
+      promise.then(resolve, reject).finally(() => clearTimeout(timer));
+    });
+
 /** Rounds in a row in which no missing chunk lands before `loadBuffer` gives up, so a refusing RPC cannot hang a deploy */
 const MAX_STALLED_ROUNDS = 5;
 
@@ -269,13 +294,15 @@ export class BpfLoaderUpgradeable {
       let successCount = 0;
       let lastTxHash: string | undefined;
       let rateLimitReason: string | undefined;
+      // A write with no answer ends the round, so a cluster that stopped answering costs one wait a round, not one a chunk
+      let hasUnansweredWrite = false;
       let hasReportedRefusal = false;
       await Promise.all(
         Array.from({ length: loadConcurrency }, async () => {
           let backoff = 0;
           while (1) {
             if (opts?.abortController?.signal.aborted) return;
-            if (rateLimitReason) break;
+            if (rateLimitReason || hasUnansweredWrite) break;
 
             const offset = missingIndices[i] * WRITE_CHUNK_SIZE;
             i++;
@@ -294,11 +321,13 @@ export class BpfLoaderUpgradeable {
             if (opts?.abortController?.signal.aborted) return;
 
             try {
-              lastTxHash = await PgTx.send(ix, {
-                wallet,
-                computeUnitLimit,
-                connection: writeConnection,
-              });
+              lastTxHash = await answeredWithin(WRITE_ANSWER_TIMEOUT_MS)(
+                PgTx.send(ix, {
+                  wallet,
+                  computeUnitLimit,
+                  connection: writeConnection,
+                })
+              );
               backoff = 0;
               pace.recordWrite();
               successCount++;
@@ -334,6 +363,11 @@ export class BpfLoaderUpgradeable {
               // The browser hides a 429 without CORS headers behind a failed fetch, so slow down as for one
               if (isFetchFailure(e)) pace.recordRateLimit();
               else pace.recordFailure();
+              // The round reads the buffer next, and its stall limit counts the round
+              if (e instanceof UnansweredWriteError) {
+                hasUnansweredWrite = true;
+                break;
+              }
               // The chunk is written again in the next round; the pause keeps
               // a failing RPC from being sent to at once
               backoff = nextBackoff(backoff);

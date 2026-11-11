@@ -31,6 +31,8 @@ const chain = vi.hoisted(() => ({
   readFails: false,
   /** Sends are accepted but never reach the buffer */
   dropsWrites: false,
+  /** How long each send waits before it answers; `Infinity` never answers, as a paused validator */
+  answersAfterMs: 0,
   current: { rpcEndpoint: "https://rpc.test", commitment: "confirmed" },
   readBufferRpc: {
     rpcEndpoint: "https://read.test/?api-key=secret",
@@ -72,6 +74,13 @@ vi.mock("../../utils", () => ({
     ) => {
       chain.sentAt.push(Date.now());
       chain.sentThrough.push(connection);
+      if (chain.answersAfterMs > 0) {
+        await new Promise((res) => {
+          if (Number.isFinite(chain.answersAfterMs)) {
+            setTimeout(res, chain.answersAfterMs);
+          }
+        });
+      }
       if (chain.failures-- > 0 || chain.landsLeft-- <= 0) {
         throw chain.failWith();
       }
@@ -133,6 +142,7 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     chain.sendTxPerSecond = undefined;
     chain.readFails = false;
     chain.dropsWrites = false;
+    chain.answersAfterMs = 0;
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -588,5 +598,44 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     );
     await vi.runAllTimersAsync();
     await failure;
+  });
+
+  it("refuses a write that never answers within 20 s, ends its round, and fails the load at the stalled-round limit", async () => {
+    chain.answersAfterMs = Number.POSITIVE_INFINITY;
+    const onRefusal = vi.fn((_message: string) => Date.now());
+    const bytes = new Uint8Array(8 * CHUNK_SIZE).fill(1);
+    chain.data = Buffer.alloc(METADATA_SIZE + bytes.length);
+    const start = Date.now();
+
+    const loading = BpfLoaderUpgradeable.loadBuffer({} as never, bytes, {
+      loadConcurrency: 2,
+      writesPerSecond: 1000,
+      onRefusal,
+    });
+    // Attached before the timers run, so the rejection is never unhandled
+    const failure = expect(loading).rejects.toThrow(
+      "The RPC kept refusing buffer writes: no chunk landed in 5 rounds in a row (last refusal: No answer in 20 s)"
+    );
+    await vi.runAllTimersAsync();
+    await failure;
+
+    // One line a round, the first 20 s after the round's first write
+    expect(onRefusal.mock.calls).toEqual(
+      new Array(5).fill(["No answer in 20 s"])
+    );
+    expect(onRefusal.mock.results[0].value - start).toBe(20_000);
+    // Each round sends its two workers' first writes and nothing more
+    expect(chain.sentAt).toHaveLength(10);
+  });
+
+  it("lands a write that answers just under 20 s", async () => {
+    chain.answersAfterMs = 19_999;
+    const onRefusal = vi.fn();
+
+    await loadWith({ loadConcurrency: 1, writesPerSecond: 1000, onRefusal }, 2);
+
+    expect(onRefusal).not.toHaveBeenCalled();
+    expect(chain.sentAt).toHaveLength(2);
+    expect(chain.data.subarray(METADATA_SIZE).every((b) => b === 1)).toBe(true);
   });
 });
