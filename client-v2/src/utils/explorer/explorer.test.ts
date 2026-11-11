@@ -818,6 +818,7 @@ describe("the stored workspaces beside a temporary view", () => {
 
   it("puts the folder back when a project is opened while a rename beside the link runs", async () => {
     await openLink();
+    clearFailures();
     const realRename = PgExplorer.fs.rename.bind(PgExplorer.fs);
     const opening = vi
       .spyOn(PgExplorer.fs, "rename")
@@ -829,7 +830,7 @@ describe("the stored workspaces beside a temporary view", () => {
     try {
       await expect(
         PgExplorer.renameWorkspace("gamma", { from: "alpha" })
-      ).rejects.toThrow("The workspaces changed while the list was saved.");
+      ).rejects.toThrow(PgWorkspace.errors.LIST_CHANGED);
     } finally {
       opening.mockRestore();
     }
@@ -839,6 +840,30 @@ describe("the stored workspaces beside a temporary view", () => {
       "alpha",
       "beta",
     ]);
+    expect(PgExplorer.currentWorkspaceName).toBe("beta");
+    // Nothing failed to save: the list beta opened with never took the rename
+    expect(getFailures()).toEqual([]);
+  });
+
+  it("drops the name when a project is opened while a delete beside the link runs", async () => {
+    await openLink();
+    const realRemove = PgExplorer.fs.removeDir.bind(PgExplorer.fs);
+    const opening = vi
+      .spyOn(PgExplorer.fs, "removeDir")
+      .mockImplementationOnce(async (path, opts) => {
+        await realRemove(path, opts);
+        // The user opens beta from the list while the folder goes
+        await PgExplorer.switchWorkspace("beta");
+      });
+    try {
+      await PgExplorer.deleteWorkspace("alpha");
+    } finally {
+      opening.mockRestore();
+    }
+
+    expect(stored().has("/alpha/src/lib.rs")).toBe(false);
+    expect(readConfig().workspaces.map((w) => w.name)).toEqual(["beta"]);
+    expect(PgExplorer.allWorkspaceNames).toEqual(["beta"]);
     expect(PgExplorer.currentWorkspaceName).toBe("beta");
   });
 

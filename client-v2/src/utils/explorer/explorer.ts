@@ -1044,8 +1044,11 @@ export class PgExplorer {
         if (renamed) list.rename(from, newName);
         await this.fs.rename(newPath, fromPath);
         // The rename's own error is the one rethrown; a failed save of the
-        // restored list is reported beside it rather than lost
-        if (renamed) {
+        // restored list is reported beside it rather than lost. A project
+        // opened meanwhile saved a list that never took the rename, so there
+        // is nothing to restore
+        const isOvertaken = !!this._workspace && list !== this._workspace;
+        if (renamed && !isOvertaken) {
           await this._saveList(list).catch((saveError: unknown) =>
             report("save workspaces after a failed rename", saveError)
           );
@@ -1137,8 +1140,11 @@ export class PgExplorer {
       report("delete a workspace whose folder is gone", e);
     }
 
-    // Once more after the removal, so the list saved is the store's latest
+    // Once more after the removal, so the list saved is the store's latest.
+    // A project opened from the list meanwhile holds the list now: the folder
+    // is gone, so its name goes from that one
     if (!this._workspace) workspace = await this._readStoredList();
+    else workspace = this._workspace;
 
     // Delete from state
     workspace.delete(workspaceName);
@@ -2170,9 +2176,7 @@ export class PgExplorer {
       // A project opened from the list while this change ran: the list in
       // memory, not the one changed, is what a save writes now, so the
       // change is refused and its caller puts the folder back
-      if (this._workspace) {
-        throw new Error("The workspaces changed while the list was saved.");
-      }
+      if (this._workspace) throw new Error(PgWorkspace.errors.LIST_CHANGED);
       this._storedList = list;
     }
     await this._saveWorkspaces();
