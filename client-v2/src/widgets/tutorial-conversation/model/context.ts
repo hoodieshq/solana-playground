@@ -48,15 +48,26 @@ export const describeTutorial = (facts: TutorialFacts): string => {
     `The learner is in the tutorial "${definition.name}" in Solana Playground, ` +
       `${definition.steps.length} steps, on devnet.`,
     whereOf(definition, progress),
+    WHERE_ACTIONS_ARE,
   ];
   if (live?.kind === "ask" && live.open) {
     lines.push(
-      `A question is open: "${textOf(live.ask.question)}". Do not give its ` +
-        `answer away; ${TOOLS.hint} posts the lesson's own hint, and ` +
-        `${TOOLS.skip} skips it, as its buttons do.`
+      `A question is open: "${textOf(live.ask.question)}". The step waits ` +
+        "on its question card in this chat first: point the learner to " +
+        "answer it there, or to its Hint or Skip button. " +
+        "The step's next card appears in this chat once it is answered. " +
+        `Do not give its answer away; ${TOOLS.hint} posts the lesson's own ` +
+        `hint, and ${TOOLS.skip} skips it, as its buttons do.`
     );
   }
   if (live?.kind === "act") lines.push(whereActIs(live));
+  if (live?.kind === "win") lines.push(whereNextIs(definition, live));
+  if (live?.kind === "result" && live.open) {
+    lines.push(
+      "The step waits on the failed result's card in this chat: point the " +
+        "learner to its buttons."
+    );
+  }
   const last = lastRun(progress);
   if (last) lines.push(`The last result: ${describeRun(last)}.`);
   if (facts.openFiles.length) {
@@ -115,20 +126,30 @@ const whereOf = (
 };
 
 /**
- * What else, if anything, runs the live act outside its card. Asked "how do
- * I build?", the assistant sent learners to a Build action on the stage bar,
- * which has none, and a tutorial's frame draws no Write/Build/Deploy/Interact
- * tabs either (HOO-2755). A build or a deploy the lesson reads runs from the
- * card alone: the terminal's `build` compiles but passes no step. A call has
- * the Call panel and a run has the client file too (`PassedVia`).
+ * Where the lesson's actions are, in every tutorial context. Asked "how do I
+ * build?" or "what now?", the assistant sent learners to a Build or Deploy
+ * action on the stage bar, which a tutorial's frame does not draw, nor its
+ * Write/Build/Deploy/Interact tabs (HOO-2755, HOO-2801): the general
+ * assistant context describes a project's work area, not a tutorial's.
+ */
+const WHERE_ACTIONS_ARE =
+  "The lesson's actions (build, deploy, airdrop, run, call) are buttons on " +
+  "cards in the tutorial feed, in this chat: the work area has no Build, " +
+  "Deploy or Interact action or tab in a tutorial.";
+
+/**
+ * What else, if anything, runs the live act outside its card. A build or a
+ * deploy the lesson reads runs from the card alone: the terminal's `build`
+ * compiles but passes no step. A call has the Call panel and a run has the
+ * client file too (`PassedVia`).
  */
 const BESIDES_THE_CARD: Record<ActBeat["act"], string> = {
   build:
-    "It is the only build the lesson reads: the work area has no Build action or tab in a tutorial, and a build typed in the terminal passes no step.",
+    "It is the only build the lesson reads: a build typed in the terminal passes no step.",
   deploy:
-    "It is the only deploy the lesson reads: the work area has no Deploy action or tab in a tutorial, and a deploy typed in the terminal passes no step.",
+    "It is the only deploy the lesson reads: a deploy typed in the terminal passes no step.",
   buildDeploy:
-    "It is the only build and deploy the lesson reads: the work area has no Build or Deploy action or tab in a tutorial, and the terminal's commands pass no step.",
+    "It is the only build and deploy the lesson reads: the terminal's commands pass no step.",
   airdrop: "It is the only way to request the airdrop in the lesson.",
   run: "Running the client file from the editor passes the step too.",
   call: "The Call panel in the work area's head sends the same instruction and passes the step too.",
@@ -150,6 +171,27 @@ const whereActIs = (live: Extract<Turn, { kind: "act" }>): string => {
     `The step waits for the "${live.act.button}" button on the ` +
     `"${live.act.title}" card in the tutorial feed, in this chat. ` +
     `${BESIDES_THE_CARD[live.act.act]} Point the learner to that card.${state}`
+  );
+};
+
+/**
+ * Where the step goes on from a passed step: the win card's "Next: <step>"
+ * button (`BaseWinCard`), or, on the last step, the finish card that follows
+ * by itself
+ */
+const whereNextIs = (
+  definition: TutorialDefinition,
+  live: Extract<Turn, { kind: "win" }>
+): string => {
+  const i = definition.steps.findIndex((s) => s.id === live.stepId);
+  const next = definition.steps[i + 1];
+  if (live.last || !next) {
+    return "The last step is done: the finish card follows in this chat by itself.";
+  }
+  return (
+    `The step is done: the "Step ${i + 1} done" card in this chat has the ` +
+    `"Next: ${next.title}" button, which opens the next step. Point the ` +
+    "learner to that button."
   );
 };
 
@@ -197,6 +239,8 @@ if (import.meta.vitest) {
   const { describe, it, expect, beforeAll } = import.meta.vitest;
 
   describe("widgets/tutorial-conversation/model/context", () => {
+    const NO_WORK_AREA_ACTION =
+      "The lesson's actions (build, deploy, airdrop, run, call) are buttons on cards in the tutorial feed, in this chat: the work area has no Build, Deploy or Interact action or tab in a tutorial.";
     let hello: TutorialDefinition;
     beforeAll(async () => {
       hello = (await import("../../../tutorials/hello-anchor/tutorial.json"))
@@ -239,6 +283,7 @@ if (import.meta.vitest) {
       expect(text).toContain(`Objective: ${hello.steps[1].objective}.`);
       expect(text).toContain("in front: programs/hello/src/lib.rs");
       expect(text).toContain("you cannot change files, build, deploy");
+      expect(text).toContain(NO_WORK_AREA_ACTION);
       expect(text).not.toContain(BEGIN_INVITATION);
     });
 
@@ -294,8 +339,9 @@ if (import.meta.vitest) {
           `"${build.title}" card in the tutorial feed, in this chat.`
       );
       expect(text).toContain(
-        "the work area has no Build action or tab in a tutorial"
+        "It is the only build the lesson reads: a build typed in the terminal passes no step."
       );
+      expect(text.split(NO_WORK_AREA_ACTION)).toHaveLength(2);
       expect(text).not.toContain("It is running now.");
       expect(text).not.toContain("A reload interrupted");
       expect(describeTutorial(facts(card(build, "running")))).toContain(
@@ -309,7 +355,7 @@ if (import.meta.vitest) {
       expect(called).not.toContain("only way");
     });
 
-    it("guards an open question's answer and lists the tutorial's docs", () => {
+    it("points an open question to its card, guards its answer and lists the tutorial's docs", () => {
       const ask = hello.steps[0].beats.find(
         (b): b is import("@/entities/tutorial").Ask => b.kind === "ask"
       );
@@ -357,10 +403,104 @@ if (import.meta.vitest) {
         openFiles: [],
         currentFile: null,
       });
+      expect(text).toContain(
+        "The step waits on its question card in this chat first: point the learner to answer it there, or to its Hint or Skip button. The step's next card appears in this chat once it is answered."
+      );
+      expect(text).toContain(NO_WORK_AREA_ACTION);
       expect(text).toContain("Do not give its answer away");
       expect(text).toContain(`${TOOLS.hint} posts the lesson's own hint`);
       expect(text).toContain(
         "This tutorial's doc pages, which open beside the code: The program log (https://solana.com/docs/programs/debugging). When one of them covers what you explain, link it as a Markdown link with its address exactly as listed. Link another site only for what none of them covers, and one page at most per answer."
+      );
+    });
+
+    it("points a passed step to its win card's Next button, and the last one to the finish", () => {
+      const progress = freshProgress();
+      progress.startedAt = 1000;
+      progress.passed = [hello.steps[0].id];
+      progress.cursor = {
+        kind: "step",
+        stepId: hello.steps[0].id,
+        beat: 5,
+        fail: false,
+      };
+      const win = (stepId: string, last: boolean): Turn => ({
+        id: `${stepId}.win`,
+        kind: "win",
+        step: stepId,
+        at: 2000,
+        whole: true,
+        stepId,
+        win: { id: `${stepId}.win`, headline: "Done", line: "Done." },
+        done: false,
+        took: 1000,
+        via: "chat",
+        last,
+      });
+      const text = describeTutorial({
+        definition: hello,
+        progress,
+        live: win(hello.steps[0].id, false),
+        openFiles: [],
+        currentFile: null,
+      });
+      expect(text).toContain(
+        `The step is done: the "Step 1 done" card in this chat has the "Next: ${hello.steps[1].title}" button, which opens the next step. Point the learner to that button.`
+      );
+      expect(text).toContain(NO_WORK_AREA_ACTION);
+      const lastStep = hello.steps[hello.steps.length - 1].id;
+      expect(
+        describeTutorial({
+          definition: hello,
+          progress,
+          live: win(lastStep, true),
+          openFiles: [],
+          currentFile: null,
+        })
+      ).toContain(
+        "The last step is done: the finish card follows in this chat by itself."
+      );
+    });
+
+    it("points an open failed result to its card's buttons", () => {
+      const progress = freshProgress();
+      progress.startedAt = 1000;
+      progress.cursor = {
+        kind: "step",
+        stepId: hello.steps[0].id,
+        beat: 3,
+        fail: true,
+      };
+      const live: Turn = {
+        id: "s1.build.result",
+        kind: "result",
+        step: hello.steps[0].id,
+        at: 2000,
+        whole: true,
+        beatId: "s1.build",
+        act: "build",
+        result: {
+          act: "build",
+          ok: false,
+          seconds: 1,
+          reason: "compiler",
+          error: null,
+          log: "",
+        },
+        took: 1000,
+        planned: null,
+        open: true,
+      };
+      expect(
+        describeTutorial({
+          definition: hello,
+          progress,
+          live,
+          openFiles: [],
+          currentFile: null,
+        })
+      ).toContain(
+        "The step waits on the failed result's card in this chat: point the learner to its buttons."
       );
     });
 
