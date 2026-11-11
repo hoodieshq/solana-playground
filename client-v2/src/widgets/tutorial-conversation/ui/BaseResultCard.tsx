@@ -113,6 +113,8 @@ const headOf = (
   const titles = {
     no_funds: "Not enough devnet SOL",
     no_wallet: "No wallet",
+    immutable: "Not upgradable",
+    not_authority: "Not your program",
     failed: r.act === "airdrop" ? "Airdrop failed" : "Deploy failed",
   } as const;
   return { title: titles[r.reason], meta: r.message };

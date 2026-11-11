@@ -242,6 +242,10 @@ export const ASKS_THE_FAUCET = "Asks the faucet again";
 /** That card's line after a deploy found the wallet short (HOO-2677) */
 export const CHECKS_THE_BALANCE = "Checks your balance again, then deploys";
 
+/** That card's line after another wallet held the upgrade authority (HOO-2806) */
+const SWITCH_TO_AUTHORITY =
+  "Switch to the wallet that deployed it, then try again";
+
 /** An act whose failures share the deploy's cards: an airdrop or a deploy */
 const isFundedAct = (result: RunResult): boolean =>
   result.act === "airdrop" ||
@@ -262,10 +266,10 @@ const isLandedAirdrop = (
  * deploy no longer funds the wallet (HOO-2677); any other failure keeps the
  * act's own line (`again`). Null for no wallet, whose result's own Create
  * wallet runs it once the wallet is there, and for every other result.
- * TODO(HOO-2356): the runner's authority and immutable-program refusals are
- * `failed` too, and running again cannot fix them; they need a reason of
- * their own in `RunResult`, as the build's `unreachable` has, before they
- * can go without a Try again.
+ * A program another wallet holds the upgrade authority of runs again once
+ * the learner switched to that wallet (`authority`); an immutable one never
+ * does, so its card's "Deploy under a new program id" is the way on, which
+ * the not-authority card offers too (HOO-2806).
  *
  * A failed run or call (HOO-2806) is run again from the same slot, its
  * button the act's own verb ("Run again"): after a failure the learner can
@@ -276,7 +280,7 @@ const isLandedAirdrop = (
  * fix it myself", or on Explain once the answer ended; a planned failure goes
  * on to the step's `onFail` instead.
  */
-type Retry = "faucet" | "balance" | "again" | "fix";
+type Retry = "faucet" | "balance" | "again" | "fix" | "authority";
 
 const retryOf = (result: RunResult): Retry | null => {
   if (result.ok) return null;
@@ -290,12 +294,14 @@ const retryOf = (result: RunResult): Retry | null => {
   if (result.reason === "no_funds") {
     return result.act === "airdrop" ? "faucet" : "balance";
   }
+  if (result.reason === "not_authority") return "authority";
   return result.reason === "failed" ? "again" : null;
 };
 
 const RETRY_CONTEXT: Record<Exclude<Retry, "again" | "fix">, string> = {
   faucet: ASKS_THE_FAUCET,
   balance: CHECKS_THE_BALANCE,
+  authority: SWITCH_TO_AUTHORITY,
 };
 
 /** A failed run's retry line: the file it runs is the one to fix */

@@ -52,7 +52,16 @@ export interface BaseDeployResultCardProps {
   onShowLog: () => void;
   /** Make the Playground wallet, then run the deploy again */
   onCreateWallet: () => Promise<unknown> | void;
+  /**
+   * A new program keypair for the workspace, then the deploy again, which
+   * builds for it and ships to a fresh address: the way on from a program
+   * that cannot be upgraded from here
+   */
+  onNewProgramId: () => void;
 }
+
+/** The way on from a program this wallet cannot upgrade (HOO-2806) */
+export const NEW_PROGRAM_ID = "Deploy under a new program id";
 
 /** Lamports as SOL, to four places at most */
 const sol = (lamports: number) =>
@@ -123,6 +132,7 @@ const BaseDeployResultCard = ({
   open,
   onShowLog,
   onCreateWallet,
+  onNewProgramId,
 }: BaseDeployResultCardProps) => {
   if (result.ok) return <LandedCard result={result} onShowLog={onShowLog} />;
   switch (result.reason) {
@@ -187,6 +197,32 @@ const BaseDeployResultCard = ({
               <Wallet aria-hidden="true" className="size-4" />
               Create wallet
             </AsyncButton>
+          </div>
+        </FailedCard>
+      );
+    case "immutable":
+      return (
+        <FailedCard title="Not upgradable" open={open}>
+          <p className={READ}>
+            This program can no longer be upgraded, so the new code can&apos;t
+            go to its address. Deploy it under a new program id: it builds again
+            and ships to a fresh address.
+          </p>
+          <div className="flex max-sm:flex-col max-sm:items-stretch">
+            <Button onClick={onNewProgramId}>{NEW_PROGRAM_ID}</Button>
+          </div>
+        </FailedCard>
+      );
+    case "not_authority":
+      return (
+        <FailedCard title="Not your program" open={open}>
+          <p className={READ}>
+            {`${result.message} Switch to the wallet that deployed it and press Try again, or deploy it under a new program id.`}
+          </p>
+          <div className="flex max-sm:flex-col max-sm:items-stretch">
+            <Button variant="secondary" onClick={onNewProgramId}>
+              {NEW_PROGRAM_ID}
+            </Button>
           </div>
         </FailedCard>
       );

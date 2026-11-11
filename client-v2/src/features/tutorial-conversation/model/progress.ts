@@ -437,11 +437,17 @@ export type RunResult =
       madeWallet?: true;
     }
   | {
-      /** A deploy's failures, and an airdrop's, which share its cards */
+      /**
+       * A deploy's failures, and an airdrop's, which share its cards. A
+       * deploy the program on chain refuses before any SOL is locked is
+       * `immutable` (it can no longer be upgraded) or `not_authority`
+       * (another wallet holds its upgrade authority): running it again as it
+       * is cannot fix either (HOO-2806)
+       */
       act: "airdrop" | "deploy" | "buildDeploy";
       ok: false;
       seconds: number;
-      reason: "failed" | "no_wallet";
+      reason: "failed" | "no_wallet" | "immutable" | "not_authority";
       message: string;
     }
   | {
@@ -886,47 +892,74 @@ const withoutPaths = (
   return out;
 };
 
+/** A time in ms; zod's number is finite, as `isMs` asks */
+const msSchema = z.number();
+
+/** One of a failed run's moments: kept when it reads as a time, else dropped alone */
+const momentSchema = msSchema.optional().catch(undefined);
+
+/**
+ * A saved run record's envelope: its status and times, and for a failed run
+ * the planned mark and the explain's and the fix's moments, each dropped
+ * alone when it does not read as one. The result inside is `parseResult`'s.
+ */
+const runRecordSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("started"), at: msSchema }),
+  z.object({ status: z.literal("interrupted"), at: msSchema }),
+  z.object({
+    status: z.literal("ok"),
+    at: msSchema,
+    took: msSchema,
+    result: z.unknown(),
+  }),
+  z.object({
+    status: z.literal("refused"),
+    at: msSchema,
+    took: msSchema,
+    result: z.unknown(),
+  }),
+  z.object({
+    status: z.literal("failed"),
+    at: msSchema,
+    took: msSchema,
+    result: z.unknown(),
+    planned: z.literal(true).optional().catch(undefined),
+    explainedAt: momentSchema,
+    answeredAt: momentSchema,
+    fixedAt: momentSchema,
+    selfFixAt: momentSchema,
+  }),
+]);
+
 /** A run saved as `started` comes back `interrupted`: nothing resumes */
 const parseRun = (v: unknown): RunRecord | null => {
-  if (!isRecord(v) || !isMs(v.at)) return null;
-  const at = v.at;
-  switch (v.status) {
-    case "started":
-    case "interrupted":
-      return { status: "interrupted", at };
-    case "ok": {
-      const result = parseResult(v.result);
-      return result && isMs(v.took)
-        ? { status: "ok", at, took: v.took, result }
-        : null;
-    }
-    case "refused": {
-      // Only a failed call that carries its refusal or an existing account
-      // was ever recorded refused
-      const result = parseResult(v.result);
-      return result &&
-        isMs(v.took) &&
-        !result.ok &&
-        (result.act === "run" || result.act === "call") &&
-        (result.refused || existsOf(result))
-        ? { status: "refused", at, took: v.took, result }
-        : null;
-    }
-    case "failed": {
-      const result = parseResult(v.result);
-      if (!result || !isMs(v.took)) return null;
-      const run: RunRecord = { status: "failed", at, took: v.took, result };
-      if (v.planned === true) run.planned = true;
-      // The explain's moments, each kept only when it reads as a time
-      if (isMs(v.explainedAt)) run.explainedAt = v.explainedAt;
-      if (isMs(v.answeredAt)) run.answeredAt = v.answeredAt;
-      if (isMs(v.fixedAt)) run.fixedAt = v.fixedAt;
-      if (isMs(v.selfFixAt)) run.selfFixAt = v.selfFixAt;
-      return run;
-    }
-    default:
-      return null;
+  const parsed = runRecordSchema.safeParse(v);
+  if (!parsed.success) return null;
+  const record = parsed.data;
+  if (record.status === "started" || record.status === "interrupted") {
+    return { status: "interrupted", at: record.at };
   }
+  const result = parseResult(record.result);
+  if (!result) return null;
+  const { at, took } = record;
+  if (record.status === "ok") return { status: "ok", at, took, result };
+  if (record.status === "refused") {
+    // Only a failed call that carries its refusal or an existing account
+    // was ever recorded refused
+    return !result.ok &&
+      (result.act === "run" || result.act === "call") &&
+      (result.refused || existsOf(result))
+      ? { status: "refused", at, took, result }
+      : null;
+  }
+  const run: RunRecord = { status: "failed", at, took, result };
+  if (record.planned) run.planned = true;
+  // The explain's and the fix's moments, each kept only when it reads as a time
+  if (record.explainedAt !== undefined) run.explainedAt = record.explainedAt;
+  if (record.answeredAt !== undefined) run.answeredAt = record.answeredAt;
+  if (record.fixedAt !== undefined) run.fixedAt = record.fixedAt;
+  if (record.selfFixAt !== undefined) run.selfFixAt = record.selfFixAt;
+  return run;
 };
 
 /** An act's runs, the unreadable ones dropped; none left drops the act */
@@ -1433,6 +1466,8 @@ if (import.meta.vitest) {
         result,
         explainedAt: 8,
         answeredAt: "soon",
+        selfFixAt: "later",
+        planned: "yes",
       };
       const saved = midway({ runs: { "s1.build": [kept, broken] } });
       expect(reload(saved)?.runs["s1.build"]).toEqual([

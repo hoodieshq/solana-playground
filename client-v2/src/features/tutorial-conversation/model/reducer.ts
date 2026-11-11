@@ -359,7 +359,7 @@ const outcomeOf = (result: RunResult): ActionRunParams["outcome"] => {
     (result.act === "airdrop" ||
       result.act === "deploy" ||
       result.act === "buildDeploy") &&
-    result.reason !== "failed"
+    (result.reason === "no_funds" || result.reason === "no_wallet")
   ) {
     return result.reason;
   }

@@ -1032,6 +1032,7 @@ describe("TurnView", () => {
     revealError: vi.fn(),
     showLog: vi.fn(),
     createWallet: vi.fn(),
+    newProgramId: vi.fn(),
     signIn: vi.fn(),
   });
   const draw = (turn: Turn, live: boolean, handlers = on()) =>
@@ -1651,6 +1652,7 @@ describe("TurnView's last win", () => {
           revealError: vi.fn(),
           showLog: vi.fn(),
           createWallet: vi.fn(),
+          newProgramId: vi.fn(),
           signIn: vi.fn(),
         }}
       />
@@ -1767,6 +1769,7 @@ describe("TurnView's chip answer", () => {
     revealError: vi.fn(),
     showLog: vi.fn(),
     createWallet: vi.fn(),
+    newProgramId: vi.fn(),
     signIn: vi.fn(),
   });
   const reply = (follow: Follow | null): Turn => ({

@@ -39,7 +39,7 @@ import {
   reportButtonFailure,
 } from "@/shared/lib/report-button-failure";
 import { Spinner } from "@/shared/ui/spinner";
-import { PgProgramInfo, PgWallet } from "@/utils";
+import { PgProgramInfo, PgWallet, PgWeb3 } from "@/utils";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import { PgTutorial } from "@/utils/tutorial";
@@ -414,6 +414,22 @@ const createWallet = (beatId: string) => {
 };
 
 /**
+ * "Deploy under a new program id" on a program this wallet cannot upgrade
+ * (immutable, or another wallet's): a new program keypair, as the program
+ * keypair panel's Generate makes it, and no build id, so the deploy builds
+ * again with the new `declare_id!` and ships to a fresh address (HOO-2806)
+ */
+const newProgramId = (beatId: string) => {
+  // eslint-disable-next-line unicorn/no-null -- `null` clears the persisted values in program-info.json
+  PgProgramInfo.update({
+    kp: PgWeb3.Keypair.generate(),
+    customPk: null,
+    uuid: null,
+  });
+  PgConversation.act(beatId);
+};
+
+/**
  * "Sign in with GitHub" on a build the server refused for sign-in: GitHub in
  * a popup, so the page and the step stay where they are; once signed in the
  * card offers Build (HOO-2661)
@@ -566,6 +582,7 @@ const handlers: Omit<
   keep: (id) => PgConversation.keep(id),
   showLog: () => PgConversation.showLog(),
   createWallet,
+  newProgramId,
   signIn,
 };
 
