@@ -256,7 +256,7 @@ export class BpfLoaderUpgradeable {
       let successCount = 0;
       let lastTxHash: string | undefined;
       let rateLimitReason: string | undefined;
-      let refusalReported = false;
+      let hasReportedRefusal = false;
       await Promise.all(
         new Array(loadConcurrency).fill(null).map(async () => {
           let backoff = 0;
@@ -310,8 +310,11 @@ export class BpfLoaderUpgradeable {
               }
               lastRefusal = { error, words: `last refusal: ${error.message}` };
               // A send that fails after a stop is not sent again, so it is not reported
-              if (!refusalReported && !opts?.abortController?.signal.aborted) {
-                refusalReported = true;
+              if (
+                !hasReportedRefusal &&
+                !opts?.abortController?.signal.aborted
+              ) {
+                hasReportedRefusal = true;
                 opts?.onRefusal?.(clusterMessageOf(e));
               }
 
@@ -331,8 +334,15 @@ export class BpfLoaderUpgradeable {
       if (rateLimitReason) {
         // TODO: Make use of the `Retry-After` response header
         const retryAfter = 10; // this is what `Retry-After` returns currently
-        // One line a round: a round whose refusal is already in the terminal waits without a second one
-        if (!refusalReported) opts?.onRateLimit?.(retryAfter, rateLimitReason);
+        // One line a round, printed as it happens: a round whose refusal is already in the terminal waits without a
+        // second one, and the rate limit goes to the log
+        if (hasReportedRefusal) {
+          log.warn("Rate-limited after a refused write; waiting", {
+            context: { reason: rateLimitReason, retryAfter },
+          });
+        } else {
+          opts?.onRateLimit?.(retryAfter, rateLimitReason);
+        }
         await pause(retryAfter * 1000);
         if (opts?.abortController?.signal.aborted) return;
       }

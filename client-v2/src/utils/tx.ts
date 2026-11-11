@@ -1,3 +1,6 @@
+import { createLogger } from "@/shared/lib/logger";
+
+import { PgCodec } from "./codec";
 import { PgCommon } from "./common";
 import { PgConnection } from "./connection";
 import { PgSettings } from "./settings";
@@ -33,17 +36,27 @@ type Transactionable =
   | PgWeb3.Transaction
   | Arrayable<PgWeb3.TransactionInstruction>;
 
+const log = createLogger("utils:tx");
+
+/**
+ * The answer to a transaction whose signature the cluster has seen: with a cached blockhash, an earlier one with the
+ * same data, so `PgTx.send` signs again with a fresh blockhash
+ */
+const ALREADY_PROCESSED = "This transaction has already been processed";
+
 /** Answers to a send that `PgTx.send` meets by signing again with a fresh blockhash */
-const RESENT_ON = [
-  "This transaction has already been processed",
-  "Blockhash not found",
-];
+const RESENT_ON = [ALREADY_PROCESSED, "Blockhash not found"];
 
 /**
  * Sends with a fresh blockhash after one of {@link RESENT_ON}, at most: a cluster that still answers so is stalled
  * or behind, and the error then reaches the caller, whose own retries (a deploy's rounds and its stall limit) see it
  */
 const MAX_FRESH_BLOCKHASH_SENDS = 3;
+
+/** The host of a connection's RPC, for logs: its path or query may carry an API key */
+const hostOf = (connection: PgWeb3.Connection) =>
+  /^[a-z]+:\/\/([^/?#]+)/i.exec(connection.rpcEndpoint)?.[1] ??
+  connection.rpcEndpoint;
 
 export class PgTx {
   /** All transaction event names */
@@ -73,21 +86,28 @@ export class PgTx {
    * @param txable transaction to send
    * @param opts send options
    * @returns the transaction signature
-   * @throws the RPC's error, also a "Blockhash not found" or "already processed" one that is still answered after
+   * @returns the transaction signature; after {@link MAX_FRESH_BLOCKHASH_SENDS} sends with a fresh blockhash that
+   * the cluster still answers "already processed", the signature of the transaction it has
+   * @throws the RPC's error, also "Blockhash not found" still answered after
    * {@link MAX_FRESH_BLOCKHASH_SENDS} sends with a fresh blockhash
    */
   static async send(
     txable: Transactionable,
     opts?: TransactionSendOptions
   ): Promise<string> {
-    return await this._send(txable, { ...opts, resent: 0 });
+    return await this._send({ txable, opts, resent: 0 });
   }
 
-  /** {@link PgTx.send}, after `opts.resent` sends with a fresh blockhash */
-  private static async _send(
-    txable: Transactionable,
-    opts: TransactionSendOptions & { resent: number }
-  ): Promise<string> {
+  /** {@link PgTx.send}, after `resent` sends with a fresh blockhash */
+  private static async _send({
+    txable,
+    opts,
+    resent,
+  }: {
+    txable: Transactionable;
+    opts: TransactionSendOptions | undefined;
+    resent: number;
+  }): Promise<string> {
     const { connection, tx } = await this._prepareTx(txable, opts);
 
     // Caching the blockhash will result in getting the same tx signature when
@@ -99,17 +119,29 @@ export class PgTx {
         skipPreflight: !PgSettings.connection.preflightChecks,
       });
     } catch (e: any) {
-      if (
-        opts.resent < MAX_FRESH_BLOCKHASH_SENDS &&
-        RESENT_ON.some((answer) => e.message.includes(answer))
-      ) {
+      const answer = RESENT_ON.find((a) => e.message.includes(a));
+      if (answer && resent < MAX_FRESH_BLOCKHASH_SENDS) {
+        log.debug("Sending again with a fresh blockhash", {
+          context: { answer, resent: resent + 1, endpoint: hostOf(connection) },
+        });
+        // A cluster whose blockhash has not moved gives the same one back, so the later sends wait a slot first
+        if (resent > 0) await PgCommon.sleep(PgWeb3.DEFAULT_MS_PER_SLOT);
         // Reset signatures
         tx.signatures = [];
-        return await this._send(tx, {
-          ...opts,
-          forceFetchLatestBlockhash: true,
-          resent: opts.resent + 1,
+        return await this._send({
+          txable: tx,
+          opts: { ...opts, forceFetchLatestBlockhash: true },
+          resent: resent + 1,
         });
+      }
+      if (answer) {
+        log.warn("The cluster still refused the send after fresh blockhashes", {
+          context: { answer, resent, endpoint: hostOf(connection) },
+        });
+        // The cluster has this very transaction: it landed, and the caller confirms it by its signature
+        if (answer === ALREADY_PROCESSED && tx.signature) {
+          return PgCodec.encodeBinary(tx.signature, "base58");
+        }
       }
 
       throw e;

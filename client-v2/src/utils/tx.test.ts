@@ -26,6 +26,7 @@ const wallet = {
 const connectionAnswering = (answers: string[]) => {
   const blockhashes = { fetched: 0 };
   const connection = {
+    rpcEndpoint: "https://rpc.test/?api-key=secret",
     getLatestBlockhash: async () => {
       blockhashes.fetched++;
       return { blockhash: PgWeb3.Keypair.generate().publicKey.toBase58() };
@@ -79,6 +80,21 @@ describe("utils/tx", () => {
     await expect(
       PgTx.send(ix, { wallet, connection: connection as never })
     ).rejects.toThrow("Blockhash not found");
+    expect(connection.sendRawTransaction).toHaveBeenCalledTimes(4);
+  });
+
+  it("gives the transaction's own signature once three sends with a fresh blockhash were already processed", async () => {
+    const { connection } = connectionAnswering(
+      new Array(10).fill("This transaction has already been processed")
+    );
+
+    const signature = await PgTx.send(ix, {
+      wallet,
+      connection: connection as never,
+    });
+
+    // The cluster has the transaction: the caller confirms it by this signature
+    expect(signature).toMatch(/^[1-9A-HJ-NP-Za-km-z]{64,88}$/);
     expect(connection.sendRawTransaction).toHaveBeenCalledTimes(4);
   });
 
