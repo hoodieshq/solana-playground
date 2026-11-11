@@ -34,8 +34,10 @@ afterEach(() => {
 
 const named = (name: string) =>
   sent.events.filter((e) => e.name === name).map((e) => e.params);
-const field = () => screen.getByLabelText("Import from GitHub");
-const button = () => screen.getByRole("button", { name: /^Import/ });
+const field = () =>
+  screen.getByLabelText<HTMLInputElement>("Import from GitHub");
+const button = () =>
+  screen.getByRole<HTMLButtonElement>("button", { name: /^Import/ });
 
 /** A link import that ends as told, once `settle` is called */
 const deferred = () => {
@@ -46,7 +48,7 @@ const deferred = () => {
   return { importLink, settle: (outcome: LinkImport) => settle(outcome) };
 };
 
-const typeAndImport = async (link = REPO) => {
+const typeAndImport = async (link: string) => {
   fireEvent.change(field(), { target: { value: link } });
   await act(async () => fireEvent.click(button()));
 };
@@ -63,7 +65,7 @@ it("imports the link, then hands over and counts it", async () => {
     />
   );
 
-  await typeAndImport();
+  await typeAndImport(REPO);
 
   expect(importLink).toHaveBeenCalledWith(REPO);
   expect(field().disabled).toBe(true);
@@ -81,10 +83,12 @@ it("imports the link, then hands over and counts it", async () => {
 });
 
 it("imports on Enter, never with an empty field", async () => {
-  const importLink = vi.fn(async (): Promise<LinkImport> => ({
-    outcome: "imported",
-    source: "gist",
-  }));
+  const importLink = vi.fn(
+    async (): Promise<LinkImport> => ({
+      outcome: "imported",
+      source: "gist",
+    })
+  );
   render(<ImportFromUrl importLink={importLink} />);
 
   expect(button().disabled).toBe(true);
@@ -147,7 +151,7 @@ it("reports a failure that is not the link's", async () => {
     />
   );
 
-  await typeAndImport();
+  await typeAndImport(REPO);
 
   expect(logged.entries.map((e) => e.report)).toEqual([true]);
 });
@@ -163,7 +167,7 @@ it("goes back to idle when the program picker is closed", async () => {
     />
   );
 
-  await typeAndImport();
+  await typeAndImport(REPO);
 
   expect(field().disabled).toBe(false);
   expect(field().hasAttribute("aria-invalid")).toBe(false);

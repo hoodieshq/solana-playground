@@ -22,12 +22,12 @@ vi.mock("@/features/gist", async () => {
 vi.mock("@/utils", () => {
   class ImportCancelledError extends Error {}
   class GithubNotFoundError extends Error {
-    constructor(
-      readonly owner: string,
-      readonly repo: string,
-      message: string
-    ) {
-      super(message);
+    readonly owner: string;
+    readonly repo: string;
+    constructor(given: { owner: string; repo: string; message: string }) {
+      super(given.message);
+      this.owner = given.owner;
+      this.repo = given.repo;
     }
   }
   return {
@@ -105,11 +105,11 @@ describe("importLink says why an import failed", () => {
   });
 
   it("says a repository GitHub cannot find may be private", async () => {
-    const error = new GithubNotFoundError(
-      "acme",
-      "escrow-private",
-      "not found"
-    );
+    const error = new GithubNotFoundError({
+      owner: "acme",
+      repo: "escrow-private",
+      message: "not found",
+    });
     failWith(error);
     await expect(importLink(REPO)).resolves.toEqual({
       outcome: "failed",
@@ -147,7 +147,7 @@ describe("importLink says why an import failed", () => {
       "This doesn't look like a Solana program. Playground opens Anchor, native Rust and Seahorse programs.",
       "no-program",
     ],
-    ["GitHub request for \"a/b\" failed with status 500.", "request-failed"],
+    ['GitHub request for "a/b" failed with status 500.', "request-failed"],
   ])("reads %s as %s, showing it as it is", async (message, reason) => {
     failWith(new Error(message));
     await expect(importLink(REPO)).resolves.toMatchObject({

@@ -4,11 +4,7 @@ import type {
   LinkImportFailure,
   LinkSource,
 } from "@/features/new-project";
-import {
-  GithubNotFoundError,
-  ImportCancelledError,
-  PgGithub,
-} from "@/utils";
+import { GithubNotFoundError, ImportCancelledError, PgGithub } from "@/utils";
 
 /** A link that is neither a GitHub repository nor a gist */
 export const BAD_LINK = "This isn't a GitHub repo or gist link.";
@@ -79,10 +75,16 @@ const failed = (
   };
 };
 
+/** Which import takes the link: a gist page is on a GitHub host too */
+const sourceOf = (url: string): LinkSource | undefined => {
+  if (parseGistUrl(url)) return "gist";
+  if (PgGithub.isValidUrl(url)) return "github";
+  return undefined;
+};
+
 /**
  * Import New project's link as the explorer's dialog does: a gist link to
- * the gist import (checked first, a gist page is on a GitHub host too), a
- * repository or folder link to `PgGithub.import`. A link that is neither is
+ * the gist import, a repository or folder link to `PgGithub.import`. A link that is neither is
  * refused before any request. Never throws: the outcome says how it ended.
  *
  * @param link the field's text
@@ -90,11 +92,7 @@ const failed = (
  */
 export const importLink = async (link: string): Promise<LinkImport> => {
   const url = link.trim();
-  const source: LinkSource | undefined = parseGistUrl(url)
-    ? "gist"
-    : PgGithub.isValidUrl(url)
-    ? "github"
-    : undefined;
+  const source = sourceOf(url);
   if (!source) {
     return {
       outcome: "failed",

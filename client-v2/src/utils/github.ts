@@ -61,9 +61,22 @@ export class ImportCancelledError extends Error {
  * the same to a request without an account, so the message says both
  */
 export class GithubNotFoundError extends Error {
-  constructor(readonly owner: string, readonly repo: string, message: string) {
+  readonly owner: string;
+  readonly repo: string;
+
+  constructor({
+    owner,
+    repo,
+    message,
+  }: {
+    owner: string;
+    repo: string;
+    message: string;
+  }) {
     super(message);
     this.name = "GithubNotFoundError";
+    this.owner = owner;
+    this.repo = repo;
   }
 }
 
@@ -304,7 +317,7 @@ export class PgGithub {
     if (!response.ok) {
       const message = this._getErrorMessage(response, `${owner}/${repo}`);
       if (response.status === 404) {
-        throw new GithubNotFoundError(owner, repo, message);
+        throw new GithubNotFoundError({ owner, repo, message });
       }
       throw new Error(message);
     }

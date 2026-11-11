@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import type { ImportFromUrlProps } from "@/features/new-project";
 import {
   initLogger,
   memoryProvider as memoryLogs,
@@ -18,7 +19,6 @@ import {
   memoryProvider,
   resetTelemetry,
 } from "@/shared/lib/telemetry";
-import type { ImportFromUrlProps } from "@/features/new-project";
 import { requireFor } from "@/test-utils/require-for";
 
 const utils = vi.hoisted(() => {
