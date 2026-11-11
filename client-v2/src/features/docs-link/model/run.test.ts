@@ -122,21 +122,41 @@ afterEach(() => {
 describe("PgClientRun", () => {
   it("reads a run that ends well as done, with its time", async () => {
     vi.useFakeTimers();
-    const { PgClientRun } = await load();
+    const { PgClientRun, states } = await load();
     startRun();
     vi.advanceTimersByTime(12_400);
     finishRun({ ok: { ok: true } });
 
     expect(PgClientRun.state).toEqual({ kind: "done", ms: 12_400 });
-    expect(sent.events.map((event) => event.name)).toEqual([
-      "docs_link_run_started",
-      "docs_link_run_finished",
+    expect(states).toEqual(["idle", "running", "done"]);
+  });
+
+  it("sends no docs link event for a run no docs link opened", async () => {
+    const { states } = await load();
+    startRun();
+    finishRun({ err: new Error("boom") });
+
+    expect(states).toEqual(["idle", "running", "failed"]);
+    expect(
+      sent.events.filter((event) => event.name.startsWith("docs_link_"))
+    ).toEqual([]);
+  });
+
+  it("measures a run in the project a docs link opened", async () => {
+    vi.useFakeTimers();
+    const { PgDocsLink } = await load();
+    PgDocsLink.open(QUICKSTART);
+    startRun();
+    vi.advanceTimersByTime(12_400);
+    finishRun({ ok: { ok: true } });
+
+    expect(sent.events).toEqual([
+      expect.objectContaining({ name: "docs_link_run_started", params: {} }),
+      expect.objectContaining({
+        name: "docs_link_run_finished",
+        params: { outcome: "done", seconds: 12 },
+      }),
     ]);
-    expect(sent.events[1].params).toEqual({
-      via: "project",
-      outcome: "done",
-      seconds: 12,
-    });
   });
 
   it("reads a script's uncaught error as failed", async () => {
@@ -151,7 +171,8 @@ describe("PgClientRun", () => {
   });
 
   it("reads an import Playground lacks as a missing package", async () => {
-    const { PgClientRun } = await load();
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.open(QUICKSTART);
     startRun();
     finishRun({
       err: new Error("Package `@solana-program/memo` is not available."),
@@ -258,13 +279,6 @@ describe("PgClientRun", () => {
     const { PgClientRun } = await load();
     await PgClientRun.start();
     expect(utils.PgCommand.run.execute).toHaveBeenCalledTimes(1);
-  });
-
-  it("counts a run as the link's while the link's project is open", async () => {
-    const { PgDocsLink } = await load();
-    PgDocsLink.open(QUICKSTART);
-    startRun();
-    expect(sent.events.at(-1)?.params).toEqual({ via: "link" });
   });
 
   it("runs when the wallet holds exactly what the link needs", async () => {
@@ -493,7 +507,10 @@ describe("PgClientRun", () => {
     startRun();
     PgDocsLink.clear();
     finishRun({ ok: { ok: true } });
-    expect(sent.events.at(-1)?.params).toMatchObject({ via: "link" });
+    expect(sent.events.map((event) => event.name)).toEqual([
+      "docs_link_run_started",
+      "docs_link_run_finished",
+    ]);
   });
 
   it("reads a thrown non-Error as its text", async () => {

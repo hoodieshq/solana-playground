@@ -1,9 +1,7 @@
+import type { NoParams } from "@/shared/lib/telemetry";
 import { createTracker } from "@/shared/lib/telemetry";
 
 import type { DocsLinkFailure } from "../lib/link";
-
-/** Whether a docs link opened the project that ran, or anything else did */
-export type RunSource = "link" | "project";
 
 /** Whether Run had to set the Playground wallet up before checking its SOL */
 export type WalletOrigin = "new" | "existing";
@@ -20,13 +18,13 @@ type DocsLinkEvents = {
   /** "This link is broken" showed; `reason` says what was wrong with it */
   docs_link_failed: { reason: DocsLinkFailure };
   /**
-   * A `run` started, from the stage row's Run or typed in the terminal;
-   * `via` says whether a docs link opened the project
+   * A `run` started in a project a docs link opened, from the stage row's
+   * Run or typed in the terminal. A run anywhere else sends no `docs_link_`
+   * event: the `run` slice's `run_finished` and `run_errored` count every run.
    */
-  docs_link_run_started: { via: RunSource };
+  docs_link_run_started: NoParams;
   /** That `run` ended; `seconds` is its whole seconds */
   docs_link_run_finished: {
-    via: RunSource;
     outcome: RunOutcome;
     seconds: number;
   };
