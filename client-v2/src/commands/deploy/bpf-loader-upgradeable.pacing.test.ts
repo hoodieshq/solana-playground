@@ -495,6 +495,7 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     await vi.runAllTimersAsync();
     await loading;
 
+    expect(chain.sentAt).toHaveLength(1);
     expect(onRefusal).not.toHaveBeenCalled();
   });
 

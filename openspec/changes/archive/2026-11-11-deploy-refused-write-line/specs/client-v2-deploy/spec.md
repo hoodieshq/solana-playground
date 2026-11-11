@@ -13,8 +13,8 @@ round SHALL print nothing more. This holds for the Deploy stage, the terminal an
 
 - **WHEN** a deploy writes its buffer and the cluster refuses several writes in one round with "Transaction simulation
   failed: Insufficient funds for fee"
-- **THEN** the terminal prints "Warning: The cluster refused a buffer write (Transaction simulation failed: Blockhash
-  not found), sending it again..." once for that round, and the refused chunks are sent again in the next round
+- **THEN** the terminal prints "Warning: The cluster refused a buffer write (Transaction simulation failed: Insufficient
+  funds for fee), sending it again..." once for that round, and the refused chunks are sent again in the next round
 
 #### Scenario: Each round that refuses a write prints its own line (manual)
 
