@@ -1,4 +1,3 @@
-import type { NoParams } from "@/shared/lib/telemetry";
 import { createTracker } from "@/shared/lib/telemetry";
 
 import type { DocsLinkFailure } from "../lib/link";
@@ -21,10 +20,12 @@ type DocsLinkEvents = {
    * A `run` started in a project a docs link opened, from the stage row's
    * Run or typed in the terminal. A run anywhere else sends no `docs_link_`
    * event: the `run` slice's `run_finished` and `run_errored` count every run.
+   * `via` stays for the reports that read it; it is always `link`.
    */
-  docs_link_run_started: NoParams;
-  /** That `run` ended; `seconds` is its whole seconds */
+  docs_link_run_started: { via: "link" };
+  /** That `run` ended; `seconds` is its whole seconds, `via` as above */
   docs_link_run_finished: {
+    via: "link";
     outcome: RunOutcome;
     seconds: number;
   };

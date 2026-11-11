@@ -128,7 +128,8 @@ const listen = () => {
     if (isHelp(input)) return;
     started++;
     const isFromLink = isLinkOpen();
-    if (isFromLink) docsLinkTelemetry.track("docs_link_run_started", {});
+    if (isFromLink)
+      docsLinkTelemetry.track("docs_link_run_started", { via: "link" });
     set({
       kind: "running",
       startedAt: Date.now(),
@@ -147,6 +148,7 @@ const listen = () => {
     if (run.isFromLink) {
       const outcome: RunOutcome = next.kind;
       docsLinkTelemetry.track("docs_link_run_finished", {
+        via: "link",
         outcome,
         seconds: Math.floor(ms / 1000),
       });

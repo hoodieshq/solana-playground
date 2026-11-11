@@ -120,11 +120,12 @@ undeclared name fails the run.
 The `docs-link` slice SHALL send:
 
 - `docs_link_run_started` when a `run` starts in a project a docs link
-  opened, from the stage row's Run or typed in the terminal, with no
-  parameters. Whether a docs link opened the project is taken when the run
-  starts.
+  opened, from the stage row's Run or typed in the terminal. Whether a docs
+  link opened the project is taken when the run starts. Its `via` is always
+  `link`, kept for the reports that read it.
 - `docs_link_run_finished` when such a run ends. Its `outcome` is `done`,
-  `failed` or `missing-package`, and `seconds` is the run's whole seconds.
+  `failed` or `missing-package`, its `via` is `link`, and `seconds` is the
+  run's whole seconds.
 - `docs_link_run_funding_shown` when the funding card shows. Its `funding_state` is
   `new` when Run had to create the wallet, else `existing`.
 
@@ -137,8 +138,8 @@ holds it, not a Playwright test.
 #### Scenario: A funded run (manual)
 - **WHEN** a user with enough SOL presses Run on the Quickstart and it
   succeeds
-- **THEN** `docs_link_run_started` is sent, then `docs_link_run_finished`
-  with `outcome: "done"`, neither with a `via`
+- **THEN** `docs_link_run_started` with `via: "link"` is sent, then
+  `docs_link_run_finished` with `via: "link"` and `outcome: "done"`
 
 #### Scenario: A run no docs link opened (manual)
 - **WHEN** a user runs a client file in a project no docs link opened

@@ -151,10 +151,13 @@ describe("PgClientRun", () => {
     finishRun({ ok: { ok: true } });
 
     expect(sent.events).toEqual([
-      expect.objectContaining({ name: "docs_link_run_started", params: {} }),
+      expect.objectContaining({
+        name: "docs_link_run_started",
+        params: { via: "link" },
+      }),
       expect.objectContaining({
         name: "docs_link_run_finished",
-        params: { outcome: "done", seconds: 12 },
+        params: { via: "link", outcome: "done", seconds: 12 },
       }),
     ]);
   });
