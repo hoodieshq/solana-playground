@@ -130,6 +130,9 @@ describe("BaseBuild", () => {
     expect(screen.getByText(/^Compiling on the build server\./)).toBeTruthy();
     expect(screen.queryByText(/api\.solpg\.io/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Building/ })).toBeNull();
+    // HOO-2795: the first Build pill drops its play mark when busy, which is
+    // safe only because it is not drawn at all while the build runs
+    expect(brandButtons(container)).toHaveLength(0);
     expect(
       container.querySelector('[data-slot="stage-empty-progress"]')
     ).not.toBeNull();

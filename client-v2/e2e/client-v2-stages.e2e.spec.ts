@@ -139,10 +139,6 @@ const recordEdges = async (page: Page, buttons: Locator[]) => {
 };
 
 /**
- * Every frame's edges equal the first frame's, and the recording caught the
- * first button both idle and busy
- */
-/**
  * Waits until the recording holds a few frames with the first button busy, so
  * the busy layout has been painted and measured, however slow the machine
  */
@@ -158,6 +154,10 @@ const waitForBusyFrames = (page: Page) =>
     )
     .toBeGreaterThanOrEqual(5);
 
+/**
+ * Every frame's edges equal the first frame's, and the recording caught the
+ * first button both idle and busy
+ */
 const expectHeldStill = (frames: Edges[][]) => {
   expect(frames.some(([first]) => first.busy)).toBe(true);
   expect(frames.some(([first]) => !first.busy)).toBe(true);
@@ -347,6 +347,8 @@ test.describe("client-v2-stages: Interact", () => {
 
     let release: () => void = () => {};
     const released = new Promise<void>((resolve) => (release = resolve));
+    const held: string[] = [];
+    let slot = 0;
     await page.route("https://api.devnet.solana.com/**", async (route) => {
       const body = (route.request().postDataJSON() ?? {}) as {
         id?: unknown;
@@ -372,6 +374,12 @@ test.describe("client-v2-stages: Interact", () => {
       if (body.method === "getBalance") {
         return answer({ context: { slot: 1 }, value: 10_000_000_000 });
       }
+      // The app polls the slot on its own, and reads a slot that stands
+      // still as a cluster that is down, so each answer moves it on
+      if (body.method === "getSlot") return answer((slot += 1));
+      // Only the call Send makes should get here: anything else waiting on
+      // the hold would leave Send busy for a reason that is not the layout's
+      held.push(body.method ?? "(no method)");
       await released;
       return route.abort();
     });
@@ -388,12 +396,15 @@ test.describe("client-v2-stages: Interact", () => {
     const fill = panel.getByRole("button", { name: "Fill with Random" });
     const reset = panel.getByRole("button", { name: "Reset" });
     const stop = await recordEdges(page, [send, fill, reset]);
+    expect(held).toEqual([]);
     await send.click();
     // Busy, its name is the label it shows
     await expect(
       panel.getByRole("button", { name: "Sending…" })
     ).toHaveAttribute("aria-busy", "true");
     await waitForBusyFrames(page);
+    // Send is busy because its own call is held on the cluster
+    await expect.poll(() => held.length).toBeGreaterThan(0);
     release();
     await expect(send).not.toHaveAttribute("aria-busy", "true", LONG);
     expectHeldStill(await stop());

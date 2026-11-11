@@ -8,7 +8,9 @@ be as wide busy as idle, and the stage SHALL keep the room of its scrollbar
 whether or not its content overflows. One exception stands until HOO-2796
 settles the Deploy stage's action row: the Deploy pill alone in that row may
 change its width between "Deploy to <cluster>" and "Deploying...", keeping
-its centre. The busy button's accessible name SHALL
+its centre. The first Build pill ("Build", with its play mark) is not
+held: the first build replaces it with the run's progress bar and Stop, so
+it is not on screen while the build runs. The busy button's accessible name SHALL
 be the label it shows ("Building…", "Sending…"), and it SHALL carry
 `aria-busy="true"` while it waits.
 
