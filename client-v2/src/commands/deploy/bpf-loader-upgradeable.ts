@@ -104,9 +104,10 @@ const nextBackoff = (previous: number) =>
   );
 
 /**
- * How long a buffer write may wait for an answer before it counts as refused: a send is at most 4 `sendTransaction`
- * calls and their blockhash fetches (`PgTx.send`'s fresh-blockhash resends), each well under a second on an RPC that
- * answers, so 20 s passes a slow one and still prints the line soon after the 10 s slow-run notice
+ * How long a buffer write may wait for an answer before it counts as refused. A send is 1 + `PgTx`'s
+ * `MAX_FRESH_BLOCKHASH_SENDS` `sendRawTransaction` calls with their blockhash fetches and a slot's sleep between the
+ * later ones, each under a second on an RPC that answers; 20 s passes a slow one, and the line comes about 10 s after
+ * the `SLOW_RUN_MS` notice at the earliest.
  */
 const WRITE_ANSWER_TIMEOUT_MS = 20_000;
 
@@ -114,18 +115,52 @@ const WRITE_ANSWER_TIMEOUT_MS = 20_000;
 class UnansweredWriteError extends Error {}
 
 /**
- * `promise`, or a rejection with {@link UnansweredWriteError} once `ms` pass; the request itself is not aborted, and
- * a late answer or failure is dropped
+ * `send`, or a rejection with {@link UnansweredWriteError} once `ms` pass, or with the stop's reason once
+ * `abortController` aborts. The request is not aborted: `PgTx.send` goes on, fresh-blockhash resends included, and a
+ * write that lands late is found by the next buffer read, so its late outcome goes to the debug log only.
  */
-const awaitAnswerFor =
-  (ms: number) =>
-  <T>(promise: Promise<T>) =>
+const awaitAnswerWith =
+  ({
+    ms,
+    abortController,
+  }: {
+    ms: number;
+    abortController?: AbortController;
+  }) =>
+  <T>(send: Promise<T>) =>
     new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new UnansweredWriteError(`No answer in ${ms / 1000} s`)),
-        ms
-      );
-      promise.then(resolve, reject).finally(() => clearTimeout(timer));
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        reject(new UnansweredWriteError(`No answer in ${ms / 1000} s`));
+      }, ms);
+      const signal = abortController?.signal;
+      const onAbort = () => reject(signal?.reason);
+      if (signal?.aborted) onAbort();
+      signal?.addEventListener("abort", onAbort, { once: true });
+      send
+        .then(
+          (value) => {
+            if (timedOut) {
+              log.debug("A buffer write answered after its time limit", {
+                context: { ms },
+              });
+            }
+            resolve(value);
+          },
+          (e: unknown) => {
+            if (timedOut) {
+              log.debug("A buffer write failed after its time limit", {
+                context: { ms, error: toError(e).message },
+              });
+            }
+            reject(e);
+          }
+        )
+        .finally(() => {
+          clearTimeout(timer);
+          signal?.removeEventListener("abort", onAbort);
+        });
     });
 
 /** Rounds in a row in which no missing chunk lands before `loadBuffer` gives up, so a refusing RPC cannot hang a deploy */
@@ -319,9 +354,14 @@ export class BpfLoaderUpgradeable {
 
             await pause(pace.turnIn());
             if (opts?.abortController?.signal.aborted) return;
+            // Another worker's write may have gone unanswered during the wait for this turn
+            if (hasUnansweredWrite) break;
 
             try {
-              lastTxHash = await awaitAnswerFor(WRITE_ANSWER_TIMEOUT_MS)(
+              lastTxHash = await awaitAnswerWith({
+                ms: WRITE_ANSWER_TIMEOUT_MS,
+                abortController: opts?.abortController,
+              })(
                 PgTx.send(ix, {
                   wallet,
                   computeUnitLimit,
@@ -363,7 +403,7 @@ export class BpfLoaderUpgradeable {
               // The browser hides a 429 without CORS headers behind a failed fetch, so slow down as for one
               if (isFetchFailure(e)) pace.recordRateLimit();
               else pace.recordFailure();
-              // The round reads the buffer next, and its stall limit counts the round
+              // No backoff: the round ends here, `loadUntilWritten` reads the buffer and `MAX_STALLED_ROUNDS` counts the round
               if (e instanceof UnansweredWriteError) {
                 hasUnansweredWrite = true;
                 break;
