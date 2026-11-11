@@ -12,6 +12,7 @@ import { fakeBuildServer } from "./fake-build-server";
 import type { FakeDevnet } from "./fake-devnet";
 import { fakeDevnet } from "./fake-devnet";
 import { expect, LONG, test } from "./fixtures";
+import { savedFileHolds } from "./saved-files";
 
 /**
  * Hello Anchor from the intro card to the finish card on the desktop, with
@@ -308,9 +309,10 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     await expect(page.locator(".monaco-editor .view-lines")).toContainText(
       EDIT
     );
-    // The editor saves half a second after the last key; past that, the
-    // file holds the edit
-    await page.waitForTimeout(1500);
+    // Once the editor's autosave has stored the edit, the file holds it
+    await expect
+      .poll(() => savedFileHolds(page, EDIT), { timeout: 10_000 })
+      .toBe(true);
     await expect(card()).toContainText(LESSON);
     await expect(card()).not.toContainText(EDIT);
     // After a reload, once the editor holds the edit again, the card still
