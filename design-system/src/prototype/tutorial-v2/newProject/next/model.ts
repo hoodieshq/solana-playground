@@ -143,7 +143,7 @@ export function programOfLink(url: string): RepoProgram | undefined {
   const known = SAMPLE_PROGRAMS.find((p) => clean.endsWith(`/${p.path}`))
   if (known) return known
   if (!isGithubLink(clean) || clean.split("/").length <= 5) return undefined
-  const parts = clean.split("/").filter((p) => !["anchor", "native", "seahorse"].includes(p))
+  const parts = clean.split("/").filter((p) => !["anchor", "native"].includes(p))
   return { path: "", name: parts[parts.length - 1], framework: "anchor", readme: true }
 }
 

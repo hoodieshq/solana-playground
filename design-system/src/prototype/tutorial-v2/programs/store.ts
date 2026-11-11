@@ -10,7 +10,7 @@ import { STARTERS } from "./starters"
    can open a project without sharing a React tree. The shape follows ux-architecture.md section 5,
    with the Guide's feed as a list of turns, as a lesson's chat is (CONSENSUS.md, row 2) */
 
-export type Framework = "anchor" | "native" | "seahorse" | "ts-client"
+export type Framework = "anchor" | "native" | "ts-client"
 export type Source = "starter" | "example" | "import" | "describe"
 
 /** The live card's action: build mode's steps, or read mode's stops (Call on devnet is "call" in both) */
@@ -1069,7 +1069,7 @@ export function seedYours(n: number) {
       },
     ],
     ["hello-native", "native", (id) => build(id, instant)],
-    ["tip-jar", "seahorse", (id) => (update(id, (p) => ({ ...p, force: { build: "failed" } })), build(id, instant))],
+    ["tip-jar", "anchor", (id) => (update(id, (p) => ({ ...p, force: { build: "failed" } })), build(id, instant))],
     ["price-check", "ts-client", () => {}],
   ]
   const now = Date.now()

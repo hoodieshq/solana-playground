@@ -13,7 +13,7 @@ import { useStore } from "../../store"
 import type { NextStateId } from "../design"
 import { FRAMEWORKS, type FrameworkId } from "./data"
 import { hasStorageLine, StorageLine } from "./FirstLight"
-import { FrameworkCard } from "./FrameworkCard"
+import { FrameworkCard, TutorialCard } from "./FrameworkCard"
 import "./firstLight.css"
 import type { Source } from "./model"
 import type { Preset } from "./open"
@@ -65,6 +65,11 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
   const flow = useFirstLight(forced, preset, onClose)
   const { s, dispatch, env, seed, closing, primaryRef, creating, fetching, busy, main, failed, create, cancel, retry, enterCreates } = flow
   const { dispatch: go } = useStore()
+  // The other way to begin: it leaves for Tutorials
+  const toTutorials = () => {
+    onClose()
+    go({ type: "open", screen: "gallery" })
+  }
   const urlRef = useRef<HTMLInputElement>(null)
   const boxRef = useRef<HTMLTextAreaElement>(null)
   const height = useViewportHeight()
@@ -165,6 +170,8 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                       {FRAMEWORKS.map((x) => (
                         <FrameworkCard key={x.id} f={x} picked={x.id === s.framework} dim={creating && x.id !== s.framework} compact={!tablet} />
                       ))}
+                      {/* The tablet's grid has a fourth cell; the phone's list keeps the row at its foot */}
+                      {tablet && !s.into && <TutorialCard disabled={busy} onOpen={toTutorials} />}
                     </RadioGroup.Root>
                     <h2 className={LABEL}>Or start from</h2>
                     <SourceRows env={env} into={!!s.into} busy={busy} onOpen={(v) => push(v as Sub)} />
@@ -181,11 +188,8 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                       )}
                       <button
                         type="button"
-                        onClick={() => {
-                          onClose()
-                          go({ type: "open", screen: "gallery" })
-                        }}
-                        className={cn(ROW, "h-(--phone-row)")}
+                        onClick={toTutorials}
+                        className={cn(ROW, "h-(--phone-row)", tablet && !s.into && "hidden")}
                       >
                         <span aria-hidden="true" className="grid size-5 shrink-0 place-items-center text-(color:--text-quiet)">
                           <GraduationCap className="size-5" />

@@ -22,7 +22,7 @@ const CODE_AT = view === "phone" || view === "portrait" ? "under Code at the top
 
 type T<K extends Turn["k"]> = Extract<Turn, { k: K }>
 
-const FRAMEWORK: Record<Project["framework"], string> = { anchor: "Anchor", native: "native Rust", seahorse: "Seahorse", "ts-client": "TypeScript" }
+const FRAMEWORK: Record<Project["framework"], string> = { anchor: "Anchor", native: "native Rust", "ts-client": "TypeScript" }
 
 /** The first words in the feed: what the project is, where its code is, and what the steps do. A
  * catalog program opens straight here, no preview page before it (Almaz, 6 Nov), so it is met with
@@ -145,7 +145,6 @@ function showFailLine(p: Project, c: string) {
 const LEARN: Partial<Record<Project["framework"], { slug: string; label: string }>> = {
   native: { slug: "hello-solana", label: "Learn Native step by step" },
   anchor: { slug: "hello-anchor", label: "Learn Anchor step by step" },
-  seahorse: { slug: "hello-seahorse", label: "Learn Seahorse step by step" },
 }
 
 export function MilestoneTurn({ p }: { p: Project }) {

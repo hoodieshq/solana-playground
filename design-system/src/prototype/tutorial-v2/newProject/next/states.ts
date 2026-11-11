@@ -22,7 +22,6 @@ export const SEEDS: Record<Exclude<NextStateId, `landing-${string}`>, Seed> = {
   live: { focus: "card" },
   idle: { focus: "card" },
   "starter-native": { patch: { framework: "native" }, focus: "card" },
-  "starter-seahorse": { patch: { framework: "seahorse" }, focus: "card" },
   "starter-client": { patch: { framework: "ts-client" }, focus: "card" },
   creating: { patch: { run: { state: "creating" } }, focus: "card" },
   "create-failed": { patch: { run: FAILED }, focus: "retry" },

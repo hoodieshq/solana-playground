@@ -10,15 +10,11 @@ export type FrameworkInfo = {
   name: string
   language: string
   who: string
-  logo: string
-  round?: boolean
   base: string
   main: string
   /** "Create Anchor project", "Create client project" */
   word: string
 }
-
-const logo = (file: string) => `${import.meta.env.BASE_URL}prototype/frameworks/${file}`
 
 export const FRAMEWORKS: FrameworkInfo[] = [
   {
@@ -26,7 +22,6 @@ export const FRAMEWORKS: FrameworkInfo[] = [
     name: "Anchor",
     language: "Rust",
     who: "Most Solana programs start here. Less code for accounts and checks.",
-    logo: logo("anchor.png"),
     base: "anchor-project",
     main: "src/lib.rs",
     word: "Anchor",
@@ -36,28 +31,15 @@ export const FRAMEWORKS: FrameworkInfo[] = [
     name: "Native",
     language: "Rust",
     who: "No framework. More code, full control. For people who know Solana.",
-    logo: logo("native.png"),
     base: "native-project",
     main: "src/lib.rs",
     word: "Native",
-  },
-  {
-    id: "seahorse",
-    name: "Seahorse",
-    language: "Python",
-    who: "Python that compiles to Anchor. Fewer guides and examples than Anchor.",
-    logo: logo("seahorse.png"),
-    round: true,
-    base: "seahorse-project",
-    main: "src/fizzbuzz.py",
-    word: "Seahorse",
   },
   {
     id: "ts-client",
     name: "TypeScript client",
     language: "TypeScript",
     who: "No program. A script that calls programs already on devnet.",
-    logo: logo("typescript.svg"),
     base: "client-project",
     main: "client/client.ts",
     word: "client",

@@ -61,31 +61,6 @@ const sig = await web3.sendAndConfirmTransaction(pg.connection, new web3.Transac
 console.log(\`https://explorer.solana.com/tx/\${sig}?cluster=devnet\`);
 `
 
-const seahorse = `# Built with Seahorse v0.2.0
-
-from seahorse.prelude import *
-
-declare_id('11111111111111111111111111111111')
-
-class FizzBuzz(Account):
-  fizz: bool
-  buzz: bool
-  n: u64
-
-@instruction
-def init(owner: Signer, fizzbuzz: Empty[FizzBuzz]):
-  fizzbuzz.init(payer = owner, seeds = ['fizzbuzz', owner])
-
-@instruction
-def do_fizzbuzz(fizzbuzz: FizzBuzz, n: u64):
-  fizzbuzz.fizz = n % 3 == 0
-  fizzbuzz.buzz = n % 5 == 0
-  if not fizzbuzz.fizz and not fizzbuzz.buzz:
-    fizzbuzz.n = n
-  else:
-    fizzbuzz.n = 0
-`
-
 const client = `// Sends a memo to the Memo program on devnet and reads the log back
 import { Connection, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
 
@@ -105,7 +80,7 @@ await connection.sendTransaction(new Transaction().add(ix), [pg.wallet.keypair])
 console.log('Memo program says: "gm from Playground"');
 `
 
-export const STARTERS: Record<"anchor" | "native" | "seahorse" | "ts-client", Starter> = {
+export const STARTERS: Record<"anchor" | "native" | "ts-client", Starter> = {
   anchor: {
     files: { "src/lib.rs": anchor, "client/client.ts": nativeClient },
     main: "src/lib.rs",
@@ -115,14 +90,6 @@ export const STARTERS: Record<"anchor" | "native" | "seahorse" | "ts-client", St
     files: { "src/lib.rs": native, "client/client.ts": nativeClient },
     main: "src/lib.rs",
     ixs: [],
-  },
-  seahorse: {
-    files: { "src/fizzbuzz.py": seahorse },
-    main: "src/fizzbuzz.py",
-    ixs: [
-      { name: "init", args: [], accounts: ["owner", "fizzbuzz"], line: "Makes your FizzBuzz account." },
-      { name: "do_fizzbuzz", args: [{ name: "n", type: "u64", example: "15" }], accounts: ["fizzbuzz"], line: "Works out fizz and buzz for a number." },
-    ],
   },
   "ts-client": {
     files: { "client.ts": client },

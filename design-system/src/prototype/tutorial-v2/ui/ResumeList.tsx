@@ -31,11 +31,11 @@ export type ResumeItem = {
  * or a project was found again only by its card, or not at all. A grid of cards, each card one button:
  * the cover, the name and where it stands in the words of its own step bar. Built for any number (Almaz,
  * 11 Nov): one card runs the row's width, four show before Show all, and a long list opens with a filter.
- * With none it isn't drawn, unless the page gives it words for that */
-export function ResumeList({ id, title, items, empty, className }: { id: string; title: string; items: ResumeItem[]; empty?: ReactNode; className?: string }) {
+ * With none it isn't drawn */
+export function ResumeList({ id, title, items, className }: { id: string; title: string; items: ResumeItem[]; className?: string }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
-  if (!items.length && !empty) return null
+  if (!items.length) return null
   const more = items.length > FIRST
   const filtering = open && items.length >= FILTER_FROM
   const q = filtering ? query.trim().toLowerCase() : ""
@@ -69,7 +69,6 @@ export function ResumeList({ id, title, items, empty, className }: { id: string;
           </button>
         )}
       </div>
-      {!items.length && <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-panel border border-dashed border-border px-4 py-3.5">{empty}</div>}
       {filtering && (
         <label className="mb-3 flex h-9 items-center gap-2 rounded-lg border border-border bg-surface-panel px-3 text-muted-foreground focus-within:border-border-strong sm:max-w-72 pointer-coarse:h-11">
           <Search aria-hidden="true" strokeWidth={1.75} className="size-4 shrink-0" />
@@ -112,16 +111,15 @@ export function ResumeList({ id, title, items, empty, className }: { id: string;
                   <span className="truncate">{it.where}</span>
                 </p>
               </div>
-              {/* The card's one button, stretched over it. A chevron, not the word: Open and Continue cut
-                  the step's words short in half the row's width, and the line under the name says which */}
+              {/* The card's one button, stretched over it, with nothing drawn: no other card in the product
+                  has a chevron, the whole card is the button (Almaz, 11 Nov). The line under the name says
+                  where a press takes you */}
               <button
                 type="button"
                 onClick={it.onOpen}
                 aria-label={`${it.done ? "Open" : "Continue"} ${it.name}, ${it.where}`}
-                className={cn("shrink-0 rounded-panel text-muted-foreground after:absolute after:inset-0 after:rounded-panel after:content-[''] group-hover/row:text-foreground", FOCUS)}
-              >
-                {!it.menu && <ChevronRight aria-hidden="true" className="size-4" />}
-              </button>
+                className={cn("shrink-0 rounded-panel after:absolute after:inset-0 after:rounded-panel after:content-['']", FOCUS)}
+              />
               {/* Over the stretched button, so it opens its own menu; shown under the pointer or the focus,
                 always under a finger and in the phone's and the tablet's frames */}
               {it.menu && (

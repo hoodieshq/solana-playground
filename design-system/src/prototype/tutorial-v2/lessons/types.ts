@@ -28,7 +28,7 @@ export type TutorialCard = {
   slug: string
   name: string
   level: "Beginner" | "Intermediate" | "Advanced"
-  framework: "Anchor" | "Seahorse" | "Native"
+  framework: "Anchor" | "Native"
   ext: "jpg" | "png"
 }
 

@@ -15,7 +15,7 @@ import "../../desktop/navLit/navLit.css"
 import { useStore } from "../../store"
 import type { NextStateId } from "../design"
 import { FRAMEWORKS, type FrameworkId } from "./data"
-import { FrameworkCard } from "./FrameworkCard"
+import { FrameworkCard, TutorialCard } from "./FrameworkCard"
 import "./firstLight.css"
 import type { Env, Source } from "./model"
 import type { Preset } from "./open"
@@ -47,6 +47,11 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
   const flow = useFirstLight(forced, preset, onClose)
   const { s, dispatch, env, seed, closing, held, primaryRef, creating, fetching, busy, main, failed, create, cancel, retry, enterCreates } = flow
   const { dispatch: go } = useStore()
+  // The other way to begin: it leaves for Tutorials
+  const toTutorials = () => {
+    onClose()
+    go({ type: "open", screen: "gallery" })
+  }
 
   const urlRef = useRef<HTMLInputElement>(null)
   const boxRef = useRef<HTMLTextAreaElement>(null)
@@ -128,7 +133,8 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
             {/* 12 to the sides, so a list row's hover can reach past the column's edge without being clipped */}
             <div ref={scrollRef} className="fade-edges -mx-3 -my-1 min-h-0 flex-1 overflow-y-auto px-3 py-1 [--fade-size:24px] [scrollbar-width:none]">
               <Tabs.Content value={s.source} className={cn("animate-menu-in outline-none", (s.source === "starter" || s.source === "describe") && "h-full")}>
-                {/* The four cards share the body's height, so the taller body leaves no band under them */}
+                {/* The four cards share the body's height, so the taller body leaves no band under them. The
+                    fourth is the tutorials' way in, so the foot's link to them isn't shown beside it */}
                 {s.source === "starter" && (
                   <RadioGroup.Root
                     aria-label="Framework"
@@ -141,6 +147,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
                     {FRAMEWORKS.map((x) => (
                       <FrameworkCard key={x.id} f={x} picked={x.id === s.framework} dim={creating && x.id !== s.framework} />
                     ))}
+                    {!s.into && <TutorialCard disabled={busy} onOpen={toTutorials} />}
                   </RadioGroup.Root>
                 )}
                 <SourcePanel flow={flow} urlRef={urlRef} boxRef={boxRef} />
@@ -169,15 +176,14 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
                 Make a new project instead
               </button>
             </p>
+          ) : s.source === "starter" ? (
+            <span />
           ) : (
             // The other way to begin, quiet at the foot's start: it leaves the dialog, so it isn't a tab
             <button
               type="button"
               disabled={busy}
-              onClick={() => {
-                onClose()
-                go({ type: "open", screen: "gallery" })
-              }}
+              onClick={toTutorials}
               className="group/tut -ml-2 flex h-10 items-center gap-2 rounded-lg px-2 text-[0.8125rem] leading-5 text-muted-foreground outline-none transition-colors duration-100 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none [html.touch_&]:h-11"
             >
               <GraduationCap aria-hidden="true" strokeWidth={1.75} className="size-4 shrink-0" />
@@ -185,13 +191,6 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
             </button>
           )}
           <div className="ml-auto flex items-center gap-2">
-            {/* In Describe Enter is a new line, so the way to send is said where it's needed. Not under a finger */}
-            {s.source === "describe" && main.enabled && (
-              <KbdGroup aria-hidden="true" className="mr-2 [html.touch_&]:hidden">
-                <Kbd>⌘</Kbd>
-                <Kbd>↵</Kbd>
-              </KbdGroup>
-            )}
             {fetching && (
               <Button variant="ghost" onClick={cancel} className="h-9 [html.touch_&]:h-11">
                 Cancel
@@ -214,6 +213,14 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
                 </>
               )}
               {main.label}
+              {/* In Describe Enter is a new line, so the way to send is said in the button it presses: beside
+                  it the keys stood between two controls and belonged to neither (Almaz, 11 Nov). Not under a finger */}
+              {s.source === "describe" && main.enabled && !busy && (
+                <KbdGroup aria-hidden="true" className="ml-1 [html.touch_&]:hidden">
+                  <Kbd className="bg-white/15 text-current">⌘</Kbd>
+                  <Kbd className="bg-white/15 text-current">↵</Kbd>
+                </KbdGroup>
+              )}
             </BrandButton>
           </div>
         </footer>

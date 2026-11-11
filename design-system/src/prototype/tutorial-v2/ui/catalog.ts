@@ -10,7 +10,6 @@ type About = { description: string; parts: number; by?: string }
 
 const ABOUT: Record<string, About> = {
   "hello-anchor": { description: "Hello world program with Anchor framework.", parts: 4, by: "acheron" },
-  "hello-seahorse": { description: "Hello world program with Seahorse framework in Python.", parts: 4, by: "acheron" },
   "hello-solana": { description: "Hello world program with Native Solana/Rust.", parts: 3, by: "acheron" },
   "counter-pda-tutorial": { description: "Create a simple counter that will store the number of times is called.", parts: 10, by: "cleon" },
   "tiny-adventure": {
@@ -20,8 +19,6 @@ const ABOUT: Record<string, About> = {
   },
   "tiny-adventure-two": { description: "Giving out SOL rewards to players.", parts: 4, by: "Jonas Hahn" },
   "expense-tracker": { description: "Learn how to create an expense tracker app and understand PDAs", parts: 5, by: "Bolt / Syed Aabis Akhtar" },
-  "tictactoe-seahorse": { description: "Create your own 2 player on-chain classic game of tic-tac-toe.", parts: 5, by: "lostin" },
-  "todo-app-seahorse": { description: "Build a todo app to keep track of tasks.", parts: 5, by: "lostin" },
   "bank-simulator": { description: "Learn on-chain automation by creating bank program with interest returns.", parts: 5, by: "Bolt / Syed Aabis Akhtar" },
   "battle-coins": {
     description:
@@ -35,7 +32,6 @@ const ABOUT: Record<string, About> = {
     parts: 5,
     by: "Jonas Hahn and John",
   },
-  "faucet-seahorse": { description: "Build a token faucet with a price oracle.", parts: 7, by: "lostin" },
   lumberjack: { description: "How to build an energy system on chain.", parts: 3, by: "Jonas Hahn" },
   "spl-token-vault": {
     description: "Learn how to create and SPL token with meta data and icon using metaplex sdk and saving it in an anchor program.",
@@ -54,7 +50,7 @@ export type Framework = TutorialCard["framework"]
 export type FrameworkFilter = "all" | Framework
 
 /** A tutorial's name as the product shows it: the data keeps upstream's name, which is also its key */
-const SHOWN: Record<string, string> = { "tictactoe-seahorse": "Tic-tac-toe Seahorse" }
+const SHOWN: Record<string, string> = {}
 export const shownName = (t: Entry) => SHOWN[t.slug] ?? t.name
 
 /** The name upstream keys a tutorial by, where the prototype's data spells it differently. The

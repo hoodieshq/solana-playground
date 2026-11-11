@@ -16,7 +16,7 @@ import { isGithubLink, repoOf, type Env, type FirstLightState, type ImportProble
 import { ProblemCallout, type CalloutAction } from "./ProblemCallout"
 import { GitHubMark } from "./SourceRail"
 
-const HINT = "Public repos with an Anchor, Native or Seahorse program."
+const HINT = "Public repos with an Anchor or Native program."
 const NOT_A_LINK = "This isn't a GitHub link. Paste one that starts with https://github.com/ or https://gist.github.com/"
 
 type Problem = { title: string; cause: string; primary?: "edit" | "github" | "folder" | "retry" | "retry-off"; secondary?: "edit" | "github" }
@@ -37,7 +37,7 @@ const PROBLEMS: Record<ImportProblem, Problem> = {
     primary: "folder",
     secondary: "edit",
   },
-  "no-program": { title: "No Solana program here", cause: "Playground opens Anchor, Native and Seahorse programs. Try a link to the program's folder.", primary: "edit" },
+  "no-program": { title: "No Solana program here", cause: "Playground opens Anchor and Native programs. Try a link to the program's folder.", primary: "edit" },
   "rate-limited": { title: "GitHub limit reached", cause: "GitHub limits how often this browser can import. Try again after 4:12 PM.", primary: "retry-off" },
   "too-large": { title: "Repo too large", cause: "GitHub sent only part of its file list. Link to the program's folder instead.", primary: "edit" },
   broke: { title: "Could not import the repo.", cause: "Nothing was added to your projects.", primary: "retry" },
@@ -238,7 +238,8 @@ export function ImportPanel({
                   <LitPick />
                   <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem] text-foreground">{p.path}</span>
                   {picked && <CheckBadge size={16} />}
-                  <img src={f.logo} alt="" className={cn("size-4", f.round ? "rounded-full" : "rounded")} />
+                  {/* The framework as a word: its logo at 16 was a blur, and no other cover is a logo now */}
+                  <span className="shrink-0 text-[0.75rem] leading-4 text-muted-foreground">{f.name}</span>
                 </RadioGroup.Item>
               )
             })}

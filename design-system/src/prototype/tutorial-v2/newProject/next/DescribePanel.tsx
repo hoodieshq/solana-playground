@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils"
 import { soon } from "../../desktop/Catalog"
 import { MODELS, setChoices } from "../../desktop/navLit/choices"
 import { DESCRIBE_CHIPS, FRAMEWORKS, frameworkOf, type FrameworkId } from "./data"
-import { FrameworkLogo } from "./FrameworkCard"
 import type { Env, FirstLightState } from "./model"
 import { ProblemCallout, type CalloutAction } from "./ProblemCallout"
 
@@ -80,7 +79,6 @@ export function DescribePanel({
               disabled={off || sending}
               className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-[0.8125rem] font-act text-foreground outline-none hover:bg-(--np-hover) focus-visible:ring-2 focus-visible:ring-ring [html.phone_&]:h-9 [html.touch_&]:h-9"
             >
-              <FrameworkLogo f={f} size={14} />
               {f.name}
               <ChevronDown aria-hidden="true" className="size-3 text-muted-foreground" />
             </DropdownMenuTrigger>
@@ -88,7 +86,6 @@ export function DescribePanel({
               <DropdownMenuRadioGroup value={s.framework} onValueChange={(v) => onFramework(v as FrameworkId)}>
                 {FRAMEWORKS.map((x) => (
                   <DropdownMenuRadioItem key={x.id} value={x.id}>
-                    <FrameworkLogo f={x} size={14} />
                     {x.name}
                   </DropdownMenuRadioItem>
                 ))}
@@ -100,7 +97,6 @@ export function DescribePanel({
 
       {/* Under the box, where the worry comes up, and at the size of a field's hint: at 12 in the quiet grey
           under the examples the one line that answers "will it break my code" was the easiest to miss */}
-      {!off && <p className="mt-2 text-[0.8125rem] leading-[1.125rem] font-read text-muted-foreground">The assistant builds on a starter. You review every change.</p>}
 
       {/* "Try" says a chip fills the box: bare, they read as filters. On the phone they run in one row that
           scrolls sideways */}

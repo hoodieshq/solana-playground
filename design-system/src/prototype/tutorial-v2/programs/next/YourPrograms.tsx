@@ -1,4 +1,4 @@
-import { Ellipsis, Plus } from "lucide-react"
+import { Ellipsis } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -14,7 +14,6 @@ import { LESSONS } from "../../lessons"
 import { useNavState } from "../../navStates"
 import { progressOf, savedProgress, useStore } from "../../store"
 import { CATALOG as CATALOG_TUTORIALS, shownName } from "../../ui/catalog"
-import { openFirstLight } from "../../newProject/next/open"
 import { ResumeList, type ResumeItem } from "../../ui/ResumeList"
 import { CATALOG } from "../data"
 import { deleteProject, go, steps, usePrograms, type Project } from "../store"
@@ -78,7 +77,7 @@ function RowMenu({ p, onDelete }: { p: Project; onDelete: () => void }) {
 
 /** Your programs, over Solana's examples: every project you made or kept, last worked on first. A catalog program you only read isn't a project and stays on its
  * card (CONSENSUS-delta 2.7) */
-export function YourPrograms({ empty = false }: { empty?: boolean }) {
+export function YourPrograms() {
   const projects = usePrograms((s) => s.projects)
   const [asking, setAsking] = useState<string | null>(null)
   const items: ResumeItem[] = Object.values(projects)
@@ -163,23 +162,14 @@ export function YourPrograms({ empty = false }: { empty?: boolean }) {
     })
   }
   // No "9 of 10 used" beside the heading: next to the list's own number it confused (Almaz, 11 Nov); the
-  // Deploy card says the limit where it bites. Projects, the nav's word for the same list
+  // Deploy card says the limit where it bites. Projects, the nav's word for the same list. With none the
+  // section isn't drawn, as In progress in Tutorials: a heading over a box saying "nothing" stood over the
+  // programs a newcomer came for (Almaz, 11 Nov)
   return (
     <ResumeList
       id="programs-yours"
       title="Your projects"
       items={items}
-      empty={
-        empty ? (
-          <>
-            <p className="min-w-0 flex-1 basis-64 text-[0.875rem] leading-5 text-muted-foreground">Nothing here yet. Open a program below and it's kept here, or start one of your own.</p>
-            <Button variant="outline" size="sm" onClick={() => openFirstLight({ entry: "empty-list" })} className="pointer-coarse:h-11">
-              <Plus />
-              New project
-            </Button>
-          </>
-        ) : undefined
-      }
     />
   )
 }

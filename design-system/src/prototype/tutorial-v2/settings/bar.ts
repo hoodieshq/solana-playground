@@ -79,7 +79,7 @@ function seed(id: SettingsState) {
       break
     case "rpc-saved":
       leaveTrouble()
-      setChoices({ rpcs: [{ url: HELIUS }, { url: ALCHEMY }], network: rpcLabel(HELIUS, [{ url: HELIUS }, { url: ALCHEMY }]), picked: true })
+      setChoices({ rpcs: [{ url: HELIUS }, { url: ALCHEMY }], network: HELIUS, picked: true })
       break
     case "rpc-removed":
       leaveTrouble()

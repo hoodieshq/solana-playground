@@ -6,7 +6,7 @@
      left made it 880 wide for four short words. Example's fourth row sits half in the fade at this height,
      so the list reads as one to scroll */
   --np-width: 40rem;
-  --np-body: 21rem;
+  --np-body: 22.5rem;
   --np-hover: color-mix(in srgb, var(--foreground) 4%, transparent);
   --np-current: color-mix(in srgb, var(--foreground) 8%, transparent);
   --np-peek: var(--surface-raised);
@@ -15,7 +15,6 @@
   --np-tag-ink: #8a3ff5;
   --np-shadow: 0 8px 28px rgb(0 0 0 / 0.12);
   --np-warn-edge: color-mix(in srgb, var(--warning) 60%, transparent);
-  --np-check-glow: 0 2px 8px rgb(138 63 245 / 0.35);
 }
 .dark {
   --np-peek: var(--card-ground);
@@ -23,10 +22,9 @@
   --np-track: linear-gradient(to bottom, #9945ff, #14f195);
   --np-tag-ink: #c9a6ff;
   --np-shadow: var(--shadow-modal-value);
-  --np-check-glow: 0 0 0 3px rgb(153 69 255 / 0.18), 0 0 14px rgb(153 69 255 / 0.55);
 }
 html.touch {
-  --np-body: 23.5rem;
+  --np-body: 25rem;
 }
 
 .np-fade-right {

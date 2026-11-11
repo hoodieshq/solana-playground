@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ComponentProps } from "react"
 import { ArrowRight, Check } from "lucide-react"
 
-import { BrandButton } from "@/components/ui/brand-button"
+import { BrandButton, BrandButtonIcon } from "@/components/ui/brand-button"
 import { cn } from "@/lib/utils"
 
 import { cardOf, useFeatured, useOpenTutorial, useProgress } from "../host"
@@ -85,7 +85,7 @@ const BEAM_CSS = `
   .start-beam:hover:not(:disabled):not(:active)::before { opacity: 1; }
 }`
 
-const GO = "start-beam h-10 px-5! font-heading text-[0.9375rem] font-medium tracking-[-0.005em] pointer-coarse:h-11"
+const GO = "start-beam h-10 font-heading text-[0.9375rem] font-medium tracking-[-0.005em] pointer-coarse:h-11"
 
 /** The banner's width, in px, from which the sculpture stands beside the words */
 const WIDE_MIN = 640
@@ -165,6 +165,7 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
                 {b.nextCard && (
                   <BrandButton className={GO} onClick={b.next}>
                     Start {b.nextCard.name}
+                    <BrandButtonIcon />
                   </BrandButton>
                 )}
                 {/* Its 44 for the thumb reaches below the words: given back, so the card's foot is as deep as its head */}
@@ -175,6 +176,7 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
             ) : (
               <BrandButton className={GO} onClick={b.go}>
                 {b.started ? "Continue" : "Start"}
+                <BrandButtonIcon />
               </BrandButton>
             )}
           </div>

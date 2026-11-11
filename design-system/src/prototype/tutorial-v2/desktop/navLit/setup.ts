@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 
 import type { NavState, SetupStep } from "../../navStates"
-import type { Choices } from "./choices"
+import { networkWord, type Choices } from "./choices"
 
 /* Setup as Lit Path reads it: the nav's row and its popover are one object, so one Hide
    hides both and the account menu brings them back. Home has no card of its own: it said the same. Hidden is remembered per nav state, so
@@ -43,7 +43,7 @@ export function useSetupHidden(stateId: string) {
 }
 
 /** What a done step says when the state doesn't: the model, the network, the login, the wallet */
-const DONE_VALUE = (c: Choices) => [c.model, c.network, "@samrivera", "7xKX…gAsU"]
+const DONE_VALUE = (c: Choices) => [c.model, networkWord(c), "@samrivera", "7xKX…gAsU"]
 /** What each step is for, under its name in the popover: a beginner sees why before doing it */
 const STEP_HINT = ["Answers questions as you learn and code", "Where your programs deploy and run", "Keeps your work on any device", "Sign with your own wallet"]
 export type SetupView = { steps: (SetupStep & { hint: string })[]; done: number; total: number; label: string; tip: string }

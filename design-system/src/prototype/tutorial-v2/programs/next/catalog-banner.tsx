@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react"
 
-import { BrandButton } from "@/components/ui/brand-button"
+import { BrandButton, BrandButtonIcon } from "@/components/ui/brand-button"
 import { cn } from "@/lib/utils"
 
 import { programBySlug } from "../data"
@@ -32,7 +32,7 @@ const BEAM_CSS = `
   .start-beam:hover:not(:disabled):not(:active)::before { opacity: 1; }
 }`
 
-const GO = "start-beam h-10 px-5! font-heading text-[0.9375rem] font-medium tracking-[-0.005em] pointer-coarse:h-11"
+const GO = "start-beam h-10 font-heading text-[0.9375rem] font-medium tracking-[-0.005em] pointer-coarse:h-11"
 
 /** The catalog's top, built as the Tutorials gallery's Start here banner: the words on the left, the
  * mark as a voxel sculpture beside them, here telling a deploy. Under 640px wide the sculpture hangs
@@ -85,10 +85,12 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
             {project ? (
               <BrandButton className={GO} onClick={() => go({ at: "project", id: project.id })}>
                 {resumeLabel(project)}
+                <BrandButtonIcon />
               </BrandButton>
             ) : (
               <BrandButton className={GO} onClick={() => openProgram(FIRST)}>
                 Start
+                <BrandButtonIcon />
               </BrandButton>
             )}
           </div>

@@ -1,10 +1,9 @@
-import { ChevronRight, Search } from "lucide-react"
+import { Search } from "lucide-react"
 import { type ReactNode } from "react"
 import { toast } from "sonner"
 
 import {
   ActionCard,
-  ActionCardAction,
   ActionCardContent,
   ActionCardDescription,
   ActionCardEyebrow,
@@ -18,7 +17,6 @@ import { cn } from "@/lib/utils"
 
 import { useOpenTutorial } from "../host"
 import { upstreamName, type Entry } from "../ui/catalog"
-import { programIcon, programTags, type Program } from "../ui/programs"
 import { TutorialCover } from "../ui/TutorialCover"
 import { LitGround } from "./Gallery"
 
@@ -58,39 +56,6 @@ export function NoMatch({ label, query, onClear }: { label: string; query: strin
       <Button variant="outline" size="sm" onClick={onClear}>
         Clear search
       </Button>
-    </div>
-  )
-}
-
-/** The programs as the product's catalog draws them: two columns from 720 px, the avatar's tile, the
- * eyebrow, the name, two lines of description and Open. Opening a program isn't in this prototype */
-export function ProgramGrid({ programs }: { programs: Program[] }) {
-  return (
-    <div className="grid grid-cols-1 gap-3 min-[720px]:grid-cols-2">
-      {programs.map((p) => (
-        <ActionCard key={p.name}>
-          <ActionCardMedia variant="image" className="size-14">
-            <img src={programIcon(p)} alt="" />
-          </ActionCardMedia>
-          <ActionCardContent>
-            <ActionCardEyebrow>{programTags(p)}</ActionCardEyebrow>
-            <ActionCardTitle>
-              <ActionCardLink asChild>
-                <button type="button" onClick={soon}>
-                  {p.name}
-                </button>
-              </ActionCardLink>
-            </ActionCardTitle>
-            <ActionCardDescription>{p.description}</ActionCardDescription>
-          </ActionCardContent>
-          <ActionCardAction>
-            <Button variant="outline" aria-label={`Open ${p.name}`} onClick={soon}>
-              Open
-            </Button>
-          </ActionCardAction>
-          <ChevronRight aria-hidden="true" className="size-4 shrink-0 self-center text-muted-foreground md:hidden" />
-        </ActionCard>
-      ))}
     </div>
   )
 }

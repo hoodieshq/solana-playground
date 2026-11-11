@@ -1,7 +1,7 @@
 import { ArrowRight, ArrowUp, Check, CirclePlay } from "lucide-react"
 import { useEffect, useRef, useState, type ComponentType } from "react"
 
-import { BrandButton } from "@/components/ui/brand-button"
+import { BrandButton, BrandButtonIcon } from "@/components/ui/brand-button"
 import { cn } from "@/lib/utils"
 
 import { LIT_ICONS, LIT_STROKE } from "../desktop/navLit/icons"
@@ -120,10 +120,12 @@ function Hero({ phone }: { phone: boolean }) {
           {l.state === "done" ? (
             <BrandButton className={GO} onClick={() => openFirstLight({ entry: "home-tile" })}>
               New project
+              <BrandButtonIcon />
             </BrandButton>
           ) : (
             <BrandButton className={GO} onClick={l.open}>
               {l.state === "started" ? "Continue" : `Start ${l.name}`}
+              <BrandButtonIcon />
             </BrandButton>
           )}
         </div>
@@ -132,7 +134,8 @@ function Hero({ phone }: { phone: boolean }) {
   )
 }
 
-const GO = "h-10 px-5! font-heading text-[0.9375rem] font-medium tracking-[-0.005em] pointer-coarse:h-11"
+/* The play ring cut from the mark trails the words of the main Start: taken off once, the art director asked for it back (11 Nov) */
+const GO = "h-10 font-heading text-[0.9375rem] font-medium tracking-[-0.005em] pointer-coarse:h-11"
 
 /** A way to start, in the box's foot: an icon and its words, no box of its own */
 function Way({ icon: Icon, label, onClick }: { icon: ComponentType<{ className?: string; strokeWidth?: number }>; label: string; onClick: () => void }) {
@@ -225,8 +228,9 @@ function StartBox() {
   )
 }
 
-/** One tutorial of the path: its number on the path, the cover, the name, and where it stands */
-function PathCard({ slug, n }: { slug: string; n: number }) {
+/** One tutorial of the path: the cover, the name, and where it stands. No 01, 02, 03 in the corner: the
+ * row's own order says it, and a number promised an order nobody has to keep (Almaz, 11 Nov) */
+function PathCard({ slug }: { slug: string }) {
   const open = useOpenTutorial()
   const p = useProgress(slug)
   const lesson = LESSONS[slug]
@@ -238,12 +242,7 @@ function PathCard({ slug, n }: { slug: string; n: number }) {
   const name = shownName(t)
   return (
     <li className="group/card relative flex min-w-0 flex-col gap-3 rounded-panel border border-border bg-surface-panel p-4 transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none max-sm:flex-row max-sm:items-center">
-      <div className="flex items-start justify-between max-sm:contents">
-        <TutorialThumb t={t} />
-        <span aria-hidden="true" className="font-mono text-[0.75rem] leading-4 text-muted-foreground/70 tabular-nums max-sm:order-last">
-          {`0${n}`}
-        </span>
-      </div>
+      <TutorialThumb t={t} />
       <div className="min-w-0 flex-1">
         <h3 className="truncate font-heading text-[1.0625rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
           <button type="button" onClick={() => open(slug)} className={cn("rounded-sm after:absolute after:inset-0 after:rounded-panel after:content-['']", FOCUS)}>
@@ -286,8 +285,8 @@ function Path() {
         </button>
       </div>
       <ol className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
-        {LADDER.map((slug, i) => (
-          <PathCard key={slug} slug={slug} n={i + 1} />
+        {LADDER.map((slug) => (
+          <PathCard key={slug} slug={slug} />
         ))}
       </ol>
     </section>

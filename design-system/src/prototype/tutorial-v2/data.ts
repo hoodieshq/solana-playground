@@ -14,18 +14,14 @@ export const thumb = (slug: string, ext: string) =>
 
 export const TUTORIALS: TutorialCard[] = [
   { slug: "hello-anchor", name: "Hello Anchor", level: "Beginner", framework: "Anchor", ext: "jpg" },
-  { slug: "hello-seahorse", name: "Hello Seahorse", level: "Beginner", framework: "Seahorse", ext: "jpg" },
   { slug: "hello-solana", name: "Hello Solana", level: "Beginner", framework: "Native", ext: "jpg" },
   { slug: "counter-pda-tutorial", name: "Counter PDA Tutorial", level: "Beginner", framework: "Anchor", ext: "jpg" },
   { slug: "tiny-adventure", name: "Tiny Adventure", level: "Beginner", framework: "Anchor", ext: "jpg" },
   { slug: "tiny-adventure-two", name: "Tiny Adventure Two", level: "Beginner", framework: "Anchor", ext: "jpg" },
   { slug: "expense-tracker", name: "Expense Tracker", level: "Beginner", framework: "Anchor", ext: "png" },
-  { slug: "tictactoe-seahorse", name: "Tic-tac-toe Seahorse", level: "Beginner", framework: "Seahorse", ext: "jpg" },
-  { slug: "todo-app-seahorse", name: "Todo App Seahorse", level: "Beginner", framework: "Seahorse", ext: "jpg" },
   { slug: "bank-simulator", name: "Bank Simulator", level: "Intermediate", framework: "Anchor", ext: "png" },
   { slug: "battle-coins", name: "Battle Coins", level: "Intermediate", framework: "Anchor", ext: "jpg" },
   { slug: "boss-battle", name: "Boss Battle", level: "Intermediate", framework: "Anchor", ext: "png" },
-  { slug: "faucet-seahorse", name: "Faucet Seahorse", level: "Intermediate", framework: "Seahorse", ext: "jpg" },
   { slug: "lumberjack", name: "Lumberjack", level: "Intermediate", framework: "Anchor", ext: "jpg" },
   { slug: "spl-token-vault", name: "SPL Token Vault", level: "Intermediate", framework: "Anchor", ext: "png" },
   { slug: "zero-copy", name: "Zero Copy", level: "Advanced", framework: "Anchor", ext: "jpg" },
@@ -110,9 +106,8 @@ export const stepOfBeat = (id: string) => STEPS.findIndex((s) => [...s.beats, ..
 /** The first act of a kind in the script: the card a nudge puts up again */
 export const firstAct = (...acts: Act[]) => STEPS.flatMap((s) => s.beats).find((b): b is ActBeat => b.kind === "act" && acts.includes(b.act))
 
-// A Seahorse build compiles the Python to Anchor first; a native one builds with cargo, no Anchor
+// A native build runs cargo, no Anchor
 export const buildOk = () => [
-  ...(LESSON.card.framework === "Seahorse" ? ["$ seahorse build", `Compiling ${LIB.split("/").pop()} with Seahorse`, "Wrote the Anchor program in Rust"] : []),
   LESSON.card.framework === "Native" ? "$ cargo build-sbf" : "$ anchor build",
   `Compiling ${LESSON.program} v0.1.0`,
   "Finished release [optimized] target(s) in 2.41s",

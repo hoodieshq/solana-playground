@@ -24,8 +24,6 @@ const RETRY_MS = 700
 
 export function Catalog({ phone = false }: { phone?: boolean }) {
   const forced = useProgState()
-  // Today the build server builds Anchor only, so every catalog program is read (CONSENSUS-delta 2.2)
-  const read = !usePrograms((s) => s.native)
   const [retrying, setRetrying] = useState(false)
   const timer = useRef(0)
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -41,12 +39,7 @@ export function Catalog({ phone = false }: { phone?: boolean }) {
     <>
       {/* No search (Almaz, 6 Nov): eleven programs in three sections read at a glance. On the phone the
           heading sits under the menu button as the Tutorials page's does */}
-      <h1 className={cn("font-heading font-normal tracking-[-0.015em] text-foreground", phone ? "mb-1 flex h-11 items-center text-[1.75rem]" : cn("mt-6 text-display", read ? "mb-2" : "mb-6"))}>Programs</h1>
-      {read && (
-        <p className={cn("mb-6 max-w-[40rem] font-read text-muted-foreground", phone ? "text-[0.8125rem] leading-[1.125rem]" : "text-[0.875rem] leading-5")}>
-          Solana's example programs, in Native Rust. Playground can't build it yet, so for now you read them with the assistant.
-        </p>
-      )}
+      <h1 className={cn("font-heading font-normal tracking-[-0.015em] text-foreground", phone ? "mb-1 flex h-11 items-center text-[1.75rem]" : "mt-6 mb-6 text-display")}>Programs</h1>
 
         {loading ? (
           <div aria-busy="true" className="grid grid-cols-1 gap-3 min-[720px]:grid-cols-2">
@@ -61,7 +54,7 @@ export function Catalog({ phone = false }: { phone?: boolean }) {
           <>
             <ProgramBanner phone={phone} />
             <div className="flex flex-col gap-8">
-              <YourPrograms empty />
+              <YourPrograms />
               <Sections list={CATALOG} />
             </div>
           </>
@@ -76,10 +69,15 @@ export function Catalog({ phone = false }: { phone?: boolean }) {
   )
 }
 
-/** The programs by what they are for, as the Tutorials gallery groups its lessons by level */
+/** Solana's examples under one heading of their own, by what they are for. Without it "Basics" stood
+ * level with "Your projects" and read as more of your own (Almaz, 11 Nov). No line about Native Rust and
+ * reading under it: a program says that itself once it's opened */
 function Sections({ list }: { list: ProgramMeta[] }) {
   return (
-    <div className="flex flex-col gap-8">
+    <section aria-labelledby="programs-examples" className="flex flex-col gap-6">
+      <h2 id="programs-examples" className="font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground">
+        Solana examples
+      </h2>
       {TOPICS.map((topic) => {
         const items = list.filter((p) => p.topic === topic)
         if (!items.length) return null
@@ -87,9 +85,9 @@ function Sections({ list }: { list: ProgramMeta[] }) {
         return (
           <section key={topic} aria-labelledby={id}>
             {/* No count beside the heading: the cards under it show how many there are */}
-            <h2 id={id} className="mb-3 font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground">
+            <h3 id={id} className="mb-2.5 text-[0.875rem] leading-5 font-act text-muted-foreground">
               {topic}
-            </h2>
+            </h3>
             <div className="grid grid-cols-1 gap-3 min-[720px]:grid-cols-2">
               {items.map((p) => (
                 <ProgramCard key={p.slug} p={p} />
@@ -98,7 +96,7 @@ function Sections({ list }: { list: ProgramMeta[] }) {
           </section>
         )
       })}
-    </div>
+    </section>
   )
 }
 
@@ -124,9 +122,9 @@ function ProgramCard({ p }: { p: ProgramMeta }) {
       <div className="grid flex-1 grid-cols-[auto_minmax(0,1fr)_auto] content-start items-start gap-x-3.5 p-4">
         <ProgramCover p={p} className="pointer-events-none row-span-3 size-[4.5rem] rounded-[14px]" />
         {/* No eyebrow (it said "SPL", as the name does) and no arrow square: the whole card is the button */}
-        <h3 title={p.name} className="pointer-events-none line-clamp-1 min-w-0 font-heading text-[1.125rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
+        <h4 title={p.name} className="pointer-events-none line-clamp-1 min-w-0 font-heading text-[1.125rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
           {p.name}
-        </h3>
+        </h4>
         {project && (
           <Button variant="outline" size="sm" onClick={() => go({ at: "project", id: project.id })} className="relative z-10 -my-1 cursor-pointer pointer-coarse:after:absolute pointer-coarse:after:-inset-2 pointer-coarse:after:content-['']">
             {resumeLabel(project)}

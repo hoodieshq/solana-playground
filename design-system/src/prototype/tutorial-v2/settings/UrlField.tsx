@@ -149,8 +149,8 @@ export function UrlField({
             }
           }}
           onBlur={(e) => {
-            // Blur while empty closes it, unless the focus only went to its own Use
-            if (!value.trim() && !e.currentTarget.closest('[data-slot="input-group"]')?.contains(e.relatedTarget as Node)) onClose()
+            // Blur while empty closes it, unless the focus only went to its own Use, or to a field of the form it sits in
+            if (!value.trim() && !(e.currentTarget.closest("[data-url-form]") ?? e.currentTarget.closest('[data-slot="input-group"]'))?.contains(e.relatedTarget as Node)) onClose()
           }}
           className={cn("font-mono", phone ? "text-[1rem]" : "text-[0.8125rem]")}
         />

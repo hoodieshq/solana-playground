@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 import { CatalogSearch } from "../../desktop/Catalog"
-import { filterPrograms, programIcon } from "../../ui/programs"
+import { filterPrograms } from "../../ui/programs"
 import { BASICS, frameworkOf, type Basic } from "./data"
 import { ImportSteps, type Step } from "./ImportSteps"
-import { FrameworkLogo } from "./FrameworkCard"
+import { programBySlug } from "../../programs/data"
+import { ProgramCover } from "../../programs/next/ProgramCover"
+import { ProjectCover } from "../../programs/next/ProjectCover"
 import { CheckBadge, LitPick } from "./LitPick"
 import type { FirstLightState } from "./model"
 import { ProblemCallout } from "./ProblemCallout"
@@ -124,7 +126,9 @@ export function ExamplePanel({
 
   const q = query.trim().toLowerCase()
   const basics = BASICS.filter((b) => matches(b, q))
-  const listed = online && programs === "ready" ? filterPrograms(query) : []
+  // The catalog's own programs with their covers: the two it dropped (token-vesting, spl-stake-pool) aren't
+  // offered here either
+  const listed = online && programs === "ready" ? filterPrograms(query).flatMap((p) => programBySlug(p.name) ?? []) : []
   const none = q && !basics.length && (programs !== "ready" || !listed.length)
   // The catalog's heading only parts it from the rows above: a search that leaves one group shows its rows
   // bare (Almaz, 10 Nov)
@@ -163,11 +167,7 @@ export function ExamplePanel({
               slug={b.slug}
               line={b.line}
               tag={`${frameworkOf(b.framework).name} · Rust`}
-              tile={
-                <span className="grid size-10 shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06]">
-                  <FrameworkLogo f={frameworkOf(b.framework)} size={22} />
-                </span>
-              }
+              tile={<ProjectCover framework={b.framework} className="size-10" />}
               picked={picked === b.slug}
               dim={busy && picked !== b.slug}
               onCreate={onCreate}
@@ -201,7 +201,7 @@ export function ExamplePanel({
               slug={p.name}
               line={p.description}
               tag="Native · Rust"
-              tile={<img src={programIcon(p)} alt="" className="size-10 shrink-0 rounded-[9px]" />}
+              tile={<ProgramCover p={p} className="size-10 rounded-[9px]" />}
               picked={picked === p.name}
               dim={busy && picked !== p.name}
               onCreate={onCreate}

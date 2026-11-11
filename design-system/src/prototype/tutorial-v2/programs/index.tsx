@@ -1,20 +1,17 @@
 import { useEffect } from "react"
 
-import { Programs as CurrentPrograms } from "../desktop/Programs"
 import { useStore } from "../store"
 import { applyProgState, setBarShow } from "./bar"
-import { PROG_STATES, onProgramsPick, readProgramsDesign, useProgramsDesign, type ProgState } from "./design"
+import { PROG_STATES, onProgramsPick, readProgramsDesign, type ProgState } from "./design"
 import { Catalog } from "./next/Catalog"
 import { Shell } from "./next/Shell"
 import { go, setShowPrograms, usePrograms } from "./store"
 
-/** The Programs screen in the design the prototype bar picks. A project is the redesign's shell
- * whatever the pick, since New project lands there too */
+/** The Programs screen: the catalog, or a project's shell. The list as client-v2 drew it is gone, with
+ * its old program icons (Almaz, 11 Nov) */
 export function ProgramsScreen() {
-  const design = useProgramsDesign()
   const route = usePrograms((s) => s.route)
   if (route.at === "project") return <Shell key={route.id} id={route.id} />
-  if (design === "current") return <CurrentPrograms />
   return <Catalog />
 }
 

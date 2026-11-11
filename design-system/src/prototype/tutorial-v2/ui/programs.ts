@@ -66,7 +66,6 @@ export const PROGRAMS: Program[] = [
   },
 ]
 
-export const programIcon = (p: Program) => `${import.meta.env.BASE_URL}prototype/programs/${p.icon}`
 
 /** The eyebrow the product writes: the framework, then the first category that isn't SPL itself */
 export const programTags = (p: Program) => [p.framework, p.categories.find((c) => c !== "SPL") ?? p.categories[0]].join(" · ")

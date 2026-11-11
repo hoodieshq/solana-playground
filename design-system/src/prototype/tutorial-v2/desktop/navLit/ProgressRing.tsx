@@ -1,6 +1,7 @@
 import { LIT_STROKE } from "./icons"
 
-/** Progress as one ring: the whole track, and a brand purple arc over it as long as the share done, at
+/** Progress as one ring: the whole track, and a grey arc over it as long as the share done (purple was
+ * the one colour in a nav of grey icons; Almaz, 11 Nov), at
  * the icons' stroke. Setup's row has it on the avatar's axis; each lesson in Learning has it on the right.
  * A full ring is done */
 export function ProgressRing({ done, of, size }: { done: number; of: number; size: number }) {
@@ -19,7 +20,7 @@ export function ProgressRing({ done, of, size }: { done: number; of: number; siz
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - Math.min(done, of) / of)}
-          className="stroke-brand-purple transition-[stroke-dashoffset] duration-500 ease-out motion-reduce:transition-none"
+          className="stroke-muted-foreground transition-[stroke-dashoffset] duration-500 ease-out motion-reduce:transition-none"
         />
       )}
     </svg>

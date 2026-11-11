@@ -111,6 +111,7 @@ export function Choose({ view, onBack, bare, onClose }: { view: "Network" | "Ass
   const c = useChoices()
   const options = view === "Network" ? networksFor(shownView, c) : MODELS
   const current = view === "Network" ? c.network : c.model
+  const idOf = (o: { id?: string; name: string }) => o.id ?? o.name
   const pick = (name: string) => {
     setChoices(view === "Network" ? { network: name, picked: true } : { model: name, connected: true })
     onBack()
@@ -131,19 +132,19 @@ export function Choose({ view, onBack, bare, onClose }: { view: "Network" | "Ass
       <div role="radiogroup" aria-label={view} className="flex flex-col gap-0.5">
         {options.map((o, i) => (
           <button
-            key={o.name}
+            key={idOf(o)}
             type="button"
             role="radio"
-            aria-checked={o.name === current}
+            aria-checked={idOf(o) === current}
             autoFocus={i === 0}
-            onClick={() => pick(o.name)}
+            onClick={() => pick(idOf(o))}
             className={cn("flex min-h-12 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-surface-raised", FOCUS)}
           >
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="text-[0.8125rem] leading-[1.125rem] font-act text-foreground">{o.name}</span>
               <span className={cn("text-[0.75rem] leading-4 font-label", "warn" in o && o.warn ? "text-warning-ink" : "text-muted-foreground")}>{o.hint}</span>
             </span>
-            {o.name === current && <Check aria-hidden="true" className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
+            {idOf(o) === current && <Check aria-hidden="true" className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
           </button>
         ))}
       </div>

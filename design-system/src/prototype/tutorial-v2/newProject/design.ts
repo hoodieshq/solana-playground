@@ -14,7 +14,6 @@ export const NP_NEXT_STATES = {
   live: { label: "Live" },
   idle: { label: "Idle · Anchor picked", group: "Framework starter" },
   "starter-native": { label: "Native picked", group: "Framework starter" },
-  "starter-seahorse": { label: "Seahorse picked", group: "Framework starter" },
   "starter-client": { label: "TypeScript client picked", group: "Framework starter" },
   creating: { label: "Creating", group: "Create" },
   "create-failed": { label: "Create failed", group: "Create" },

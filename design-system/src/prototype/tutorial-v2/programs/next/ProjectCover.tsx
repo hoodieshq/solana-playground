@@ -9,7 +9,7 @@ import type { Framework } from "../store"
 
 const SWEEP: [string, string] = ["#B98CFF", "#14F195"]
 
-const ART: Record<Framework | "account", string[]> = {
+const ART: Record<Framework | "account" | "tutorial", string[]> = {
   anchor: [
     "............",
     ".....##.....",
@@ -39,32 +39,33 @@ const ART: Record<Framework | "account", string[]> = {
     "....#..#....",
     "............",
   ],
-  seahorse: [
-    "............",
-    ".....###....",
-    "....#####...",
-    "....##.####.",
-    "....####....",
-    ".....###....",
-    "....####....",
-    "....#####...",
-    ".....####...",
-    "......##.#..",
-    ".....#..##..",
-    "......##....",
-  ],
-  // TS
+  // TS: the S with its corners cut, so it isn't a 5
   "ts-client": [
     "............",
     "............",
+    "#####..####.",
+    "..#...#.....",
+    "..#...#.....",
+    "..#....###..",
+    "..#.......#.",
+    "..#.......#.",
+    "..#...####..",
     "............",
-    "######.#####",
-    "..##...##...",
-    "..##...##...",
-    "..##...####.",
-    "..##......##",
-    "..##......##",
-    "..##...#####",
+    "............",
+    "............",
+  ],
+  // An open book: New project's way to the tutorials
+  tutorial: [
+    "............",
+    "............",
+    ".####..####.",
+    ".#...##...#.",
+    ".#.#.##.#.#.",
+    ".#...##...#.",
+    ".#.#.##.#.#.",
+    ".#...##...#.",
+    ".####..####.",
+    ".....##.....",
     "............",
     "............",
   ],
@@ -86,6 +87,6 @@ const ART: Record<Framework | "account", string[]> = {
 }
 
 /** Decorative: the row's own words name the project. 44 on a row, as the catalog's and the lessons' */
-export function ProjectCover({ framework, className }: { framework: Framework | "account"; className?: string }) {
+export function ProjectCover({ framework, className }: { framework: Framework | "account" | "tutorial"; className?: string }) {
   return <TileCover art={ART[framework]} sweep={SWEEP} className={cn("size-11 shrink-0 rounded-[9px]", className)} />
 }
