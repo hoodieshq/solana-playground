@@ -487,7 +487,7 @@ if (import.meta.vitest) {
       if (!ask) throw new Error("Hello Anchor has no question in step 1");
       const asked = (
         question: import("@/entities/tutorial").Ask,
-        hinted: boolean
+        { hinted }: { hinted: boolean }
       ): Turn => ({
         id: question.id,
         kind: "ask",
@@ -503,7 +503,7 @@ if (import.meta.vitest) {
         outcome: null,
         attempts: 0,
       });
-      const live = asked(ask, false);
+      const live = asked(ask, { hinted: false });
       const withDocs: TutorialDefinition = {
         version: hello.version,
         name: hello.name,
@@ -541,7 +541,7 @@ if (import.meta.vitest) {
         describeTutorial({
           definition: hello,
           progress: freshProgress(),
-          live: asked(ask, true),
+          live: asked(ask, { hinted: true }),
           openFiles: [],
           currentFile: null,
         })
@@ -551,16 +551,16 @@ if (import.meta.vitest) {
         (b): b is import("@/entities/tutorial").Ask => b.kind === "ask"
       );
       if (!deployAsk) throw new Error("Hello Anchor has no question in step 2");
-      const buttonsOf = (hinted: boolean) =>
+      const buttonsOf = ({ hinted }: { hinted: boolean }) =>
         describeTutorial({
           definition: hello,
           progress: freshProgress(),
-          live: asked(deployAsk, hinted),
+          live: asked(deployAsk, { hinted }),
           openFiles: [],
           currentFile: null,
         });
-      expect(buttonsOf(false)).toContain("its Hint or Skip button");
-      expect(buttonsOf(true)).toContain("its Skip button");
+      expect(buttonsOf({ hinted: false })).toContain("its Hint or Skip button");
+      expect(buttonsOf({ hinted: true })).toContain("its Skip button");
       expectEveryContext(text);
       expect(text).toContain("Do not give its answer away");
       expect(text).toContain(`${TOOLS.hint} posts the lesson's own hint`);
@@ -579,7 +579,7 @@ if (import.meta.vitest) {
         beat: 5,
         fail: false,
       };
-      const win = (stepId: string, last: boolean): Turn => ({
+      const win = (stepId: string, { last }: { last: boolean }): Turn => ({
         id: `${stepId}.win`,
         kind: "win",
         step: stepId,
@@ -595,7 +595,7 @@ if (import.meta.vitest) {
       const text = describeTutorial({
         definition: hello,
         progress,
-        live: win(hello.steps[0].id, false),
+        live: win(hello.steps[0].id, { last: false }),
         openFiles: [],
         currentFile: null,
       });
@@ -607,7 +607,7 @@ if (import.meta.vitest) {
         describeTutorial({
           definition: hello,
           progress,
-          live: win(lastStep, true),
+          live: win(lastStep, { last: true }),
           openFiles: [],
           currentFile: null,
         })
@@ -618,7 +618,7 @@ if (import.meta.vitest) {
           describeTutorial({
             definition: hello,
             progress,
-            live: win(stepId, false),
+            live: win(stepId, { last: false }),
             openFiles: [],
             currentFile: null,
           })
