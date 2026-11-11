@@ -107,6 +107,7 @@ const loadWith = async (
     loadConcurrency: number;
     writesPerSecond: number;
     onRateLimit?: (retryAfter: number, reason: string) => void;
+    onRefusal?: (message: string) => void;
   },
   chunks: number
 ) => {
@@ -427,6 +428,49 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     );
     expect(error.cause).toBe(refusal);
     expect(logged.entries.map(({ level }) => level)).toEqual(["warn"]);
+  });
+
+  it("reports the first refused write of each round to onRefusal, with the cluster's message", async () => {
+    // Each round lands one chunk and refuses the rest: three chunks take three rounds, two with refusals
+    chain.landsPerRead = 1;
+    chain.failWith = () =>
+      Object.assign(
+        new Error(
+          "Simulation failed. \nMessage: Transaction simulation failed: Blockhash not found. \nLogs: \n[]."
+        ),
+        {
+          transactionMessage:
+            "Transaction simulation failed: Blockhash not found",
+        }
+      );
+    const onRefusal = vi.fn();
+
+    await loadWith({ loadConcurrency: 4, writesPerSecond: 1000, onRefusal }, 3);
+
+    expect(onRefusal.mock.calls).toEqual([
+      ["Transaction simulation failed: Blockhash not found"],
+      ["Transaction simulation failed: Blockhash not found"],
+    ]);
+  });
+
+  it("names a refusal without a cluster message by the first line of its error", async () => {
+    chain.failures = 1;
+    chain.failWith = () => new Error("connection reset\nat fetch");
+    const onRefusal = vi.fn();
+
+    await loadWith({ loadConcurrency: 1, writesPerSecond: 1000, onRefusal }, 2);
+
+    expect(onRefusal.mock.calls).toEqual([["connection reset"]]);
+  });
+
+  it("leaves a rate-limited write to onRateLimit, not onRefusal", async () => {
+    chain.failures = 1;
+    chain.failWith = rateLimited;
+    const onRefusal = vi.fn();
+
+    await loadWith({ loadConcurrency: 1, writesPerSecond: 1000, onRefusal }, 2);
+
+    expect(onRefusal).not.toHaveBeenCalled();
   });
 
   it("says writes were accepted but never landed when no send was refused", async () => {

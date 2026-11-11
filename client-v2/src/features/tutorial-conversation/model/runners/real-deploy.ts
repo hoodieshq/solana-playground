@@ -5,6 +5,7 @@ import { createLogger } from "@/shared/lib/logger";
 import { additionalProgramLen } from "../../../../commands/deploy/additional-len";
 import { BpfLoaderUpgradeable } from "../../../../commands/deploy/bpf-loader-upgradeable";
 import { sendAndConfirmTxWithRetriesFor } from "../../../../commands/deploy/deploy";
+import { refusedWriteLine } from "../../../../commands/deploy/refused-write";
 import { unclosedBufferLineFor } from "../../../../commands/deploy/stopped";
 import type { Wallet } from "../../../../utils";
 import {
@@ -334,6 +335,7 @@ export const realDeployPort = (): DeployPort => {
             PgTerminal.println(
               `Warning: Reached rate-limits (${reason}), waiting ${retryAfter}s...`
             ),
+          onRefusal: (message) => PgTerminal.println(refusedWriteLine(message)),
         });
       } catch (e) {
         // The buffer already holds its rent: give it back before the write's

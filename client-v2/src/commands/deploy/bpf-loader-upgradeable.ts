@@ -116,6 +116,20 @@ const isFetchFailure = (e: unknown) =>
   e instanceof TypeError &&
   /Failed to fetch|Load failed|NetworkError/i.test(e.message);
 
+/**
+ * The cluster's own words for a refused send, on one line: web3.js keeps them in a `SendTransactionError`'s
+ * `transactionMessage`, and adds the simulation's logs to its `message`
+ */
+const clusterMessageOf = (e: unknown) => {
+  const message = (e as { transactionMessage?: unknown } | null)
+    ?.transactionMessage;
+  const words =
+    typeof message === "string" && message.trim()
+      ? message
+      : toError(e).message;
+  return words.trim().split("\n")[0];
+};
+
 /** The host of an RPC URL, for logs and errors: its path or query may carry an API key */
 const hostOf = (url: string) => /^[a-z]+:\/\/([^/?#]+)/i.exec(url)?.[1] ?? url;
 
@@ -187,6 +201,11 @@ export class BpfLoaderUpgradeable {
       onMissing?: (missingCount: number) => void;
       /** `reason` names the provider and its message, as in `Helius: Too many requests` */
       onRateLimit?: (retryAfter: number, reason: string) => void;
+      /**
+       * A write the cluster refused for a reason other than a rate limit, with the cluster's message: called for the
+       * first such write of each round, whose refused chunks are sent again in the next
+       */
+      onRefusal?: (message: string) => void;
     } & SendOption
   ) {
     const programBytes = Buffer.from(bytes);
@@ -236,6 +255,7 @@ export class BpfLoaderUpgradeable {
       let successCount = 0;
       let lastTxHash: string | undefined;
       let rateLimitReason: string | undefined;
+      let refusalReported = false;
       await Promise.all(
         new Array(loadConcurrency).fill(null).map(async () => {
           let backoff = 0;
@@ -288,6 +308,10 @@ export class BpfLoaderUpgradeable {
                 break;
               }
               lastRefusal = { error, words: `last refusal: ${error.message}` };
+              if (!refusalReported) {
+                refusalReported = true;
+                opts?.onRefusal?.(clusterMessageOf(e));
+              }
 
               // The browser hides a 429 without CORS headers behind a failed fetch, so slow down as for one
               if (isFetchFailure(e)) pace.recordRateLimit();

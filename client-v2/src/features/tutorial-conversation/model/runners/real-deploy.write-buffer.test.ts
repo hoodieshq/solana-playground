@@ -105,6 +105,24 @@ describe("realDeployPort().writeBuffer", () => {
     expect(loader.loadBuffer.mock.calls[0][2]).toMatchObject({ onWrite });
   });
 
+  it("prints a write the cluster refused in the terminal, with its message", async () => {
+    loader.loadBuffer.mockImplementationOnce(async (...args: unknown[]) => {
+      const opts = args[2] as { onRefusal: (message: string) => void };
+      opts.onRefusal("Transaction simulation failed: Blockhash not found");
+      return undefined;
+    });
+
+    await startedPort().writeBuffer(
+      new Uint8Array(10),
+      { deployed: false },
+      vi.fn()
+    );
+
+    expect(println).toHaveBeenCalledWith(
+      "Warning: The cluster refused a buffer write (Transaction simulation failed: Blockhash not found), sending it again..."
+    );
+  });
+
   it("sends on the connection the run started on after the settings switch it", async () => {
     const port = startedPort();
     const switched = {
