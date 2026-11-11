@@ -7,7 +7,7 @@ import { Spinner } from "@/components/ui/spinner"
 /* One of the two labels: both sit in the same cell, aligned as the button
    aligns its content (centred, or flush left for a justify-start caller) */
 const LABEL_LAYER =
-  "col-start-1 row-start-1 inline-flex items-center justify-[inherit] gap-[inherit]"
+  "col-start-1 row-start-1 inline-flex items-center [justify-content:inherit] gap-[inherit]"
 
 /* A Button that waits for its own work. Give it an onClick that returns a
    promise or any thenable and it disables itself and shows a spinner until
@@ -69,7 +69,7 @@ function AsyncButton({
       }}
     >
       {loadingText ? (
-        <span data-slot="async-button-label" className="inline-grid justify-[inherit] gap-[inherit]">
+        <span data-slot="async-button-label" className="inline-grid [justify-content:inherit] gap-[inherit]">
           <span
             aria-hidden={loading || undefined}
             className={cn(LABEL_LAYER, loading && "invisible")}

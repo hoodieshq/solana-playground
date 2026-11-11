@@ -406,6 +406,22 @@ test.describe("client-v2-stages: Interact", () => {
     await expect(send).toBeEnabled(LONG);
     const fill = panel.getByRole("button", { name: "Fill with Random" });
     const reset = panel.getByRole("button", { name: "Reset" });
+    // Idle, the narrower label's text sits in the middle of the wider cell,
+    // not at its start: the stacked labels keep the button's own centring.
+    // Measured on the text itself, since its layer spans the whole cell
+    const offCentre = await send.evaluate((button) => {
+      const walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT);
+      let text = walker.nextNode();
+      while (text && text.textContent !== "Send") text = walker.nextNode();
+      if (!text) throw new Error("Send has no label text");
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      const label = range.getBoundingClientRect();
+      const box = button.getBoundingClientRect();
+      return label.left + label.width / 2 - (box.left + box.width / 2);
+    });
+    expect(Math.abs(offCentre)).toBeLessThan(1);
+
     const stop = await recordEdges(page, [send, fill, reset]);
     expect(held).toEqual([]);
     await send.click();

@@ -12,7 +12,8 @@ id says where the decision lives.
   ends. Each label follows the button's own alignment, so a `justify-start`
   caller stays flush left. The busy spinner there carries no `data-icon`
   (the busy button keeps the plain padding) and is `aria-hidden`, so the
-  busy name is `loadingText` alone; hidden, it does not spin. Without a
+  busy name is `loadingText` alone; while the busy label is hidden, the
+  spinner does not spin. Without a
   `loadingText` it is unchanged.
 
 ## 2026-11-07 · The lockup's mark alone (HOO-2725)
