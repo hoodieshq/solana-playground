@@ -117,7 +117,7 @@ class UnansweredWriteError extends Error {}
  * `promise`, or a rejection with {@link UnansweredWriteError} once `ms` pass; the request itself is not aborted, and
  * a late answer or failure is dropped
  */
-const answeredWithin =
+const awaitAnswerFor =
   (ms: number) =>
   <T>(promise: Promise<T>) =>
     new Promise<T>((resolve, reject) => {
@@ -321,7 +321,7 @@ export class BpfLoaderUpgradeable {
             if (opts?.abortController?.signal.aborted) return;
 
             try {
-              lastTxHash = await answeredWithin(WRITE_ANSWER_TIMEOUT_MS)(
+              lastTxHash = await awaitAnswerFor(WRITE_ANSWER_TIMEOUT_MS)(
                 PgTx.send(ix, {
                   wallet,
                   computeUnitLimit,
