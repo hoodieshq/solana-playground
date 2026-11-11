@@ -467,9 +467,10 @@ test.describe("client-v2-stages: Interact", () => {
     );
   });
 
-  // At 1024 px with the navigation and the assistant open, the stage is about
-  // 240 px wide, less the scrollbar gutter on both edges: Upload IDL, the
-  // IDL's name and "Build the IDL locally" on one centred row lost both ends
+  // At 1024 px in the default layout (DEFAULT_LAYOUT: the navigation and the
+  // assistant open), the files tree leaves the stage about 240 px wide, less
+  // the scrollbar gutter on both edges: Upload IDL, the IDL's name and "Build
+  // the IDL locally" on one centred row lost both ends
   test("Interact keeps its IDL actions inside a narrow stage", async ({
     seededPage: page,
   }) => {
@@ -481,9 +482,18 @@ test.describe("client-v2-stages: Interact", () => {
       panel.getByRole("heading", { name: "Nothing to call yet" })
     ).toBeVisible(LONG);
 
-    const frame = requireFor("the stage frame's bounding box")(
-      await panel.locator("div.overflow-y-auto").first().boundingBox()
-    );
+    // The frame's content box, inside its gutters, where it clips; narrower
+    // than the row, or the test no longer reaches the case it guards
+    const frame = await panel
+      .locator("div.overflow-y-auto")
+      .first()
+      .evaluate((el) => {
+        // `clientWidth` leaves out both gutters, half of the difference each
+        const gutter = (el.offsetWidth - el.clientWidth) / 2;
+        const left = el.getBoundingClientRect().left + gutter;
+        return { left, right: left + el.clientWidth };
+      });
+    expect(frame.right - frame.left).toBeLessThan(300);
     const buttons = panel
       .locator('[data-slot="stage-empty-actions"]')
       .getByRole("button");
@@ -494,10 +504,8 @@ test.describe("client-v2-stages: Interact", () => {
       const box = requireFor("an action's bounding box")(
         await button.boundingBox()
       );
-      expect(box.x).toBeGreaterThanOrEqual(frame.x - 0.5);
-      expect(box.x + box.width).toBeLessThanOrEqual(
-        frame.x + frame.width + 0.5
-      );
+      expect(box.x).toBeGreaterThanOrEqual(frame.left - 0.5);
+      expect(box.x + box.width).toBeLessThanOrEqual(frame.right + 0.5);
     }
   });
 });

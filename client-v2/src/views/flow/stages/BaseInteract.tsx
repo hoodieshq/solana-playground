@@ -161,8 +161,8 @@ const action = (p: BaseInteractProps, surface: EmptySurface): ReactNode => {
         </BrandButton>
         {/* An outline in the pill's height and shape, so the pill keeps the
             focus, as Deploy's Upload IDL. From md up the row wraps: in a
-            narrow stage (1024 px with the navigation and the assistant open)
-            Upload IDL, the IDL's name and "Build the IDL locally" are wider
+            narrow stage (at 1024 px, say, beside the navigation, the
+            assistant and the files) Upload IDL, the IDL's name and "Build the IDL locally" are wider
             than the stage, and a centred row that cannot wrap cuts both ends
             off. A phone's row stays one line, its two buttons sharing the
             width */}
