@@ -2161,22 +2161,21 @@ export class PgExplorer {
 
   /**
    * Save the list a change was made in: the workspaces in memory, or the
-   * stored list a temporary view read for it
+   * stored list a temporary view read for it. Through `_saveWorkspaces`, the
+   * one writer of the workspaces config; the list is set as the stored one
+   * right before, with no await between, so a read meanwhile cannot swap it
    */
   private static async _saveList(list: PgWorkspace) {
-    if (list === this._workspace) return await this._saveWorkspaces();
-    await this.fs.writeFile(
-      PgWorkspace.WORKSPACES_CONFIG_PATH,
-      JSON.stringify(list.get()),
-      { createParents: true }
-    );
-    // Flushed as `_saveWorkspaces` does, for the same reload
-    await this.fs.flush();
+    if (list !== this._workspace) this._storedList = list;
+    await this._saveWorkspaces();
   }
 
-  /** Saves workspaces from state to `indexedDB`. */
+  /**
+   * Saves workspaces from state, or in a temporary view the stored list
+   * (`_saveList`), to `indexedDB`.
+   */
   private static async _saveWorkspaces() {
-    const list = this._workspace;
+    const list = this._listOfStored;
     if (list) {
       // Recorded as saved once it has landed, not before. Until then the
       // store may still hold the old list -- or keep it, if the write fails
@@ -2189,9 +2188,8 @@ export class PgExplorer {
         { createParents: true }
       );
 
-      // Every structural change to the list in memory funnels through here (a
-      // temporary view's goes through `_saveList`, which flushes too), and the
-      // backing store defers its directory-tree write by 500ms. Without this,
+      // Every structural workspace change funnels through here (a temporary
+      // view's through `_saveList`), and the backing store defers its directory-tree write by 500ms. Without this,
       // a reload in that window finds the config listing a workspace whose
       // directory was never persisted -- "No project", with the files still
       // on disk but unreachable.
