@@ -1,3 +1,5 @@
+import { faucetClosedLineFor, isFaucetClosed } from "@/shared/lib/faucet";
+
 import { checkSignedIn } from "../../features/auth";
 import { fundTelemetry } from "../../features/fund-wallet";
 import {
@@ -9,8 +11,10 @@ import {
   PgWeb3,
 } from "../../utils";
 import { askAgain } from "../../utils/ask-again";
+import { TerminalLineError } from "../../utils/terminal/line-error";
 import { checkWallet } from "../checks";
 import { createArgs, createCmd } from "../create";
+import { forgetFaucetClosed, rememberFaucetClosed } from "./closed-faucet";
 import { COULD_NOT_READ_NETWORK, NO_FAUCET } from "./no-faucet";
 import { isRateLimited, rateLimitNote, receivedLine } from "./report";
 import { isAirdropSignInGated } from "./sign-in-gate";
@@ -141,7 +145,18 @@ export const airdrop = createCmd({
       // `readCluster` resolves from its genesis hash, so it is `FundCluster`
       // as it is
       fundTelemetry.track("fund_airdropped", { via, cluster });
+      forgetFaucetClosed(connection.rpcEndpoint);
     } catch (error) {
+      // A closed faucet stays closed: one line to the web faucet in place of
+      // the RPC's JSON, and the automatic airdrop and the deploy's top-up stop
+      // asking this RPC for the session. This command still asks it
+      if (error instanceof Error && isFaucetClosed(error.message)) {
+        rememberFaucetClosed(connection.rpcEndpoint);
+        throw new TerminalLineError(
+          faucetClosedLineFor(cluster)(walletPk.toBase58()),
+          { cause: error }
+        );
+      }
       if (isRateLimited(error)) {
         PgTerminal.println(
           PgTerminal.info(

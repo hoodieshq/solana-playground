@@ -13,9 +13,14 @@ vi.mock("../../utils", () => ({
     batchChanges: (cb: () => unknown) => cb,
     executeInOrder: (cb: () => unknown) => cb,
   },
-  PgConnection: { cluster: "devnet", getAirdropAmount: () => 5 },
+  PgConnection: {
+    cluster: "devnet",
+    current: { rpcEndpoint: "https://api.devnet.solana.com" },
+    getAirdropAmount: () => 5,
+    getAirdropConnection: <T>(connection: T) => connection,
+  },
   PgSettings: { wallet: { automaticAirdrop: true } },
-  PgTerminal: { println: vi.fn() },
+  PgTerminal: { println: vi.fn(), warning: (text: string) => text },
   PgWallet: {
     balance: 0,
     current: { publicKey: { toBase58: () => "Wa11et" } },
@@ -122,5 +127,57 @@ describe("automaticAirdrop", () => {
     const note = String(println.mock.calls.at(-1)?.[0]);
     expect(note).toContain("automatic airdrop request");
     expect(note).not.toContain("faucet.solana.com");
+  });
+
+  // The cache of clusters whose airdrop failed lives for the module, and the
+  // tests above leave devnet in it: these load the effect afresh
+  describe("once the faucet answered closed", () => {
+    const DEVNET_RPC = "https://api.devnet.solana.com";
+    const LINE =
+      "The devnet RPC faucet is closed. Request test SOL at https://faucet.solana.com/?walletAddress=Wa11et&cluster=devnet";
+    let fresh: {
+      pass: () => Promise<void>;
+      airdrop: ReturnType<typeof vi.fn>;
+      println: ReturnType<typeof vi.fn>;
+      closed: typeof import("../../commands/airdrop/closed-faucet");
+    };
+
+    beforeEach(async () => {
+      vi.resetModules();
+      const utils = await import("../../utils");
+      const effect = await import("./automatic-airdrop");
+      (utils.PgConnection as { cluster: string }).cluster = "devnet";
+      fresh = {
+        pass: effect.automaticAirdrop() as unknown as () => Promise<void>,
+        airdrop: vi.mocked(utils.PgCommand.airdrop.execute),
+        println: vi.mocked(utils.PgTerminal.println),
+        closed: await import("../../commands/airdrop/closed-faucet"),
+      };
+    });
+
+    it("points to the web faucet without asking the faucet, once", async () => {
+      fresh.closed.rememberFaucetClosed(DEVNET_RPC);
+      await fresh.pass();
+      await fresh.pass();
+
+      expect(fresh.airdrop).not.toHaveBeenCalled();
+      const lines = fresh.println.mock.calls.map(([line]) => String(line));
+      expect(lines).toEqual([
+        LINE,
+        "Note: This was an automatic airdrop request. To disable, run `settings set wallet.automaticAirdrop false`.",
+      ]);
+    });
+
+    it("names the web faucet once when its own airdrop found the faucet closed", async () => {
+      fresh.airdrop.mockImplementationOnce(async () => {
+        fresh.closed.rememberFaucetClosed(DEVNET_RPC);
+        throw new Error(LINE);
+      });
+      await fresh.pass();
+
+      const note = String(fresh.println.mock.calls.at(-1)?.[0]);
+      expect(note).toContain("automatic airdrop request");
+      expect(note).not.toContain("faucet.solana.com");
+    });
   });
 });

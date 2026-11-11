@@ -1,3 +1,4 @@
+import { faucetClosedLineFor } from "@/shared/lib/faucet";
 import { createLogger, toError } from "@/shared/lib/logger";
 import { networkHold } from "@/widgets/status";
 
@@ -18,6 +19,11 @@ import {
   Wallet,
 } from "../../utils";
 import { StoppedError, throwIfStopped } from "../../utils/stopped";
+import { TerminalLineError } from "../../utils/terminal/line-error";
+import {
+  getAirdropEndpoint,
+  isFaucetKnownClosed,
+} from "../airdrop/closed-faucet";
 import { isAirdropSignInGated } from "../airdrop/sign-in-gate";
 import { withAirdropVia } from "../airdrop/via";
 import { checkWallet } from "../checks";
@@ -345,6 +351,12 @@ const processDeploy = async (
       if (answers) throw short("no_faucet");
       throw new Error(msg);
     }
+    // The faucet answered closed this session: the top-up points to the web
+    // faucet without asking it again (the `airdrop` command still asks)
+    const closedFaucetLine =
+      PgConnection.cluster && isFaucetKnownClosed(getAirdropEndpoint())
+        ? faucetClosedLineFor(PgConnection.cluster)(wallet.publicKey.toBase58())
+        : undefined;
 
     if (answers) {
       // The stage asks nothing. Only a public faucet needs a session
@@ -357,6 +369,7 @@ const processDeploy = async (
       // Without automatic airdrop the stage stops at its funding card, and
       // only the card's "Request airdrop" press spends faucet quota
       if (!answers.airdrop) throw short("airdrop_off");
+      if (closedFaucetLine) throw shortWith(closedFaucetLine)("airdrop_failed");
       PgTerminal.println(PgTerminal.warning(`Warning: ${msg}`), {
         noColor: true,
       });
@@ -365,6 +378,7 @@ const processDeploy = async (
       const term = await PgTerminal.get();
       term.println(PgTerminal.warning(`Warning: ${msg}`), { noColor: true });
       throwIfStopped(signal, deployStoppedLine({ state: "none" }));
+      if (closedFaucetLine) throw new TerminalLineError(closedFaucetLine);
       // A stop while the question is open answers it, as "no" would; the
       // check below then ends the deploy as stopped, before any SOL moves
       const answerNo = () => {
