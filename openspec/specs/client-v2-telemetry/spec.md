@@ -132,9 +132,10 @@ the cross-slice check also enforces, since each slice alone would accept a
 synonym of its own.
 
 The six scenarios below are marked `(manual)` only so `spec:coverage` does not
-count them as owed a Playwright test; nobody checks them by hand. `yarn
-test-types` holds the first three, `src/app/telemetry-parameters.test.ts` the
-last three (the repository marks such scenarios inconsistently).
+count them as owed a Playwright test; nobody checks them by hand.
+`yarn test-types` holds the first three, and `yarn test-unit` runs
+`src/app/telemetry-parameters.test.ts`, which holds the last three (the
+repository marks such scenarios inconsistently).
 
 #### Scenario: A parameter is not snake_case (manual)
 
