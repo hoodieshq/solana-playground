@@ -1,4 +1,9 @@
 export { newProjectTelemetry } from "./model/telemetry";
+export type {
+  LinkImport,
+  LinkImportFailure,
+  LinkSource,
+} from "./model/link-import";
 export { default as ImportFromUrl } from "./ui/ImportFromUrl";
 export { default as StartFromScratch } from "./ui/StartFromScratch";
 export type { StartFromScratchProps } from "./ui/StartFromScratch";

@@ -56,6 +56,17 @@ export class ImportCancelledError extends Error {
   }
 }
 
+/**
+ * Thrown when GitHub answers 404 for a repository: private and missing look
+ * the same to a request without an account, so the message says both
+ */
+export class GithubNotFoundError extends Error {
+  constructor(readonly owner: string, readonly repo: string, message: string) {
+    super(message);
+    this.name = "GithubNotFoundError";
+  }
+}
+
 /** Progress of a repository import */
 export type ImportProgress = {
   /** Amount of files downloaded so far */
@@ -291,7 +302,11 @@ export class PgGithub {
       `${encodeURIComponent(ref)}?recursive=1`;
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(this._getErrorMessage(response, `${owner}/${repo}`));
+      const message = this._getErrorMessage(response, `${owner}/${repo}`);
+      if (response.status === 404) {
+        throw new GithubNotFoundError(owner, repo, message);
+      }
+      throw new Error(message);
     }
 
     return (await response.json()) as GithubTree;

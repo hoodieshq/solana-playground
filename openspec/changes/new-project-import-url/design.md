@@ -21,11 +21,16 @@ rate-limit reset time, "open your copy / fresh copy".
 
 ## Decisions
 
-1. **Route like the explorer's dialog.** `parseGistUrl` first (a gist link
-   also contains `github.com`), then `PgGithub.isValidUrl`; neither is a bad
-   link, refused before any request. The routing and the failure mapping live
-   in `features/new-project/model/import-url.ts`, a plain module the card and
-   its tests call; the card stays a `Base`/connected pair.
+1. **Route like the explorer's dialog, in the widget.** `parseGistUrl` first
+   (a gist link also contains `github.com`), then `PgGithub.isValidUrl`;
+   neither is a bad link, refused before any request. A feature never imports
+   another feature, so the routing and the failure mapping live in
+   `widgets/catalog/model/link-import.ts`, which imports `features/gist` and
+   `@/utils`. The card (`features/new-project`, a `Base`/connected pair) takes
+   it as one prop, `importLink(link): Promise<LinkImport>`, an outcome
+   (`imported` with its source, `cancelled`, or `failed` with source, reason
+   and message) rather than a throw, and owns the states, the logging and the
+   events.
 2. **A typed 404 for repositories.** `PgGithub._getTree` throws
    `GithubNotFoundError extends Error` (keeping today's message, so the
    explorer's dialog reads the same) carrying `owner` and `repo`. The card maps

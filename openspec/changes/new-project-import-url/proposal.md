@@ -44,12 +44,13 @@ project; it is a design stand-in that imports nothing. HOO-2608 wires it.
 
 ### Modified Capabilities
 
-None.
+- `gist-sharing`: the gist import's `from` gains `new-project`.
 
 ## Impact
 
-- Code: `client-v2/src/features/new-project/` (the card and a model for the
-  link), `client-v2/src/widgets/catalog/` (New project's state holds the
+- Code: `client-v2/src/features/new-project/` (the card, its outcome type
+  and events), `client-v2/src/widgets/catalog/` (routing the link, since a
+  feature never imports another, and New project's state holding the
   import), `client-v2/src/utils/github.ts` (typed 404),
   `client-v2/src/features/gist/model/telemetry.ts` (one source value).
 - Tests: unit tests for the link model and the card, an e2e spec that imports

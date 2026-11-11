@@ -5,14 +5,15 @@ in order. Plan: [plans/1-wire-import-card.md](plans/1-wire-import-card.md).
 
 ## 1. The link model
 
-- [ ] 1.1 `PgGithub` throws `GithubNotFoundError` (owner, repo, today's
+- [x] 1.1 `PgGithub` throws `GithubNotFoundError` (owner, repo, today's
       message) for a repository's 404; unit test in `utils/github` proves a
       404 tree answer rejects with it and keeps the message.
-- [ ] 1.2 `features/new-project/model/import-url.ts`: `importFromUrl(link)`
-      routes gist / repository / bad link, `failureOf(error)` gives the
-      message and the `reason`; `GistImportSource` gains `"new-project"`;
-      the two events declared in `model/telemetry.ts`. Unit tests cover each
-      route, each message and each `reason` (depends on 1.1).
+- [x] 1.2 `widgets/catalog/model/link-import.ts`: `importLink(link)` routes
+      gist / repository / bad link and answers a `LinkImport` outcome with the
+      message and the `reason`; `GistImportSource` gains `"new-project"`; the
+      outcome type and the two events declared in `features/new-project`.
+      Unit tests cover each route, each message and each `reason` (depends
+      on 1.1).
 
 ## 2. The card and New project
 

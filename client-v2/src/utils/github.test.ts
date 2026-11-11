@@ -1,6 +1,11 @@
 import { PgFramework } from "./framework";
 import type { ImportProgress } from "./github";
-import { filterRepoFiles, ImportCancelledError, PgGithub } from "./github";
+import {
+  filterRepoFiles,
+  GithubNotFoundError,
+  ImportCancelledError,
+  PgGithub,
+} from "./github";
 
 // `./explorer` boots lightning-fs on import, which needs a real IndexedDB.
 vi.mock("./explorer", () => ({ PgExplorer: {} }));
@@ -215,6 +220,17 @@ describe("PgGithub.getFiles", () => {
     await expect(
       PgGithub.getFiles("https://github.com/solana-labs/example")
     ).rejects.toThrow(/was not found on GitHub/);
+  });
+
+  it("tells a repository GitHub answers 404 for apart", async () => {
+    mockFetch(() => ({ status: 404, body: { message: "Not Found" } }));
+
+    const error = await PgGithub.getFiles("https://github.com/acme/gone").catch(
+      (e: unknown) => e
+    );
+    expect(error).toBeInstanceOf(GithubNotFoundError);
+    expect(error).toMatchObject({ owner: "acme", repo: "gone" });
+    expect((error as Error).message).toMatch(/may be private/);
   });
 
   it("refuses to import a partially listed repository", async () => {

@@ -4,7 +4,7 @@
 
 **Goal:** the "Import from GitHub" card on New project (from #466) imports a GitHub repository or gist and lands the user in it.
 
-**Architecture:** a plain model `features/new-project/model/import-url.ts` routes the link to `importGist` or `PgGithub.import` and maps any failure to a message and a telemetry `reason`; `ImportFromUrl` (connected) drives `BaseImportFromUrl` (view, unchanged from #466); `useNewProject` keeps one action at a time and closes the page.
+**Architecture:** `widgets/catalog/model/link-import.ts` routes the link to `importGist` or `PgGithub.import` and maps any failure to a message and a telemetry `reason` (a feature never imports another, so this lives in the widget); `ImportFromUrl` (connected) drives `BaseImportFromUrl` (view, unchanged from #466); `useNewProject` keeps one action at a time and closes the page.
 
 **Tech Stack:** React, vitest + Testing Library, Playwright, `createTracker` telemetry.
 
@@ -40,16 +40,16 @@
 
 ### Task 2: the link model (tasks.md 1.2)
 
-**Files:** Create `client-v2/src/features/new-project/model/import-url.ts` (+ in-source or `import-url.test.ts`); Modify `features/new-project/model/telemetry.ts`, `features/gist/model/telemetry.ts` (`GistImportSource` + `"new-project"`).
+**Files:** Create `client-v2/src/widgets/catalog/model/link-import.ts` + `link-import.test.ts`; Create `features/new-project/model/link-import.ts` (types only); Modify `features/new-project/model/telemetry.ts`, `features/gist/model/telemetry.ts` (`GistImportSource` + `"new-project"`).
 
-**Interfaces — Produces:**
-- `type ImportSource = "github" | "gist"`
-- `sourceOf(link: string): ImportSource | undefined` (trimmed; gist first)
-- `importFromUrl(link: string): Promise<ImportSource>` — throws `BadLinkError` for neither
-- `failureOf(error: unknown): { message: string; reason: ImportFailure }`
-- `isImportCancel(error: unknown): boolean` (`ImportCancelledError`)
+**Interfaces — Produces (feature, exported from its index):**
+- `type LinkSource = "github" | "gist"`
+- `type LinkImportFailure = "bad-link" | "not-found" | "rate-limited" | "too-large" | "no-program" | "invalid" | "request-failed"`
+- `type LinkImport = { outcome: "imported"; source: LinkSource } | { outcome: "cancelled" } | { outcome: "failed"; source: LinkSource | "unknown"; reason: LinkImportFailure; message: string; error?: unknown }`
 
-- [ ] Tests: `sourceOf` — `" https://github.com/a/b "` → `"github"`, `"github.com/a/b"` → `"github"`, `"https://gist.github.com/alice/0123abcd"` → `"gist"`, `"https://gitlab.com/acme/escrow"` → `undefined`. `importFromUrl` calls `importGist(link, "new-project")` / `PgGithub.import(link)` (mocked) and returns the source; bad link rejects without calling either. `failureOf`: `BadLinkError` → bad-link copy + `"bad-link"`; `GithubNotFoundError("acme","x")` → can't-find copy + `"not-found"`; `GistImportError("rate-limited", m)` → `m` + `"rate-limited"`; plain `Error("GitHub's hourly request limit…")` → `"rate-limited"`; `"…is too large to import…"` → `"too-large"`; `noProgramCode("a/b")` and `"This doesn't look like a Solana program…"` → `"no-program"`; anything else → its message + `"request-failed"`; a non-Error → `"Could not import it."` + `"request-failed"`.
+**Produces (widget):** `importLink(link: string): Promise<LinkImport>` — trims; gist first (`parseGistUrl`), then `PgGithub.isValidUrl`; never throws.
+
+- [ ] Tests (`importGist`, `PgGithub.import` mocked): `" https://github.com/a/b "` → `PgGithub.import("https://github.com/a/b")`, `{outcome:"imported",source:"github"}`; `"github.com/a/b"` → github; `"https://gist.github.com/alice/0123abcd"` → `importGist(link,"new-project")`, source gist; `"https://gitlab.com/acme/escrow"` → failed, unknown, bad-link, bad-link copy, neither import called. Rejections: `ImportCancelledError` → cancelled; `GithubNotFoundError("acme","x")` → can't-find copy + not-found; `GistImportError("rate-limited", m)` → `m` + rate-limited; `Error("GitHub's hourly request limit…")` → rate-limited; `"…too large to import…"` → too-large; `"No program code found in a/b."` and the not-a-program copy → no-program; other `Error(m)` → `m` + request-failed; non-Error → `"Could not import it."` + request-failed.
 - [ ] Run → FAIL. Implement. Run → PASS.
 - [ ] Declare the two events in `NewProjectEvents` with doc comments. Commit.
 
@@ -57,9 +57,9 @@
 
 **Files:** Modify `features/new-project/ui/ImportFromUrl.tsx` (presets and fake gone); Create `features/new-project/ui/ImportFromUrl.test.tsx`.
 
-**Interfaces — Produces:** `ImportFromUrlProps { held?: boolean; onRunning?: (running: boolean) => void; onImported?: () => void; onFailed?: (message: string) => void }`, exported from the slice's `index.ts` with the type.
+**Interfaces — Produces:** `ImportFromUrlProps { importLink: (link: string) => Promise<LinkImport>; held?: boolean; onRunning?: (running: boolean) => void; onImported?: () => void; onFailed?: (message: string) => void }`, exported from the slice's `index.ts` with the type.
 
-- [ ] Tests (model mocked, memory telemetry provider): success → `onRunning(true)` then `(false)`, `onImported` once, `new_project_imported {source:"github"}`; while pending the field is disabled and the button `aria-busy`, reads `Importing…`; bad link → message shown, field `aria-invalid`, `new_project_import_failed {source:"unknown",reason:"bad-link"}`, `onFailed(message)`; cancel → idle, no message, no event, `onImported` not called; typing after a failure clears the message; `held` disables Import.
+- [ ] Tests (`importLink` a stub prop, memory telemetry provider): success → `onRunning(true)` then `(false)`, `onImported` once, `new_project_imported {source:"github"}`; while pending the field is disabled and the button `aria-busy`, reads `Importing…`; bad link → message shown, field `aria-invalid`, `new_project_import_failed {source:"unknown",reason:"bad-link"}`, `onFailed(message)`; cancel → idle, no message, no event, `onImported` not called; typing after a failure clears the message; `held` disables Import.
 - [ ] Run → FAIL. Implement like `StartFromScratch` (log `warn` for user-caused failures, `error` with `report: true` for `request-failed`). Run → PASS. Commit.
 
 ### Task 4: New project holds the import (tasks.md 2.2)
