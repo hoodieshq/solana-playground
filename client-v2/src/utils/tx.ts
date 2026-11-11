@@ -89,7 +89,6 @@ export class PgTx {
    * @param txable transaction to send
    * @param opts send options
    * @returns the transaction signature
-   * @returns the transaction signature
    * @throws the RPC's error, also a "Blockhash not found" or "already processed" one still answered after
    * {@link MAX_FRESH_BLOCKHASH_SENDS} sends with a fresh blockhash
    */
