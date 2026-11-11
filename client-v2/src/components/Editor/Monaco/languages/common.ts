@@ -26,7 +26,10 @@ export const importTypes = async (
   // Don't dispose `onDidCreateEditor` because it only gets initialized once
   await PgCommon.executeInitial(
     monaco.editor.onDidCreateEditor,
-    async (editor) => {
+    async (editor?: monaco.editor.ICodeEditor) => {
+      // No editor yet, or none any more: the last project was deleted before
+      // the language loaded. The next editor created arrives here
+      if (!editor) return;
       changeModels.push(
         await PgCommon.executeInitial(editor.onDidChangeModel, async () => {
           const model = editor.getModel();
