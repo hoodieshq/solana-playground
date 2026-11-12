@@ -43,11 +43,15 @@ const GITHUB_REASONS: Record<GithubImportReason, ImportFailure> = {
   other: "network",
 };
 
-const failed = (
-  url: string,
-  source: LinkSource,
-  error: unknown
-): Extract<LinkImport, { source: LinkSource }> => {
+const failed = ({
+  url,
+  source,
+  error,
+}: {
+  url: string;
+  source: LinkSource;
+  error: unknown;
+}): Extract<LinkImport, { source: LinkSource }> => {
   const fail = (reason: ImportFailure, message: string) => ({
     outcome: "failed" as const,
     source,
@@ -112,7 +116,7 @@ export const importLink = async (link: string): Promise<LinkImport> => {
     else await PgGithub.import(url);
   } catch (error) {
     if (error instanceof ImportCancelledError) return { outcome: "cancelled" };
-    return failed(url, source, error);
+    return failed({ url, source, error });
   }
   return { outcome: "imported", source };
 };

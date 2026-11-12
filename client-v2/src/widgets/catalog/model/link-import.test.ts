@@ -40,7 +40,7 @@ vi.mock("@/utils", () => {
         /^(https:\/\/?)?(www\.)?github\.com\/.+?\/.+/.test(url),
       import: mockGithubImport,
       parseUrl: (url: string) => {
-        const [, owner, repo] = /github\.com\/([\w-]+)\/([\w-]+)/.exec(url)!;
+        const [owner = "", repo = ""] = url.split("github.com/")[1].split("/");
         return { owner, repo };
       },
     },
