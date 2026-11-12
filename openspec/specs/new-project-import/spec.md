@@ -63,7 +63,7 @@ SHALL clear it. The message SHALL be:
   in the browser before any request;
 - "Playground can't find <owner>/<repo> on GitHub. It may be private,
   renamed or deleted." when GitHub answers 404 for the repository
-  (`GithubNotFoundError`);
+  (`GithubImportError` with reason `not-found`);
 - "Could not reach GitHub. Check the connection and try again." when a
   request never got an answer;
 - the import's own message for every other failure (a gist not found, the
