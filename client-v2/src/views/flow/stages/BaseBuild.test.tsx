@@ -3,6 +3,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { requireFor } from "../../../test-utils/require-for";
 import type { BaseBuildProps, BuildSurfaceView } from "./BaseBuild";
 import BaseBuild from "./BaseBuild";
 import type { DiagnosticView } from "./build-view";
@@ -58,7 +59,10 @@ const props = (
   onShowLog: vi.fn(),
   onStop: vi.fn(),
   idlActions: null,
+  idlGuide: <button aria-label={GUIDE}>{GUIDE}</button>,
 });
+
+const GUIDE = "Build the IDL locally";
 
 const brandButtons = (container: HTMLElement) =>
   container.querySelectorAll('[data-slot="brand-button"]');
@@ -89,10 +93,11 @@ describe("BaseBuild", () => {
     expect(screen.queryByRole("button", { name: "Download .so" })).toBeNull();
   });
 
-  it("offers the downloads after a successful build", () => {
+  it("offers the downloads and the IDL guide after a successful build", () => {
     render(<BaseBuild {...withDownloads({ kind: "succeeded" })} />);
 
     expect(screen.getByRole("button", { name: "Download .so" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: GUIDE })).toBeTruthy();
   });
 
   /** The prototype's empty stage: no icon tile, the brand pill to press */
@@ -130,6 +135,9 @@ describe("BaseBuild", () => {
     expect(screen.getByText(/^Compiling on the build server\./)).toBeTruthy();
     expect(screen.queryByText(/api\.solpg\.io/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Building/ })).toBeNull();
+    // HOO-2795: the first Build pill drops its play mark when busy, which is
+    // safe only because it is not drawn at all while the build runs
+    expect(brandButtons(container)).toHaveLength(0);
     expect(
       container.querySelector('[data-slot="stage-empty-progress"]')
     ).not.toBeNull();
@@ -346,16 +354,6 @@ describe("BaseBuild", () => {
       expect(p.onContinue).toHaveBeenCalled();
     });
 
-    it("says why", () => {
-      render(<BaseBuild {...changed()} />);
-
-      expect(
-        screen.getByText(
-          "Your code changed after the last build. Build again before you deploy."
-        )
-      ).toBeTruthy();
-    });
-
     it("shows the rebuild running on the brand pill", () => {
       const p = changed();
       p.building = true;
@@ -364,6 +362,27 @@ describe("BaseBuild", () => {
       const busy = screen.getByRole("button", { name: "Building…" });
       expect(busy.getAttribute("data-slot")).toBe("brand-button");
       expect((busy as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    // HOO-2795: the pill swapped "Build again" for the wider "Building…", so
+    // the centred row moved sideways while the rebuild ran
+    it("keeps both of the pill's labels in one cell, busy or not", () => {
+      const p = changed();
+      const { rerender } = render(<BaseBuild {...p} />);
+      const idle = screen.getByText("Build again", { exact: true });
+      const busy = screen.getByText("Building…", { exact: true });
+      expect(idle.parentElement).toBe(busy.parentElement);
+      expect(idle.parentElement?.classList).toContain("inline-grid");
+      expect(busy.getAttribute("aria-hidden")).toBe("true");
+      expect(busy.classList).toContain("invisible");
+
+      const running = changed();
+      running.building = true;
+      rerender(<BaseBuild {...running} />);
+      expect(idle.getAttribute("aria-hidden")).toBe("true");
+      expect(idle.classList).toContain("invisible");
+      expect(busy.hasAttribute("aria-hidden")).toBe(false);
+      expect(busy.classList).not.toContain("invisible");
     });
 
     it("waits offline, as every Build action does", () => {
@@ -376,35 +395,60 @@ describe("BaseBuild", () => {
     });
   });
 
+  // Scenario "A successful build" (client-v2-idl-build-guide), with and without an IDL held, and after an edit
   it.each([
-    [true, "The program and its IDL are ready to deploy."],
-    [false, "The program is ready to deploy."],
+    {
+      when: "an IDL held",
+      hasIdl: true,
+      sourceChanged: false,
+      line: "The program is ready to deploy. The Playground's stable build server produces no IDL, so Interact keeps the IDL it already holds.",
+    },
+    {
+      when: "no IDL held",
+      hasIdl: false,
+      sourceChanged: false,
+      line: "The program is ready to deploy. The Playground's stable build server produces no IDL: build it locally and upload it to call the program from Interact.",
+    },
+    {
+      when: "the code changed",
+      hasIdl: false,
+      sourceChanged: true,
+      line: "Your code changed after the last build. Build again before you deploy. The Playground's stable build server produces no IDL: build it locally and upload it to call the program from Interact.",
+    },
   ])(
-    "names the IDL in the success line only when there is one (%s)",
-    (hasIdl, line) => {
+    "says the build produces no IDL ($when)",
+    ({ hasIdl, sourceChanged, line }) => {
       const p = props({ kind: "succeeded" });
       p.hasIdl = hasIdl;
+      p.sourceChanged = sourceChanged;
       render(<BaseBuild {...p} />);
 
       expect(screen.getByText(line)).toBeTruthy();
     }
   );
 
-  // The row carries Download .so either way; Download IDL leaves itself out
-  // without an IDL (`IdlActions`), so the stage passes whatever it is given
+  // Scenario "Download without an IDL" (client-v2-idl-build-guide)
+  // The guide keeps one place in the tree, so its dialog survives an IDL
+  // loading from inside it; CSS order moves it
   it.each([
-    [true, 1],
-    [false, 1],
-  ])("draws the downloads row with or without an IDL (%s)", (hasIdl, rows) => {
-    const p = props({ kind: "succeeded" });
-    p.hasIdl = hasIdl;
-    p.idlActions = <a href="#idl">Download IDL</a>;
-    render(<BaseBuild {...p} />);
+    [false, "order-first"],
+    [true, "order-last"],
+  ])(
+    "puts the IDL guide first in the downloads row only without an IDL (%s)",
+    (hasIdl, order) => {
+      const p = withDownloads({ kind: "succeeded" });
+      p.hasIdl = hasIdl;
+      render(<BaseBuild {...p} />);
 
-    expect(
-      screen.queryAllByRole("link", { name: "Download IDL" })
-    ).toHaveLength(rows);
-  });
+      const row = requireFor("the downloads row")(
+        screen.getByRole("button", { name: "Download .so" }).parentElement
+      );
+      const guide = requireFor("the guide's slot")(
+        Array.from(row.children).find((child) => child.textContent === GUIDE)
+      );
+      expect(guide.className).toBe(order);
+    }
+  );
 
   it("says a build that never reached the compiler did not start (BUILD-04)", async () => {
     const p = props({
@@ -506,7 +550,7 @@ describe("BaseBuild", () => {
 
     const brand = brandButtons(container);
     expect(brand).toHaveLength(1);
-    expect(brand[0].textContent).toBe("Try again");
+    expect(screen.getByRole("button", { name: "Try again" })).toBe(brand[0]);
     expect(brand[0].getAttribute("data-variant")).toBe("ring");
     expect(brand[0].getAttribute("data-size")).toBe("default");
     expect(
@@ -761,6 +805,24 @@ describe("BaseBuild", () => {
       ).toBeTruthy();
     }
   );
+
+  // HOO-2782: the stage is centred, so an in-flow line mounted by the click
+  // took a gap and moved the action row down while the rebuild ran
+  it("keeps the slow line out of the flow until it has words", () => {
+    const surface: BuildSurfaceView = { kind: "succeeded" };
+    const { container, rerender } = render(
+      <BaseBuild {...props(surface, true)} />
+    );
+    const line = container.querySelector(
+      '[data-slot="stage-empty"] > p[role="status"]'
+    );
+    if (!line) throw new Error("the slow line is not mounted");
+    expect(line.matches(":empty")).toBe(true);
+    expect(line.classList).toContain("empty:sr-only");
+
+    rerender(<BaseBuild {...props(surface, true, true)} />);
+    expect(line.matches(":empty")).toBe(false);
+  });
 
   it("drops the slow line once the build is over", () => {
     render(<BaseBuild {...props({ kind: "succeeded" }, false, true)} />);

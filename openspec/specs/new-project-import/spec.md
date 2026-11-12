@@ -111,9 +111,9 @@ disabled.
 
 The `features/new-project` tracker SHALL declare and send:
 
-- `new_project_imported {source}` once the import resolves, `source` being
+- `new_project_imported {via}` once the import resolves, `via` being
   `"github"` or `"gist"`;
-- `new_project_import_failed {source, reason}` when it fails, `source` being
+- `new_project_import_failed {via, reason}` when it fails, `via` being
   `"github"`, `"gist"` or `"unknown"` (a link that is neither), and `reason`
   one of `"bad-link"`, `"not-found"`, `"rate-limited"`, `"too-large"`,
   `"no-program"`, `"invalid"`, `"network"` (GitHub unreachable, refusing, or
@@ -127,16 +127,16 @@ showing "Could not import it.", and SHALL release New project's other
 actions.
 
 A closed program picker SHALL send neither. A gist import SHALL also send
-`gist_import_*` with `from: "new-project"`, a value `GistImportSource` gains.
+`gist_import_*` with `via: "new-project"`, a value `GistImportSource` gains.
 
 #### Scenario: A repository imports (manual)
 
 - **WHEN** a user imports a repository from the card
 - **THEN** the memory provider records `new_project_imported` once with
-  `source: "github"`
+  `via: "github"`
 
 #### Scenario: A bad link (manual)
 
 - **WHEN** a user imports `https://gitlab.com/acme/escrow`
 - **THEN** the memory provider records `new_project_import_failed` with
-  `source: "unknown"` and `reason: "bad-link"`
+  `via: "unknown"` and `reason: "bad-link"`

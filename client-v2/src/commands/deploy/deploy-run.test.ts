@@ -1,12 +1,25 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
 
 import { PgSession } from "../../features/auth";
 import { PgCommand, PgProgramInfo, PgTerminal } from "../../utils";
+import { TerminalLineError } from "../../utils/terminal/line-error";
+import {
+  forgetFaucetClosed,
+  rememberFaucetClosed,
+} from "../airdrop/closed-faucet";
+import { getAirdropVia } from "../airdrop/via";
 import { deploy } from "./deploy";
+import { DEPLOY_NETWORK_UNREAD } from "./mainnet-block";
 import type { DeployRunState } from "./run";
 import { DeployCancelledError, DeployFundingError, PgDeployRun } from "./run";
 
 const WALLET = "Wa11et1111111111111111111111111111111111111";
+/** The RPC airdrops go to; hoisted, as the `../../utils` mock reads it */
+const { DEVNET_RPC } = vi.hoisted(() => ({
+  DEVNET_RPC: "https://api.devnet.solana.com",
+}));
 const balance = vi.fn(async () => 10_000_000_000);
 const waitForInput = vi.fn(async () => true);
 
@@ -51,12 +64,14 @@ vi.mock("../../utils", () => {
   return {
     PgCommand: { airdrop: { execute: vi.fn(async () => {}) } },
     PgCommon: { formatSeconds: () => "1s", makePlural: (s: string) => s },
+    TerminalLineError: class MockTerminalLineError extends Error {},
     PgConnection: {
       cluster: "devnet",
       getCluster: vi.fn(async () => "devnet"),
       getAirdropAmount: vi.fn((): number | null => 5),
       getReadBufferConnection: <T>(connection: T) =>
         chain.readBuffer ?? connection,
+      getAirdropConnection: () => ({ rpcEndpoint: DEVNET_RPC }),
       current: {
         getBalance: (...args: unknown[]) => balance(...(args as [])),
         getMinimumBalanceForRentExemption: async (len: number) => len,
@@ -331,10 +346,24 @@ describe("deploy run", () => {
     expect(PgCommand.airdrop.execute).not.toHaveBeenCalled();
   });
 
-  it("reports no network when the connection's cannot be read, not the one selected", async () => {
+  // HOO-2728: an endpoint that does not say which network it is could be
+  // mainnet, so nothing is sent on a guess
+  it("sends nothing when the connection's network cannot be read", async () => {
     const { PgConnection } = await import("../../utils");
     vi.mocked(PgConnection.getCluster).mockRejectedValueOnce(
       new Error("genesis hash unreadable")
+    );
+
+    await expect(handleDeploy()).rejects.toThrow(DEPLOY_NETWORK_UNREAD);
+    expect(balance).not.toHaveBeenCalled();
+    expect(PgCommand.airdrop.execute).not.toHaveBeenCalled();
+  });
+
+  it("records no network for one of its own, and deploys", async () => {
+    const { PgConnection } = await import("../../utils");
+    const { UnknownClusterError } = await import("@/entities/cluster");
+    vi.mocked(PgConnection.getCluster).mockRejectedValueOnce(
+      new UnknownClusterError("Own1111")
     );
     balance
       .mockResolvedValueOnce(10_000_000_000)
@@ -350,11 +379,18 @@ describe("deploy run", () => {
   it("funds first, without a question, when the stage started it", async () => {
     const steps = recordSteps();
     balance.mockResolvedValueOnce(0);
+    let via = "";
+    vi.mocked(PgCommand.airdrop.execute).mockImplementationOnce(async () => {
+      via = getAirdropVia();
+    });
 
     await PgDeployRun.runWith(answers(true))(handleDeploy);
 
     expect(steps[0]).toBe("funding");
     expect(PgCommand.airdrop.execute).toHaveBeenCalledWith("1");
+    // `fund_airdropped` counts the top-up as the deploy's
+    expect(via).toBe("deploy");
+    expect(getAirdropVia()).toBe("terminal");
     expect(waitForInput).not.toHaveBeenCalled();
   });
 
@@ -394,6 +430,66 @@ describe("deploy run", () => {
         address: WALLET,
         cause: "429 Too Many Requests",
       });
+    });
+  });
+
+  it("warns of a faucet the stage's top-up finds closed, without reporting it or logging the wallet", async () => {
+    const logged = memoryProvider();
+    initLogger({ providers: [logged] });
+    // The logger hands a new provider what it kept from before
+    const earlier = logged.entries.length;
+    try {
+      balance.mockResolvedValueOnce(0);
+      const line = `The devnet RPC faucet is closed. Request test SOL at https://faucet.solana.com/?walletAddress=${WALLET}&cluster=devnet`;
+      vi.mocked(PgCommand.airdrop.execute).mockRejectedValueOnce(
+        new TerminalLineError(line)
+      );
+
+      const run = PgDeployRun.runWith(answers(true))(handleDeploy);
+
+      await expect(run).rejects.toMatchObject({
+        detail: { reason: "airdrop_failed", cause: line },
+      });
+      const entries = logged.entries.slice(earlier);
+      expect(entries).toEqual([
+        expect.objectContaining({
+          ns: "commands:deploy",
+          level: "warn",
+          report: false,
+        }),
+      ]);
+      expect(JSON.stringify(entries)).not.toContain(WALLET);
+    } finally {
+      resetLogger();
+    }
+  });
+
+  describe("once the faucet answered closed", () => {
+    beforeEach(() => rememberFaucetClosed(DEVNET_RPC));
+    afterEach(() => forgetFaucetClosed(DEVNET_RPC));
+
+    it("stops at the funding card with the web faucet, without asking the faucet again", async () => {
+      balance.mockResolvedValueOnce(0);
+
+      const run = PgDeployRun.runWith(answers(true))(handleDeploy);
+
+      await expect(run).rejects.toMatchObject({
+        detail: {
+          reason: "airdrop_failed",
+          cause: `The devnet RPC faucet is closed. Request test SOL at https://faucet.solana.com/?walletAddress=${WALLET}&cluster=devnet`,
+        },
+      });
+      expect(PgCommand.airdrop.execute).not.toHaveBeenCalled();
+    });
+
+    it("ends a typed deploy with the web faucet's line, without the question", async () => {
+      balance.mockResolvedValueOnce(0);
+
+      await expect(handleDeploy()).rejects.toThrow(
+        `The devnet RPC faucet is closed. Request test SOL at https://faucet.solana.com/?walletAddress=${WALLET}&cluster=devnet`
+      );
+      expect(waitForInput).not.toHaveBeenCalled();
+      expect(PgCommand.airdrop.execute).not.toHaveBeenCalled();
     });
   });
 

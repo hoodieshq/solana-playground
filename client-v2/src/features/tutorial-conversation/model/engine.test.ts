@@ -193,13 +193,13 @@ describe("Hello Anchor through the engine", () => {
       reason: "compiler",
       seconds: 1.2,
       error: {
-        code: "E0412",
+        code: "E0432",
         file: "src/lib.rs",
-        line: 9,
-        column: 32,
-        message: "cannot find type `Hello` in this scope",
+        line: 5,
+        column: 1,
+        message: "unresolved import `crate`",
       },
-      log: "error[E0412]: cannot find type `Hello` in this scope",
+      log: "error[E0432]: unresolved import `crate`\n  | ^^^^^^^^^^ could not find `__client_accounts_hello` in the crate root",
     };
     const runner = stubRunner([
       { stages: ["Building"], result: failed },
@@ -417,7 +417,7 @@ describe("Hello Anchor through the engine", () => {
     ).toEqual(
       [1, 2, 3, 4].map((n) => ({
         tutorial: "hello-anchor",
-        step: n,
+        step_index: n,
         via: n === 3 ? "client" : "chat",
         seconds: expect.any(Number),
       }))
@@ -541,7 +541,7 @@ describe("Lumberjack's step 2, on a player that already exists,", () => {
     ).toEqual([
       {
         tutorial: "lumberjack",
-        step: 2,
+        step_index: 2,
         via: "call_panel",
         seconds: expect.any(Number),
         reason: "exists",

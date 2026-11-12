@@ -5,7 +5,13 @@ import type {
   LinkSource,
 } from "@/features/new-project";
 import { IMPORT_FALLBACK } from "@/features/new-project";
-import { GithubNotFoundError, ImportCancelledError, PgGithub } from "@/utils";
+import type { GithubImportReason } from "@/utils";
+import {
+  ConversionError,
+  GithubImportError,
+  ImportCancelledError,
+  PgGithub,
+} from "@/utils";
 
 /** A link that is neither a GitHub repository nor a gist */
 export const BAD_LINK = "This isn't a GitHub repo or gist link.";
@@ -18,16 +24,6 @@ const notFound = (owner: string, repo: string) =>
   `Playground can't find ${owner}/${repo} on GitHub. It may be private, ` +
   "renamed or deleted.";
 
-/**
- * A request that never got an answer: `fetch` rejects with a `TypeError`
- * whose message names the fetch, in each browser's words (Chrome "Failed to
- * fetch", Firefox "NetworkError when attempting to fetch resource", Safari
- * "Load failed"). Any other `TypeError` is a fault of ours.
- */
-const isUnanswered = (error: unknown) =>
-  error instanceof TypeError &&
-  /fetch|network|load failed/i.test(error.message);
-
 const UNREACHABLE =
   "Could not reach GitHub. Check the connection and try again.";
 
@@ -35,71 +31,52 @@ const UNREACHABLE =
 type ImportFailure = Exclude<LinkImportFailure, "bad-link">;
 
 /**
- * `PgGithub`'s failures other than a 404 are plain errors; their reason is
- * read from the message's known shapes, for the events and the log level
- * only. A copy change there counts as `unexpected` and shows the user the
- * same message.
+ * `PgGithub`'s reasons as the card counts them: a refusal or a failed status
+ * from GitHub is one the user can only retry
  */
-const REASONS: [RegExp, ImportFailure][] = [
-  [/hourly request limit/, "rate-limited"],
-  [/too large to import/, "too-large"],
-  [/^No program code found/, "no-program"],
-  [/doesn't look like a Solana program/, "no-program"],
-  [/^GitHub refused the request/, "network"],
-  [/^GitHub request for .+ failed with status/, "network"],
-];
+const GITHUB_REASONS: Record<GithubImportReason, ImportFailure> = {
+  "not-found": "not-found",
+  "rate-limited": "rate-limited",
+  "too-large": "too-large",
+  "no-source": "no-program",
+  network: "network",
+  other: "network",
+};
 
 const failed = (
+  url: string,
   source: LinkSource,
   error: unknown
 ): Extract<LinkImport, { source: LinkSource }> => {
-  if (error instanceof GithubNotFoundError) {
-    return {
-      outcome: "failed",
-      source,
-      reason: "not-found",
-      message: notFound(error.owner, error.repo),
-      error,
-    };
+  const fail = (reason: ImportFailure, message: string) => ({
+    outcome: "failed" as const,
+    source,
+    reason,
+    message,
+    error,
+  });
+
+  if (error instanceof GithubImportError) {
+    if (error.reason === "not-found") {
+      const { owner, repo } = PgGithub.parseUrl(url);
+      return fail("not-found", notFound(owner, repo));
+    }
+    if (error.reason === "network") return fail("network", UNREACHABLE);
+    return fail(GITHUB_REASONS[error.reason], error.message);
+  }
+  if (error instanceof ConversionError) {
+    return fail("no-program", error.message);
   }
   if (error instanceof GistImportError) {
     // The gist import reported its own faults already; what it calls a
     // failed request is GitHub's, which the user can only retry
-    return {
-      outcome: "failed",
-      source,
-      reason: error.reason === "request-failed" ? "network" : error.reason,
-      message: error.message,
-      error,
-    };
+    return fail(
+      error.reason === "request-failed" ? "network" : error.reason,
+      error.message
+    );
   }
-  if (isUnanswered(error)) {
-    return {
-      outcome: "failed",
-      source,
-      reason: "network",
-      message: UNREACHABLE,
-      error,
-    };
-  }
-  if (!(error instanceof Error)) {
-    return {
-      outcome: "failed",
-      source,
-      reason: "unexpected",
-      message: IMPORT_FALLBACK,
-      error,
-    };
-  }
-  const reason =
-    REASONS.find(([shape]) => shape.test(error.message))?.[1] ?? "unexpected";
-  return {
-    outcome: "failed",
-    source,
-    reason,
-    message: error.message || IMPORT_FALLBACK,
-    error,
-  };
+  if (!(error instanceof Error)) return fail("unexpected", IMPORT_FALLBACK);
+  return fail("unexpected", error.message || IMPORT_FALLBACK);
 };
 
 /** Which import takes the link: a gist page is on a GitHub host too */
@@ -135,7 +112,7 @@ export const importLink = async (link: string): Promise<LinkImport> => {
     else await PgGithub.import(url);
   } catch (error) {
     if (error instanceof ImportCancelledError) return { outcome: "cancelled" };
-    return failed(source, error);
+    return failed(url, source, error);
   }
   return { outcome: "imported", source };
 };

@@ -4,6 +4,7 @@ import { requireFor } from "../src/test-utils/require-for";
 import {
   consoleTrigger,
   currentProject,
+  editorTookFocus,
   expect,
   filesToggle,
   HELP_TAIL,
@@ -12,13 +13,22 @@ import {
   leaveEditor,
   newProjectPage,
   projectRow,
+  reloadAndBoot,
   runInTerminal,
   seedWorkspace,
   stubSignedIn,
   test,
 } from "./fixtures";
-import { lineOf, linesOn } from "./telemetry";
-import { DESK, PHONE, TABLET, WIDE_DESK } from "./viewports";
+import { lineOf, linesOn, linesRead } from "./telemetry";
+import {
+  DESK,
+  openPhoneMenu,
+  openPhonePreview,
+  PHONE,
+  TABLET,
+  waitForPhonePage,
+  WIDE_DESK,
+} from "./viewports";
 
 /**
  * The one event line with this name: waits for it, then a moment more, so a
@@ -28,6 +38,7 @@ import { DESK, PHONE, TABLET, WIDE_DESK } from "./viewports";
 const onlyLineOf = async (page: Page, lines: string[], name: string) => {
   await expect.poll(() => lineOf(lines, name)).toBeTruthy();
   await page.waitForTimeout(300);
+  await linesRead(lines);
   const all = lines.filter((line) =>
     line.startsWith(`[telemetry:event] ${name} `)
   );
@@ -94,7 +105,7 @@ const seedThenResize = async (
 ) => {
   await page.setViewportSize(DESK);
   await seedWorkspace(page);
-  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused();
+  await editorTookFocus(page);
   await page.setViewportSize(size);
 };
 
@@ -224,6 +235,7 @@ test("a restored width the library would fold opens the assistant, and changes n
   ).toBeVisible();
   await expect.poll(() => widthOf(page)).toBeGreaterThan(270);
   await page.waitForTimeout(300);
+  await linesRead(lines);
   expect(lineOf(lines, "layout_panel_toggled")).toBeUndefined();
   expect(await savedLayout(page)).toBe(saved);
 });
@@ -519,11 +531,14 @@ test.describe("on a phone", () => {
 
   // The seed runs on a desktop-sized page, as the fixture waits on the tree
   // a phone keeps in a closed Sheet; the window is narrowed afterwards
-  const seedThenNarrow = (page: Page) => seedThenResize(page, PHONE);
+  const seedThenNarrow = async (page: Page) => {
+    await seedThenResize(page, PHONE);
+    await waitForPhonePage(page, "Work");
+  };
 
   test("the account is a page of its own on a phone", async ({ page }) => {
     await seedThenNarrow(page);
-    await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await openPhoneMenu(page);
     // A tap: the page opens over the row, and the release lands on its foot
     await page.getByRole("button", { name: "Account, signed out" }).click();
     const accountMenu = page.getByRole("menu", { name: "Account" });
@@ -570,17 +585,15 @@ test.describe("on a phone", () => {
     ).toBeVisible();
     await expect(files).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Preview the build" }).click();
+    await openPhonePreview(page);
     await expect(page.locator("#flow-stage-panel-build")).toBeInViewport();
     await expect(consoleHandle(page)).toBeInViewport();
     await page.getByRole("button", { name: "Back to the code" }).click();
     await expect(page.locator(".monaco-editor")).toBeInViewport();
 
-    await page.getByRole("button", { name: "Menu", exact: true }).click();
-    const menu = page.getByRole("region", { name: "Navigation" });
-    await expect(menu).toBeInViewport();
+    await openPhoneMenu(page);
     await page.getByRole("button", { name: "Close the menu" }).click();
-    await expect(page.getByRole("region", { name: "Work" })).toBeInViewport();
+    await waitForPhonePage(page, "Work");
     await page.getByRole("radio", { name: "Chat" }).click();
     // The composer is there and takes typing with nothing connected
     const composer = page.getByRole("textbox", {
@@ -638,6 +651,7 @@ test.describe("on a phone", () => {
     await page.getByRole("button", { name: "Preview the build" }).click();
     await expect(page.locator("#flow-stage-panel-build")).toBeInViewport();
     await page.waitForTimeout(400);
+    await linesRead(lines);
     const shown = lines.filter((line) =>
       line.startsWith("[telemetry:event] layout_page_shown ")
     );
@@ -693,7 +707,7 @@ test.describe("on a phone", () => {
 
   test("client-v2-layout: Settings on a phone", async ({ page }) => {
     await seedThenNarrow(page);
-    await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await openPhoneMenu(page);
     await page
       .getByRole("region", { name: "Navigation" })
       .getByRole("button", { name: /^Change cluster/ })
@@ -722,7 +736,7 @@ test.describe("on a phone", () => {
     page,
   }) => {
     await seedThenNarrow(page);
-    await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await openPhoneMenu(page);
     await page
       .getByRole("region", { name: "Navigation" })
       .getByRole("button", { name: /^Change cluster/ })
@@ -744,7 +758,12 @@ test.describe("on a phone", () => {
   // settled when the editor mounts.
   test("a swipe made while the editor loads stays on the preview", async ({
     page,
+    browserName,
   }) => {
+    test.fixme(
+      browserName === "firefox",
+      "Firefox defines no TouchEvent in a context without hasTouch, which this describe leaves off"
+    );
     let release!: () => void;
     const held = new Promise<void>((resolve) => (release = resolve));
     // The editor's chunk (webpack's name for it), held so it mounts under the
@@ -790,7 +809,7 @@ test.describe("on a phone", () => {
     await seedWorkspace(page);
     for (const width of [393, 740]) {
       await page.setViewportSize({ width, height: 852 });
-      await page.getByRole("button", { name: "Menu", exact: true }).click();
+      await openPhoneMenu(page);
       await page
         .getByRole("region", { name: "Navigation" })
         .getByRole("button", { name: "New project", exact: true })
@@ -830,6 +849,7 @@ test.describe("on a phone", () => {
       .toContain("via: swipe");
     // Settled once: the stage this page sets does not send a second move
     await page.waitForTimeout(400);
+    await linesRead(lines);
     const shown = lines.filter((line) =>
       line.startsWith("[telemetry:event] layout_page_shown ")
     );
@@ -909,11 +929,11 @@ test("client-v2-layout: The navigation on a narrow window", async ({
   await seedWorkspace(page);
   // The editor focuses itself when it opens the first file; landing after
   // the menu opened, it would bring Work back
-  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused();
+  await editorTookFocus(page);
   const navigation = page.getByRole("region", { name: "Navigation" });
   for (const width of [720, 740, 767]) {
     await page.setViewportSize({ width, height: 812 });
-    await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await openPhoneMenu(page);
     for (const name of ["Home", "New project", "Tutorials", "Programs"]) {
       await expect(
         navigation.getByRole("button", { name, exact: true })
@@ -940,7 +960,7 @@ test("client-v2-layout: The navigation on a narrow window", async ({
 // the navigation handed over, and the settings show over Work
 test("⌘, opens the settings from the phone's menu page", async ({ page }) => {
   await seedThenResize(page, { width: 740, height: 812 });
-  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await openPhoneMenu(page);
   await expect(
     page.getByRole("region", { name: "Navigation" })
   ).toBeInViewport();
@@ -983,11 +1003,18 @@ test.describe("on an iPhone", () => {
 
   test("client-v2-layout: The editor's keyboard button on an iPhone", async ({
     page,
+    browserName,
   }) => {
+    test.fixme(
+      browserName === "firefox",
+      "An iPhone user agent on Gecko takes theme.ts's non-Firefox path, whose for-of over document.fonts.keys() throws on Gecko; a real iPhone runs WebKit"
+    );
     // A project is started from the desktop's Home, as "on a phone" does
     await page.setViewportSize(DESK);
     await seedWorkspace(page);
+    await editorTookFocus(page);
     await page.setViewportSize(PHONE);
+    await waitForPhonePage(page, "Work");
     const lines = page.locator(".monaco-editor .view-lines");
     await expect(lines).toContainText("use anchor_lang");
     // A tap on the code does not always raise the keyboard on an iPhone, so
@@ -2014,10 +2041,13 @@ test.describe("the settings page", () => {
     await expect(list.getByRole("button")).toHaveText(SECTIONS);
 
     // Each setting's control carries its own name: two of one name ("Endpoint"
-    // twice, once) cannot be told apart by a screen reader or a test
-    const names = await settingsPage(page)
-      .locator('[role="combobox"], [role="switch"]')
-      .evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
+    // twice, once) cannot be told apart by a screen reader or a test.
+    // Not `evaluateAll`: over these controls it crashes Playwright 1.65's Firefox 159 content process
+    const names = await settingsPage(page).evaluate((root) =>
+      Array.from(
+        root.querySelectorAll('[role="combobox"], [role="switch"]')
+      ).map((el) => el.getAttribute("aria-label"))
+    );
     expect(names.length).toBeGreaterThan(5);
     expect(names.filter((n, i) => names.indexOf(n) !== i)).toEqual([]);
 
@@ -2066,7 +2096,7 @@ test.describe("the settings page", () => {
 
     await expect
       .poll(() => lineOf(lines, "settings_opened"))
-      .toContain("from: key");
+      .toContain("via: key");
     await expect
       .poll(() => lineOf(lines, "settings_closed"))
       .toContain("via: escape");
@@ -2095,7 +2125,7 @@ test.describe("the settings page", () => {
     await expect(settingsPage(page)).toBeVisible();
     await expect
       .poll(() => lines.filter((l) => l.includes("settings_opened")).at(-1))
-      .toContain("from: stage");
+      .toContain("via: stage");
   });
 
   test("client-v2-layout: A menu open at ⌘, closes as the settings open", async ({
@@ -2192,7 +2222,9 @@ test.describe("the settings page at 1440 by 900", () => {
     for (const theme of ["Dark", "Light"]) {
       if (theme === "Light") {
         await page.evaluate(() => localStorage.setItem("theme", "Light"));
-        await page.reload();
+        // A click while the app boots again hangs in Firefox on a loaded
+        // runner: the page takes it only once its main thread is free
+        await reloadAndBoot(page);
         await page.locator("[data-settings-trigger]").first().click();
         await expect
           .poll(() =>
@@ -2213,7 +2245,7 @@ test.describe("the settings page at 1440 by 900", () => {
 
 test("client-v2-layout: The settings page on a phone", async ({ page }) => {
   await seedThenResize(page, PHONE);
-  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await openPhoneMenu(page);
   await page
     .getByRole("region", { name: "Navigation" })
     .getByRole("button", { name: /^Change cluster/ })

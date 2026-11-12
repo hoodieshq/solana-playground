@@ -4,6 +4,7 @@ import type { Page } from "@playwright/test";
 // CommonJS, and the telemetry it re-exports holds `import.meta.vitest` blocks
 import {
   DAILY_CAP_REASON,
+  POOL_EXHAUSTED_REASON,
   REFUSAL_MESSAGES,
   REFUSAL_STATUS,
 } from "../src/features/agent/server.mjs";
@@ -12,6 +13,7 @@ import {
   expect,
   json,
   LONG,
+  reloadAndBoot,
   runInTerminal,
   seedWorkspace,
   startProject,
@@ -19,8 +21,9 @@ import {
   stubSession,
   test,
 } from "./fixtures";
+import { hasSavedText } from "./saved-files";
 import { lineOf, linesOn } from "./telemetry";
-import { DESK, PHONE, TABLET, WIDE_DESK } from "./viewports";
+import { DESK, PHONE, TABLET, waitForPhonePage, WIDE_DESK } from "./viewports";
 
 /** The stock Sidebar, which holds the navigation and its foot */
 const nav = (page: Page) => page.locator('[data-slot="sidebar"]');
@@ -40,7 +43,10 @@ const OFFLINE_LINE =
 
 /**
  * Devnet answers `getSlot` with one slot that never moves: down by
- * `PgConnection.getIsClusterDown`, which reads the slot twice a second apart
+ * `PgConnection.getIsClusterDown`, which reads the slot twice a second apart.
+ * `getAccountInfo` answers "no account" at once: the Deploy stage restores a
+ * reload's build only after `PgProgramInfo.onChain` reads the program
+ * account, and the real devnet can take longer than the test waits
  */
 const stallDevnet = (page: Page) =>
   page.route("https://api.devnet.solana.com/**", async (route) => {
@@ -48,8 +54,41 @@ const stallDevnet = (page: Page) =>
       id?: unknown;
       method?: string;
     } | null;
-    if (body?.method !== "getSlot") return route.continue();
-    return json(route, { jsonrpc: "2.0", result: 123, id: body.id });
+    if (body?.method === "getSlot") {
+      return json(route, { jsonrpc: "2.0", result: 123, id: body.id });
+    }
+    if (body?.method === "getAccountInfo") {
+      return json(route, {
+        jsonrpc: "2.0",
+        // eslint-disable-next-line unicorn/no-null -- the RPC's own "no account"
+        result: { context: { slot: 123 }, value: null },
+        id: body.id,
+      });
+    }
+    return route.continue();
+  });
+
+/**
+ * Whether the build's verdict is on disk: a file in lightning-fs's IndexedDB
+ * store holds `"lastBuildFailed":false`. `PgProgramInfo` writes
+ * `program-info.json` a moment after Build reports success, and a reload
+ * before that write reads the project as never built.
+ */
+const buildIsSaved = (page: Page) =>
+  hasSavedText(page, '"lastBuildFailed":false');
+
+/**
+ * On top of `stallDevnet`: every other devnet call is left unanswered, so the
+ * program's on-chain check never comes back. A cluster this slow is what made
+ * the restored build verdict wait on it (HOO-2744).
+ */
+const holdDevnetCalls = (page: Page) =>
+  page.route("https://api.devnet.solana.com/**", async (route) => {
+    const body = route.request().postDataJSON() as {
+      method?: string;
+    } | null;
+    if (body?.method === "getSlot") return route.fallback();
+    // Never answered: the page sees a request that is still in flight
   });
 
 test.describe("on a 1440 px window", () => {
@@ -88,14 +127,14 @@ test.describe("on a 1440 px window", () => {
     await expect
       .poll(() => lineOf(lines, "status_indicator_picked"))
       // No model is grey (`idle`), which is measured as ready
-      .toContain("{indicator: ai, state: ready, from: row}");
+      .toContain("{indicator: ai, state: ready, via: row}");
   });
 
   test("client-v2-status: A cluster that stops answering", async ({
     seededPage: page,
   }) => {
     await stallDevnet(page);
-    await page.reload();
+    await reloadAndBoot(page);
 
     const down = row(page).getByRole("button", {
       name: "Change cluster, currently devnet, not responding",
@@ -119,7 +158,7 @@ test.describe("on a 1440 px window", () => {
     await panel.getByRole("button", { name: "Change network" }).click();
     await expect
       .poll(() => lineOf(lines, "settings_opened"))
-      .toContain("{from: cluster}");
+      .toContain("{via: cluster}");
     const networks = page
       .getByRole("region", { name: "Settings" })
       .getByRole("radiogroup", { name: "Network" });
@@ -159,13 +198,13 @@ test.describe("on a 1440 px window", () => {
     ).toBeVisible();
     await expect
       .poll(() => lineOf(lines, "status_retried"))
-      .toContain("{indicator: ai, from: row, answered: false}");
+      .toContain("{indicator: ai, via: row, answered: false}");
     failing = false;
     await panel.getByRole("button", { name: "Try again" }).click();
     await expect(ai(page)).toHaveText("AI · Off");
     await expect
       .poll(() => lines.join("\n"))
-      .toContain("{indicator: ai, from: row, answered: true}");
+      .toContain("{indicator: ai, via: row, answered: true}");
   });
 
   test("client-v2-status: Going offline and back", async ({
@@ -275,7 +314,7 @@ test.describe("on a 1440 px window", () => {
     seededPage: page,
   }) => {
     await stallDevnet(page);
-    await page.reload();
+    await reloadAndBoot(page);
     await expect(
       row(page).getByRole("button", {
         name: "Change cluster, currently devnet, not responding",
@@ -308,9 +347,11 @@ test.describe("on a 1440 px window", () => {
     await expect(
       build.getByRole("heading", { name: "Build succeeded" })
     ).toBeVisible({ timeout: 60_000 });
+    await expect.poll(() => buildIsSaved(page), { timeout: 10_000 }).toBe(true);
 
     await stallDevnet(page);
-    await page.reload();
+    await holdDevnetCalls(page);
+    await reloadAndBoot(page);
     await expect(region(page)).toHaveText("Devnet, not responding", {
       timeout: 15_000,
     });
@@ -336,7 +377,7 @@ test.describe("on a 1440 px window", () => {
     seededPage: page,
   }) => {
     await stallDevnet(page);
-    await page.reload();
+    await reloadAndBoot(page);
     await expect(network(page)).toContainText("Not responding", {
       timeout: 15_000,
     });
@@ -362,7 +403,7 @@ test.describe("on a 1440 px window", () => {
       .filter({ hasText: "Choose a network" });
     await expect(setupRow).toHaveAttribute("data-status", "done");
     await stallDevnet(page);
-    await page.reload();
+    await reloadAndBoot(page);
     await expect(setupRow).toHaveAttribute("data-status", "warn", {
       timeout: 15_000,
     });
@@ -373,7 +414,7 @@ test.describe("on a 1440 px window", () => {
     seededPage: page,
   }) => {
     await stallDevnet(page);
-    await page.reload();
+    await reloadAndBoot(page);
     await page.locator("#flow-stage-tab-deploy").click();
     const lines = linesOn(page);
     await notice(page)
@@ -409,27 +450,33 @@ test("client-v2-status: The rail's dots", async ({ page }) => {
   await rail.getByRole("button", { name: /^Cluster: devnet/ }).click();
   await expect
     .poll(() => lineOf(lines, "settings_opened"))
-    .toContain("{from: rail}");
+    .toContain("{via: rail}");
 });
 
-test("client-v2-status: The free daily limit is used", async ({ page }) => {
-  test.setTimeout(240_000);
+/**
+ * Send a turn the hosted model refuses with `reason`, then open the AI
+ * indicator's panel; returns the panel and Connect a model
+ */
+const refuseAndOpenAi = async (
+  page: Page,
+  reason: typeof DAILY_CAP_REASON | typeof POOL_EXHAUSTED_REASON
+) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await stubAiStatus(page, "test-model");
   await page.route("**/api/agent", (route) =>
     route.fulfill({
-      status: REFUSAL_STATUS[DAILY_CAP_REASON],
+      status: REFUSAL_STATUS[reason],
       contentType: "application/json",
       body: JSON.stringify({
-        error: REFUSAL_MESSAGES[DAILY_CAP_REASON],
-        reason: DAILY_CAP_REASON,
+        error: REFUSAL_MESSAGES[reason],
+        reason,
         tier: "newcomer",
       }),
     })
   );
   await stubSession(page);
   await page.goto("/");
-  await startProject(page, "status-limit", LONG);
+  await startProject(page, `status-${reason}`, LONG);
   const composer = page.getByRole("textbox", { name: "Message the assistant" });
   await expect(composer).toBeVisible(LONG);
   await page.getByRole("button", { name: "More", exact: true }).click();
@@ -440,17 +487,32 @@ test("client-v2-status: The free daily limit is used", async ({ page }) => {
 
   await composer.fill("a question");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByText(REFUSAL_MESSAGES[DAILY_CAP_REASON])).toBeVisible(
-    LONG
-  );
+  await expect(page.getByText(REFUSAL_MESSAGES[reason])).toBeVisible(LONG);
 
   const limited = row(page).getByRole("button", { name: "AI, limit reached" });
   await expect(limited).toHaveText("AI · Limit reached");
   await limited.click();
-  const panel = page.getByRole("dialog", { name: "AI" });
+  return { panel: page.getByRole("dialog", { name: "AI" }), connect };
+};
+
+test("client-v2-status: The free daily limit is used", async ({ page }) => {
+  test.setTimeout(240_000);
+  const { panel, connect } = await refuseAndOpenAi(page, DAILY_CAP_REASON);
   await expect(
     panel.getByText(
       /^The free daily limit is used\. It comes back at \d\d:\d\d,/
+    )
+  ).toBeVisible();
+  await panel.getByRole("button", { name: "Add an API key" }).click();
+  await expect(connect).toBeVisible();
+});
+
+test("client-v2-status: The free pool is spent", async ({ page }) => {
+  test.setTimeout(240_000);
+  const { panel, connect } = await refuseAndOpenAi(page, POOL_EXHAUSTED_REASON);
+  await expect(
+    panel.getByText(
+      "The free assistant is out of capacity for now. Try again later, or add a key of your own to keep going."
     )
   ).toBeVisible();
   await panel.getByRole("button", { name: "Add an API key" }).click();
@@ -475,6 +537,7 @@ test.describe("on a phone", () => {
     await expect(chip).toHaveAccessibleName("Status, 1 not ready", {
       timeout: 15_000,
     });
+    await waitForPhonePage(page, "Work");
     expect((await chip.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     await chip.click();
 

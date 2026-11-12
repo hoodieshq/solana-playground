@@ -12,6 +12,16 @@ const h = vi.hoisted(() => ({
   workspace: "Hello Anchor" as string | undefined,
   idl: null as null | { instructions: { name: string }[] },
   source: undefined as string | undefined,
+  logError: vi.fn(),
+}));
+
+vi.mock("@/shared/lib/logger", () => ({
+  createLogger: () => ({
+    error: h.logError,
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  }),
 }));
 
 vi.mock("@/utils", () => ({
@@ -50,14 +60,16 @@ vi.mock(
 );
 
 let runBuild: typeof import("./build").runBuild;
+let StoppedError: typeof import("@/utils/stopped").StoppedError;
 /** The build server's real log of Hello Anchor's planned failure */
 let PLANNED: string;
 beforeAll(async () => {
   runBuild = (await import("./build")).runBuild;
+  ({ StoppedError } = await import("@/utils/stopped"));
   PLANNED = (await import("../build-logs.fixture")).PLANNED;
 });
 
-const FAILS_WITH = "cannot find type `Hello` in this scope";
+const FAILS_WITH = "could not find `__client_accounts_hello`";
 
 /** The build command as the server answers it: the output lands, then it returns */
 const answers = (stderr: string, failed: boolean) =>
@@ -79,6 +91,7 @@ beforeEach(() => {
   h.workspace = "Hello Anchor";
   h.idl = null;
   h.source = undefined;
+  h.logError.mockReset();
 });
 
 describe("features/tutorial-conversation/model/runners/build", () => {
@@ -104,14 +117,14 @@ describe("features/tutorial-conversation/model/runners/build", () => {
     expect(await run().result).toMatchObject({ instructions: [] });
   });
 
-  it("shows the planned E0412 at line 9, not the macro symptom at line 5", async () => {
+  it("shows the error holding the step's line, not the first cause at line 9", async () => {
     answers(PLANNED, true);
     const r = await run(FAILS_WITH).result;
     expect(r).toMatchObject({
       act: "build",
       ok: false,
       reason: "compiler",
-      error: { code: "E0412", file: "src/lib.rs", line: 9, column: 32 },
+      error: { code: "E0432", file: "src/lib.rs", line: 5, column: 1 },
     });
     expect(r.ok === false && "log" in r && r.log).not.toMatch(/Stack offset/);
   });
@@ -159,6 +172,28 @@ describe("features/tutorial-conversation/model/runners/build", () => {
       reason: "signed_out",
       error: null,
       log: "Sign in with GitHub to build.",
+    });
+  });
+
+  it("calls a build the learner stopped stopped, and reports nothing", async () => {
+    h.execute.mockRejectedValue(new StoppedError("Stopped."));
+    expect(await run().result).toEqual({
+      act: "build",
+      ok: false,
+      seconds: expect.any(Number),
+      reason: "stopped",
+      error: null,
+      log: "Stopped.",
+    });
+    expect(h.logError).not.toHaveBeenCalled();
+  });
+
+  it("reports a server's refusal to the team", async () => {
+    h.execute.mockRejectedValue(new Error("Invalid path"));
+    await run().result;
+    expect(h.logError).toHaveBeenCalledWith(expect.any(Error), {
+      report: true,
+      context: { act: "build" },
     });
   });
 

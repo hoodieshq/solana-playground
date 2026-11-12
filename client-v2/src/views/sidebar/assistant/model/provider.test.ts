@@ -280,6 +280,98 @@ describe("the assistant's provider", () => {
     ).toEqual([{ mode: "tutorial" }]);
   });
 
+  it("sends a mode's state now with the newest message, after the history, and keeps the message as typed", async () => {
+    const sent = respond(
+      anthropicText("First.", "end_turn"),
+      anthropicText("Second.", "end_turn")
+    );
+    let step = 1;
+    const mode = PgAssistant.setMode({
+      name: "tutorial",
+      context: () => "Tutorial: Hello Anchor",
+      now: () => `Now: step ${step}.`,
+      tools: [],
+      allows: () => true,
+      refusal: "",
+    });
+    try {
+      const provider = anthropic();
+      await provider.send("what now?");
+      step = 2;
+      await provider.send("and now?");
+    } finally {
+      mode.dispose();
+    }
+
+    // Anthropic takes system text only before the conversation: the state rides with the message
+    expect(JSON.stringify(sent[1].body.system)).toContain(
+      "Tutorial: Hello Anchor"
+    );
+    expect(messagesOf(sent[1].body)).toEqual([
+      { role: "user", content: [{ type: "text", text: "what now?" }] },
+      { role: "assistant", content: [{ type: "text", text: "First." }] },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "and now?" },
+          { type: "text", text: "Now: step 2." },
+        ],
+      },
+    ]);
+  });
+
+  it("sends the turn as typed when a mode's state now is empty", async () => {
+    const sent = respond(openAiText("Hi."));
+    const mode = PgAssistant.setMode({
+      name: "tutorial",
+      context: () => "Tutorial",
+      now: () => " ",
+      tools: [],
+      allows: () => true,
+      refusal: "",
+    });
+    try {
+      await createProvider({ id: "default", apiKey: "" }).send("hi");
+    } finally {
+      mode.dispose();
+    }
+
+    expect(messagesOf(sent[0].body).at(-1)).toEqual({
+      role: "user",
+      content: "hi",
+    });
+  });
+
+  it("sends the turn as typed when a mode's state now throws, and reports it", async () => {
+    const memory = memoryLog();
+    initLogger({ providers: [memory] });
+    const sent = respond(openAiText("Hi."));
+    const mode = PgAssistant.setMode({
+      name: "tutorial",
+      context: () => "Tutorial",
+      now: () => {
+        throw new Error("no definition");
+      },
+      tools: [],
+      allows: () => true,
+      refusal: "",
+    });
+    try {
+      await createProvider({ id: "default", apiKey: "" }).send("hi");
+    } finally {
+      mode.dispose();
+      resetLogger();
+    }
+
+    expect(messagesOf(sent[0].body).at(-1)).toEqual({
+      role: "user",
+      content: "hi",
+    });
+    expect(
+      memory.entries.filter((entry) => entry.report).map((e) => e.context)
+    ).toEqual([{ mode: "tutorial", what: "now" }]);
+  });
+
   it("asks Anthropic for droppable updates, effort, fallbacks, a cached prompt and 64000 tokens", async () => {
     const sent = respond(anthropicText("ok", "end_turn"));
 
@@ -1038,7 +1130,7 @@ describe("the assistant's provider", () => {
       });
 
       await expect(defaultBackend().send("hi")).rejects.toThrow(
-        /^The free assistant is out of capacity for today\. It resets at 00:00 UTC, or bring your own key to keep going\.$/
+        /^The free assistant is out of capacity for now\. Try again later, or bring your own key to keep going\.$/
       );
       expect(refused()).toEqual([
         {
@@ -1080,26 +1172,26 @@ describe("the assistant's provider", () => {
       it("holds after a daily-cap refusal", async () => {
         refuses(429, { error: "server text", reason: "daily-cap" });
         await expect(defaultBackend().send("hi")).rejects.toThrow();
-        expect(PgAssistant.limitReachedUntil).toBeDefined();
+        expect(PgAssistant.limitReached?.reason).toBe("daily-cap");
       });
 
       it("holds after a spent-pool refusal", async () => {
         refuses(503, { error: "server text", reason: "pool-exhausted" });
         await expect(defaultBackend().send("hi")).rejects.toThrow();
-        expect(PgAssistant.limitReachedUntil).toBeDefined();
+        expect(PgAssistant.limitReached).toEqual({ reason: "pool-exhausted" });
       });
 
       it("does not hold after a signed-out refusal", async () => {
         refuses(401, { error: "Sign in.", reason: "signed-out" });
         await expect(defaultBackend().send("hi")).rejects.toThrow();
-        expect(PgAssistant.limitReachedUntil).toBeUndefined();
+        expect(PgAssistant.limitReached).toBeUndefined();
       });
 
       it("lifts once a turn goes through", async () => {
-        PgAssistant.markLimitReached();
+        PgAssistant.markLimitReached("daily-cap");
         respond(openAiText("Hi."));
         await defaultBackend().send("hi");
-        expect(PgAssistant.limitReachedUntil).toBeUndefined();
+        expect(PgAssistant.limitReached).toBeUndefined();
       });
     });
 

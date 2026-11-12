@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { IdlReading } from "@/entities/idl";
+import { IdlBuildGuide } from "@/features/idl-build-guide";
 import { createLogger } from "@/shared/lib/logger";
 
 import { useAirdrop } from "../../../components/Wallet/hooks/useAirdrop";
@@ -28,7 +29,7 @@ import type { DeployRecord } from "../state/deploy-history";
 import { PgDeployHistory } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
 import BaseInteract from "./BaseInteract";
-import IdlActions from "./IdlActions";
+import IdlActions, { loadIdlFile, openInteract } from "./IdlActions";
 import { builtAfterDeploy, solNeeded } from "./interact-callouts";
 import { interactFacts, interactSurface } from "./interact-surface";
 import InteractBody from "./InteractBody";
@@ -133,7 +134,7 @@ const Interact = () => {
   // The fee payer cannot pay one fee (Spec 12): only with a wallet to pay
   const wallet = useWallet();
   const balance = useBalance();
-  const { airdrop, faucet } = useAirdrop();
+  const { airdrop, faucet } = useAirdrop("stage");
   const short =
     wallet && typeof balance === "number" && solNeeded(balance) && cluster
       ? {
@@ -170,6 +171,13 @@ const Interact = () => {
       network={networkInSentence(cluster)}
       onGoTo={(stage) => PgFlow.setStage(stage)}
       idlLoad={<IdlActions mode="upload" />}
+      idlGuide={
+        <IdlBuildGuide
+          surface="interact"
+          onLoadIdl={loadIdlFile}
+          onInteract={openInteract}
+        />
+      }
       idlRefusal={idlRefusal(PgProgramInfo.readIdl())}
       programId={programId ?? undefined}
       builtAfterDeploy={builtAfterDeploy(buildAt, deployAt)}

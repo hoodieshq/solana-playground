@@ -1,19 +1,10 @@
 import type { Page } from "@playwright/test";
 
-import { expect, seedWorkspace, test } from "./fixtures";
+import { editorTookFocus, expect, seedWorkspace, test } from "./fixtures";
+import { linesOn } from "./telemetry";
 import { DESK } from "./viewports";
 
 const ISSUES = "https://github.com/solana-foundation/solana-playground/issues";
-
-/** The telemetry event lines the page logs from now on, as `[telemetry:event] <name> {<params>}` */
-const linesOn = (page: Page) => {
-  const lines: string[] = [];
-  page.on("console", (message) => {
-    const text = message.text();
-    if (text.startsWith("[telemetry:event]")) lines.push(text);
-  });
-  return lines;
-};
 
 /** The feedback entries sit in the account menu, opened from the footer's account row */
 const openMenu = (page: Page) =>
@@ -80,7 +71,7 @@ test("client-v2-feedback: A link from the menu", async ({
     .toBeTruthy();
   const line = lines.find((l) => l.includes("feedback_github_clicked"));
   expect(line).toContain("link: bug");
-  expect(line).toContain("from: menu");
+  expect(line).toContain("via: menu");
 });
 
 // The form is out of reach here (no Sentry on the dev server), so a draft
@@ -95,7 +86,7 @@ test("the account menu opens from the rail on a narrow window", async ({
   await page.setViewportSize({ width: 800, height: 812 });
   // The editor focuses itself when it opens the first file; landing after the
   // menu opened, it would close the menu
-  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused();
+  await editorTookFocus(page);
 
   await page
     .locator('[data-slot="sidebar"]')

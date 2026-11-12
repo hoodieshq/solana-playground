@@ -28,6 +28,8 @@ vi.mock("../../../../utils", () => {
   return {
     PgConnection: {
       cluster: "devnet",
+      clusterIsStale: false,
+      hasClusterReadFailed: false,
       current: rpc.selected,
       getReadBufferConnection: () => rpc.readBuffer,
     },
@@ -44,7 +46,7 @@ vi.mock("../../../../utils", () => {
       BpfLoaderUpgradeableProgram: { getBufferAccountSize: (n: number) => n },
       PublicKey: class {},
     },
-    PgTerminal: { println },
+    PgTerminal: { println, warning: (text: string) => `warning: ${text}` },
   };
 });
 vi.mock("../../../../commands/deploy/bpf-loader-upgradeable", () => ({
@@ -86,6 +88,48 @@ const startedPort = () => {
   return port;
 };
 
+describe("realDeployPort().refusal", () => {
+  // HOO-2728: right after a switch to a custom RPC the cached name is still
+  // the old network's, which may hide mainnet behind "devnet"
+  it("refuses while the network's name is still the previous endpoint's", () => {
+    Object.defineProperty(PgConnection, "clusterIsStale", {
+      value: true,
+      configurable: true,
+    });
+    try {
+      expect(realDeployPort().refusal()).toBe(
+        "The network is still loading. Try again in a moment."
+      );
+    } finally {
+      Object.defineProperty(PgConnection, "clusterIsStale", {
+        value: false,
+        configurable: true,
+      });
+    }
+  });
+});
+
+describe("realDeployPort().refusal on a failed read", () => {
+  // A custom RPC that is down never stops being stale; the learner gets the
+  // devnet line, not a wait that never ends
+  it("says devnet when the network's read failed", () => {
+    const set = (key: string, value: unknown) =>
+      Object.defineProperty(PgConnection, key, { value, configurable: true });
+    set("clusterIsStale", true);
+    set("hasClusterReadFailed", true);
+    set("cluster", undefined);
+    try {
+      expect(realDeployPort().refusal()).toBe(
+        "Tutorials deploy to devnet. Switch the network to devnet in Settings and try again."
+      );
+    } finally {
+      set("clusterIsStale", false);
+      set("hasClusterReadFailed", false);
+      set("cluster", "devnet");
+    }
+  });
+});
+
 describe("realDeployPort().writeBuffer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -103,6 +147,37 @@ describe("realDeployPort().writeBuffer", () => {
     expect(rpc.readBuffer.getAccountInfo).toHaveBeenCalled();
     expect(rpc.selected.getAccountInfo).not.toHaveBeenCalled();
     expect(loader.loadBuffer.mock.calls[0][2]).toMatchObject({ onWrite });
+  });
+
+  it("prints a refused write and a rate limit as warnings, as the Deploy stage does", async () => {
+    loader.loadBuffer.mockImplementationOnce(async (...args: unknown[]) => {
+      const opts = args[2] as {
+        onRefusal: (message: string) => void;
+        onRateLimit: (retryAfter: number, reason: string) => void;
+      };
+      opts.onRefusal(
+        "Transaction simulation failed: Insufficient funds for fee"
+      );
+      opts.onRateLimit(10, "Solana RPC: Too many requests");
+      return undefined;
+    });
+
+    await startedPort().writeBuffer(
+      new Uint8Array(10),
+      { deployed: false },
+      vi.fn()
+    );
+
+    expect(println.mock.calls).toEqual([
+      [
+        "warning: Warning: The cluster refused a buffer write (Transaction simulation failed: Insufficient funds for fee), sending it again...",
+        { noColor: true },
+      ],
+      [
+        "warning: Warning: Reached rate-limits (Solana RPC: Too many requests), waiting 10s...",
+        { noColor: true },
+      ],
+    ]);
   });
 
   it("sends on the connection the run started on after the settings switch it", async () => {

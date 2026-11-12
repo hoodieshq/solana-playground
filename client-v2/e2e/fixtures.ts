@@ -47,6 +47,25 @@ export const startProject = async (page: Page, name: string, timeout = {}) => {
 export const filesToggle = (page: Page) => page.locator("#editor-head-files");
 
 /**
+ * The editor holding the focus it takes when it mounts and opens the current
+ * file. Monaco is a lazy chunk, and on a loaded runner it arrives well past
+ * an assertion's 20 s (30 s seen on CI): the wait is the page load's,
+ * as for the About page's Start.
+ */
+export const editorTookFocus = (page: Page) =>
+  expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused(LONG);
+
+/**
+ * A reload, then the app up again: every lazy chunk is fetched anew, so the
+ * app's boot, not the step a test waits for after the reload, spends that
+ * step's timeout
+ */
+export const reloadAndBoot = async (page: Page) => {
+  await page.reload();
+  await editorTookFocus(page);
+};
+
+/**
  * The About page's Start, which begins a tutorial. The page draws it only once
  * the tutorial's lazy chunk loads, which a cold dev server compiles in more
  * than an action's 10 s: the wait names the button if it never comes. `exact`
@@ -177,6 +196,16 @@ const startOnPublicDevnet = (context: BrowserContext) =>
     );
   });
 
+/**
+ * Lets the page read and write the clipboard. Chromium needs the permissions;
+ * Firefox rejects their names ("Unknown permission: clipboard-read") and
+ * allows the async clipboard without them.
+ */
+export const grantClipboard = async (context: BrowserContext) => {
+  if (context.browser()?.browserType().name() !== "chromium") return;
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+};
+
 export const test = base.extend<{ seededPage: Page }>({
   context: async ({ context }, use) => {
     await startOnPublicDevnet(context);
@@ -184,11 +213,17 @@ export const test = base.extend<{ seededPage: Page }>({
   },
   // `E2E_CPU_THROTTLE=<n>` slows the test's page `n` times, to show a race
   // that only the runner hits (`docs/testing.md`, "Parallel runs")
-  page: async ({ page }, use) => {
+  page: async ({ page, browserName }, use) => {
     const rate = Number(process.env.E2E_CPU_THROTTLE ?? 1);
     if (!(Number.isFinite(rate) && rate >= 1)) {
       throw new Error(
         `E2E_CPU_THROTTLE must be a number of 1 or more, got "${process.env.E2E_CPU_THROTTLE}".`
+      );
+    }
+    // The throttle goes through CDP, which only Chromium speaks
+    if (rate > 1 && browserName !== "chromium") {
+      throw new Error(
+        `E2E_CPU_THROTTLE works on Chromium only; run it with --project=chromium, not ${browserName}.`
       );
     }
     if (rate > 1) {
@@ -205,9 +240,7 @@ export const test = base.extend<{ seededPage: Page }>({
     // machine that lands after a test has already put the focus somewhere
     // else -- a right-clicked file -- and takes it away. Hand the page over
     // once the editor holds the focus, so it has nothing left to take.
-    await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused(
-      LONG
-    );
+    await editorTookFocus(page);
     await use(page);
   },
 });

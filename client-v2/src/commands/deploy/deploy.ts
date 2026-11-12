@@ -1,3 +1,4 @@
+import { faucetClosedLineFor, isFaucetClosed } from "@/shared/lib/faucet";
 import { createLogger, toError } from "@/shared/lib/logger";
 import { networkHold } from "@/widgets/status";
 
@@ -18,15 +19,22 @@ import {
   Wallet,
 } from "../../utils";
 import { StoppedError, throwIfStopped } from "../../utils/stopped";
+import { TerminalLineError } from "../../utils/terminal/line-error";
+import {
+  getAirdropEndpoint,
+  isFaucetKnownClosed,
+} from "../airdrop/closed-faucet";
 import { isAirdropSignInGated } from "../airdrop/sign-in-gate";
+import { withAirdropVia } from "../airdrop/via";
 import { checkWallet } from "../checks";
 import { createCmd } from "../create";
 import { additionalProgramLen } from "./additional-len";
 import { airdropTopUp } from "./airdrop-top-up";
 import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
-import { MAINNET_DEPLOY_WARNING, warnsOnDeploy } from "./mainnet-warning";
+import { checkNotMainnet, refuseMainnet } from "./check-not-mainnet";
 import { NetworkRefusedError } from "./network-refused";
 import { forgetOpenBuffer, recordOpenBuffer } from "./open-buffers";
+import { refusedWriteLine } from "./refused-write";
 import type { DeployResult, FundingFailure } from "./run";
 import { DeployCancelledError, DeployFundingError, PgDeployRun } from "./run";
 import type { StoppedBuffer } from "./stopped";
@@ -38,6 +46,32 @@ import {
 
 const log = createLogger("commands:deploy");
 
+/**
+ * The airdrop confirms on the cluster's own RPC, which can run ahead of the
+ * selected one. Waits until the selected RPC reads more than `before` for the
+ * wallet, so the balance the run's cost is measured from includes the airdrop.
+ * Gives up after a few seconds and goes on: the buffer's own retries cover a
+ * longer lag, and a cost read before the funds show would only be understated.
+ */
+const FUNDS_WAIT_TRIES = 6;
+const FUNDS_WAIT_MS = 1000;
+
+const waitForFundsOn =
+  (connection: PgWeb3.Connection) =>
+  async (address: PgWeb3.PublicKey, before: number) => {
+    for (let tries = 0; tries < FUNDS_WAIT_TRIES; tries++) {
+      try {
+        if ((await connection.getBalance(address)) > before) return;
+      } catch (e) {
+        log.warn("could not read the balance after the airdrop", {
+          context: { error: e instanceof Error ? e.message : String(e) },
+        });
+        return;
+      }
+      await PgCommon.sleep(FUNDS_WAIT_MS);
+    }
+  };
+
 const reclaimRejectedLineFor = (readBufferUrl: string | undefined) =>
   `${PgTerminal.error("Reclaim rejected.")} Run \`${closeBuffersCommandFor(
     readBufferUrl
@@ -47,7 +81,8 @@ export const deploy = createCmd({
   name: "deploy",
   description: "Deploy your program",
   needsConnection: true,
-  preChecks: [checkNetwork, checkWallet, checkProgram],
+  // Mainnet first: refused before the wallet question and before any send
+  preChecks: [checkNotMainnet, checkNetwork, checkWallet, checkProgram],
   stoppable: true,
   handle: async ({ signal, lockStop }): Promise<DeployResult | undefined> => {
     switch (PgGlobal.deployState) {
@@ -65,9 +100,6 @@ export const deploy = createCmd({
     }
 
     PgView.setMainSecondaryProgress(0.1);
-    if (warnsOnDeploy(PgConnection.cluster)) {
-      PgTerminal.println(PgTerminal.warning(MAINNET_DEPLOY_WARNING));
-    }
     PgTerminal.println(
       `${PgTerminal.info(
         "Deploying..."
@@ -103,29 +135,6 @@ function throwIfNetworkChanged(connection: typeof PgConnection.current) {
     throw new Error(
       "The network changed during the deploy, so an airdrop would fund another network. Deploy again."
     );
-  }
-}
-
-/**
- * The network `connection` points at. Read from its own endpoint:
- * `PgConnection.cluster` is derived asynchronously and can still name the
- * previous network right after a switch.
- */
-async function clusterOf(
-  connection: typeof PgConnection.current
-): Promise<DeployResult["cluster"]> {
-  try {
-    return await PgConnection.getCluster(connection.rpcEndpoint);
-  } catch (error) {
-    // A custom endpoint whose genesis hash cannot be read: the deploy itself
-    // goes on, its network unknown. The network selected now may be another
-    // one, so a record under it would be the wrong-network record this
-    // function exists to prevent.
-    log.warn("could not read the deploy's cluster; it is not recorded", {
-      context: { error: String(error) },
-    });
-    // eslint-disable-next-line unicorn/no-null -- `DeployResult.cluster` is `null` for an unknown network
-    return null;
   }
 }
 
@@ -257,23 +266,28 @@ const processDeploy = async (
   // how much SOL user needs before creating the buffer. The run keeps this
   // connection and what the program info says about its network: a network
   // change from here on must not split it across two networks.
+  // Taken together, before the network read below: a network change during
+  // that read refreshes the program info for the other network.
   const connection = PgConnection.current;
+  const onChain = PgProgramInfo.onChain;
+  if (!onChain) throw new Error("Failed to get on-chain program info");
+  const programExists = onChain.deployed;
+  const additionalLen = additionalLenFor(onChain)(programLen);
+  // Again on the run's own connection, before any send: the network can move
+  // to mainnet while the pre-checks' wallet question waits (HOO-2728). Read
+  // from its endpoint, so the record files under the network it went to.
+  const cluster = await refuseMainnet(connection.rpcEndpoint);
   // The platform RPC does not return fresh buffers
   const bufferConnection = PgConnection.getReadBufferConnection(connection);
   const readBufferUrl =
     bufferConnection === connection ? undefined : bufferConnection.rpcEndpoint;
-  const onChain = PgProgramInfo.onChain;
-  if (!onChain) throw new Error("Failed to get on-chain program info");
-  const programExists = onChain.deployed;
-  const additionalLen = getAdditionalLen(programLen);
   const sendAndConfirmTxWithRetries =
     sendAndConfirmTxWithRetriesFor(connection);
-  const [userBalance, bufferBalance, cluster] = await Promise.all([
+  const [userBalance, bufferBalance] = await Promise.all([
     connection.getBalance(wallet.publicKey),
     connection.getMinimumBalanceForRentExemption(
       PgWeb3.BpfLoaderUpgradeableProgram.getBufferAccountSize(programLen)
     ),
-    clusterOf(connection),
   ]);
 
   // Nothing is sent yet; a stop here leaves nothing behind
@@ -317,6 +331,12 @@ const processDeploy = async (
       if (answers) throw short("no_faucet");
       throw new Error(msg);
     }
+    // The faucet answered closed this session: the top-up points to the web
+    // faucet without asking it again (the `airdrop` command still asks)
+    const closedFaucetLine =
+      PgConnection.cluster && isFaucetKnownClosed(getAirdropEndpoint())
+        ? faucetClosedLineFor(PgConnection.cluster)(wallet.publicKey.toBase58())
+        : undefined;
 
     if (answers) {
       // The stage asks nothing. Only a public faucet needs a session
@@ -329,6 +349,7 @@ const processDeploy = async (
       // Without automatic airdrop the stage stops at its funding card, and
       // only the card's "Request airdrop" press spends faucet quota
       if (!answers.airdrop) throw short("airdrop_off");
+      if (closedFaucetLine) throw shortWith(closedFaucetLine)("airdrop_failed");
       PgTerminal.println(PgTerminal.warning(`Warning: ${msg}`), {
         noColor: true,
       });
@@ -337,6 +358,7 @@ const processDeploy = async (
       const term = await PgTerminal.get();
       term.println(PgTerminal.warning(`Warning: ${msg}`), { noColor: true });
       throwIfStopped(signal, deployStoppedLine({ state: "none" }));
+      if (closedFaucetLine) throw new TerminalLineError(closedFaucetLine);
       // A stop while the question is open answers it, as "no" would; the
       // check below then ends the deploy as stopped, before any SOL moves
       const answerNo = () => {
@@ -368,16 +390,31 @@ const processDeploy = async (
     throwIfNetworkChanged(connection);
     PgDeployRun.update({ funds: true, step: "funding" });
     try {
-      await PgCommand.airdrop.execute(amount.toString());
+      await withAirdropVia(
+        () => PgCommand.airdrop.execute(amount.toString()),
+        "deploy"
+      );
     } catch (e) {
       if (!answers) throw e;
       // The stage shows the faucet's answer on its card; the error and its
-      // stack go to the logs, where a faucet regression can be found
-      log.error(e, { report: true, context: { what: "stage deploy airdrop" } });
+      // stack go to the logs, where a faucet regression can be found. A
+      // closed faucet is expected: a warning, never a report, and without
+      // the line, which carries the wallet's address
+      if (e instanceof TerminalLineError && isFaucetClosed(e.message)) {
+        log.warn("The faucet is closed", {
+          context: { what: "stage deploy airdrop" },
+        });
+      } else {
+        log.error(e, {
+          report: true,
+          context: { what: "stage deploy airdrop" },
+        });
+      }
       throw shortWith(e instanceof Error ? e.message : String(e))(
         "airdrop_failed"
       );
     }
+    await waitForFundsOn(connection)(wallet.publicKey, userBalance);
   }
 
   // What the run costs is measured from here on, so an airdrop above is not
@@ -711,6 +748,11 @@ const processDeploy = async (
             { noColor: true }
           );
         },
+        onRefusal: (message) => {
+          PgTerminal.println(PgTerminal.warning(refusedWriteLine(message)), {
+            noColor: true,
+          });
+        },
       }
     ).catch(async (e: unknown) => {
       if (signal.aborted) throw await stopWithBuffer();
@@ -859,16 +901,15 @@ const fetchProgramDataLenOn =
     return (await connection.getAccountInfo(programDataPk))?.data.length;
   };
 
-/** {@link additionalProgramLen} for the current program */
-const getAdditionalLen = (programLen: number) => {
-  const onChain = PgProgramInfo.onChain;
-  if (!onChain) throw new Error("Failed to get on-chain program info");
-  return additionalProgramLen({
-    programLen,
-    deployed: onChain.deployed,
-    onChainLen: onChain.programDataLen,
-  });
-};
+/** {@link additionalProgramLen} for the program as `onChain` read it */
+const additionalLenFor =
+  (onChain: NonNullable<typeof PgProgramInfo.onChain>) =>
+  (programLen: number) =>
+    additionalProgramLen({
+      programLen,
+      deployed: onChain.deployed,
+      onChainLen: onChain.programDataLen,
+    });
 
 /**
  * Load buffer with the ability to pause, resume and cancel on demand, and to

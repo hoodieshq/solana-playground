@@ -1,4 +1,5 @@
 import type { AnalyzerState } from "@/components/Editor/Monaco/languages/rust/rust-analyzer/status";
+import { clusterName } from "@/entities/cluster";
 
 /**
  * One indicator's state. `not-ready` waits on something outside it (offline,
@@ -87,10 +88,16 @@ export type AiInput =
   /** The hosted model refused a turn under its free daily limit; `until` is
    * when it comes back, as a time */
   | { kind: "limit"; until: number }
+  /** The hosted model refused a turn because its tier's pool is spent; only
+   * the upstream knows when it refills, so no time is named */
+  | { kind: "out-of-capacity" }
   /** `needsSignIn`: the default backend while nobody is signed in */
   | { kind: "off"; needsSignIn: boolean };
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** A cluster's name as the network chips show it: "Mainnet" for `mainnet-beta` */
+export const shownClusterName = (name: string) => capitalize(clusterName(name));
 
 const NETWORK_ACTION: StatusAction = {
   kind: "network",
@@ -101,7 +108,7 @@ export const networkIndicator = (
   { name, isConnected, slotStalled }: NetworkInput,
   online: boolean
 ): StatusIndicator => {
-  const shown = capitalize(name);
+  const shown = shownClusterName(name);
   const view = (
     state: StatusState,
     suffix: string | undefined,
@@ -206,6 +213,21 @@ export const aiIndicator = (ai: AiInput, online: boolean): StatusIndicator => {
       detail: `The free daily limit is used. It comes back at ${clockTime(
         ai.until
       )}, or add a key of your own to keep going.`,
+      action: ADD_KEY,
+      panel: { retry: false },
+    };
+  }
+  if (ai.kind === "out-of-capacity") {
+    // Waiting too, with the chat's own sentence: no time to promise
+    return {
+      ...base,
+      state: "not-ready",
+      words: "AI · Limit reached",
+      label: "AI, limit reached",
+      railLabel: "AI, limit reached",
+      tip: "AI · Limit reached",
+      detail:
+        "The free assistant is out of capacity for now. Try again later, or add a key of your own to keep going.",
       action: ADD_KEY,
       panel: { retry: false },
     };
@@ -400,6 +422,20 @@ if (import.meta.vitest) {
         ]);
       });
 
+      // HOO-2488: the chips' name, never "Mainnet-beta"; the settings
+      // trigger's names keep the moniker its lookups use
+      it("shows mainnet-beta as Mainnet", () => {
+        const n = networkIndicator(
+          { name: "mainnet-beta", isConnected: true, slotStalled: false },
+          true
+        );
+        expect([n.words, n.tip, n.label]).toEqual([
+          "Mainnet",
+          "Mainnet · Ready",
+          "Change cluster, currently mainnet-beta",
+        ]);
+      });
+
       it("is connecting until the connection first answers", () => {
         const n = networkIndicator(
           { name: "devnet", isConnected: null, slotStalled: null },
@@ -529,6 +565,20 @@ if (import.meta.vitest) {
         ]);
         expect(a.detail).toBe(
           "The free daily limit is used. It comes back at 05:00, or add a key of your own to keep going."
+        );
+      });
+
+      it("reads Limit reached after a spent pool, with a panel naming no time", () => {
+        const a = aiIndicator({ kind: "out-of-capacity" }, true);
+        expect([a.state, a.words, a.label, a.panel, a.action]).toEqual([
+          "not-ready",
+          "AI · Limit reached",
+          "AI, limit reached",
+          { retry: false },
+          { kind: "ai", text: "Add an API key" },
+        ]);
+        expect(a.detail).toBe(
+          "The free assistant is out of capacity for now. Try again later, or add a key of your own to keep going."
         );
       });
 

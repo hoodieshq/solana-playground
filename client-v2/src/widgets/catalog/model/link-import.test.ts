@@ -21,28 +21,39 @@ vi.mock("@/features/gist", async () => {
 
 vi.mock("@/utils", () => {
   class ImportCancelledError extends Error {}
-  class GithubNotFoundError extends Error {
-    readonly owner: string;
-    readonly repo: string;
-    constructor(given: { owner: string; repo: string; message: string }) {
-      super(given.message);
-      this.owner = given.owner;
-      this.repo = given.repo;
+  class GithubImportError extends Error {
+    constructor(message: string, readonly reason: string) {
+      super(message);
+    }
+  }
+  class ConversionError extends Error {
+    constructor(message: string, readonly reason: string) {
+      super(message);
     }
   }
   return {
     ImportCancelledError,
-    GithubNotFoundError,
+    GithubImportError,
+    ConversionError,
     PgGithub: {
       isValidUrl: (url: string) =>
         /^(https:\/\/?)?(www\.)?github\.com\/.+?\/.+/.test(url),
       import: mockGithubImport,
+      parseUrl: (url: string) => {
+        const [, owner, repo] = /github\.com\/([\w-]+)\/([\w-]+)/.exec(url)!;
+        return { owner, repo };
+      },
     },
   };
 });
 
 import { GistImportError } from "@/features/gist";
-import { GithubNotFoundError, ImportCancelledError } from "@/utils";
+import type { ConversionReason, GithubImportReason } from "@/utils";
+import {
+  ConversionError,
+  GithubImportError,
+  ImportCancelledError,
+} from "@/utils";
 
 import { BAD_LINK, importLink } from "./link-import";
 
@@ -105,13 +116,11 @@ describe("importLink says why an import failed", () => {
   });
 
   it("says a repository GitHub cannot find may be private", async () => {
-    const error = new GithubNotFoundError({
-      owner: "acme",
-      repo: "escrow-private",
-      message: "not found",
-    });
+    const error = new GithubImportError("not found", "not-found");
     failWith(error);
-    await expect(importLink(REPO)).resolves.toEqual({
+    await expect(
+      importLink("https://github.com/acme/escrow-private")
+    ).resolves.toEqual({
       outcome: "failed",
       source: "github",
       reason: "not-found",
@@ -133,34 +142,34 @@ describe("importLink says why an import failed", () => {
     });
   });
 
-  it.each([
-    [
-      "GitHub's hourly request limit for this browser has been reached. Please try again later.",
-      "rate-limited",
-    ],
-    [
-      'Repository "a/b" is too large to import because GitHub only returns part of its file list.',
-      "too-large",
-    ],
-    ["No program code found in a/b.", "no-program"],
-    [
-      "This doesn't look like a Solana program. Playground opens Anchor, native Rust and Seahorse programs.",
-      "no-program",
-    ],
-    ['GitHub request for "a/b" failed with status 500.', "network"],
-    ['GitHub refused the request for "a/b".', "network"],
-  ])("reads %s as %s, showing it as it is", async (message, reason) => {
-    failWith(new Error(message));
+  it.each<[GithubImportReason, string]>([
+    ["rate-limited", "rate-limited"],
+    ["too-large", "too-large"],
+    ["no-source", "no-program"],
+    ["other", "network"],
+  ])("reads GitHub's %s as %s, showing its message", async (given, reason) => {
+    failWith(new GithubImportError("GitHub said no.", given));
     await expect(importLink(REPO)).resolves.toMatchObject({
       outcome: "failed",
       source: "github",
       reason,
-      message,
+      message: "GitHub said no.",
     });
   });
 
+  it.each<ConversionReason>(["unsupported", "no-source"])(
+    "reads a %s conversion as no program, showing its message",
+    async (given) => {
+      failWith(new ConversionError("Not a program.", given));
+      await expect(importLink(REPO)).resolves.toMatchObject({
+        reason: "no-program",
+        message: "Not a program.",
+      });
+    }
+  );
+
   it("says GitHub could not be reached when the request never got an answer", async () => {
-    failWith(new TypeError("Failed to fetch"));
+    failWith(new GithubImportError("GitHub did not answer.", "network"));
     await expect(importLink(REPO)).resolves.toMatchObject({
       outcome: "failed",
       reason: "network",
@@ -178,7 +187,7 @@ describe("importLink says why an import failed", () => {
     });
   });
 
-  it("calls a TypeError that is not a failed fetch unexpected", async () => {
+  it("calls a TypeError unexpected: PgGithub names an unanswered request", async () => {
     failWith(new TypeError("Cannot read properties of undefined"));
     await expect(importLink(REPO)).resolves.toMatchObject({
       reason: "unexpected",

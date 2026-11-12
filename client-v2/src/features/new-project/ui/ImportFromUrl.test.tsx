@@ -78,7 +78,7 @@ it("imports the link, then hands over and counts it", async () => {
 
   expect(onRunning.mock.calls).toEqual([[true], [false]]);
   expect(onImported).toHaveBeenCalledTimes(1);
-  expect(named("new_project_imported")).toEqual([{ source: "github" }]);
+  expect(named("new_project_imported")).toEqual([{ via: "github" }]);
   expect(named("new_project_import_failed")).toEqual([]);
 });
 
@@ -127,7 +127,7 @@ it("shows why it failed under the field, counts it and passes it up", async () =
   expect(onFailed).toHaveBeenCalledWith(message);
   expect(onImported).not.toHaveBeenCalled();
   expect(named("new_project_import_failed")).toEqual([
-    { source: "unknown", reason: "bad-link" },
+    { via: "unknown", reason: "bad-link" },
   ]);
   // The user's own link: a warning, not a report
   expect(logged.entries.map((e) => e.report ?? false)).toEqual([false]);
@@ -202,7 +202,7 @@ it("releases the page and says so when the import itself throws", async () => {
   expect(field().disabled).toBe(false);
   expect(screen.getByText("Could not import it.")).toBeTruthy();
   expect(named("new_project_import_failed")).toEqual([
-    { source: "unknown", reason: "unexpected" },
+    { via: "unknown", reason: "unexpected" },
   ]);
   expect(logged.entries.map((e) => e.report)).toEqual([true]);
 });

@@ -58,10 +58,58 @@ describe("AsyncButton", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(screen.getByRole("button").textContent).toBe("Sending...");
+    expect(screen.getByRole("button").getAttribute("aria-busy")).toBe("true");
+    // Exactly the label it shows: the spinner adds no "Loading" to the name
+    expect(screen.getByRole("button", { name: "Sending..." })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Send$/ })).toBeNull();
 
     await act(async () => resolve());
-    expect(screen.getByRole("button").textContent).toBe("Send");
+    expect(screen.getByRole("button", { name: "Send" })).toBeTruthy();
+  });
+
+  // HOO-2795: swapping the label resized the button, so the row beside it
+  // moved while it waited
+  it("keeps both labels in one cell and hides the one not shown", async () => {
+    let resolve: () => void = () => {};
+    const work = new Promise<void>((r) => (resolve = r));
+    render(
+      <AsyncButton onClick={() => work} loadingText="Sending...">
+        Send
+      </AsyncButton>
+    );
+    const layerOf = (text: string) => {
+      const layer = screen.getByText(text, { exact: true });
+      const cell = layer.parentElement;
+      if (!cell) throw new Error(`"${text}" has no cell around it`);
+      return { layer, cell };
+    };
+
+    const idle = layerOf("Send");
+    const busy = layerOf("Sending...");
+    expect(idle.cell).toBe(busy.cell);
+    expect(idle.cell.classList).toContain("inline-grid");
+    for (const { layer } of [idle, busy]) {
+      expect(layer.classList).toContain("col-start-1");
+      expect(layer.classList).toContain("row-start-1");
+    }
+    expect(idle.layer.hasAttribute("aria-hidden")).toBe(false);
+    expect(busy.layer.getAttribute("aria-hidden")).toBe("true");
+    expect(busy.layer.classList).toContain("invisible");
+    // Hidden, the spinner does not spin
+    const spinner = busy.layer.querySelector('[data-slot="spinner"]');
+    expect(spinner?.classList).toContain("animate-none");
+
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(idle.layer.getAttribute("aria-hidden")).toBe("true");
+    expect(idle.layer.classList).toContain("invisible");
+    expect(busy.layer.hasAttribute("aria-hidden")).toBe(false);
+    expect(busy.layer.classList).not.toContain("invisible");
+    expect(spinner?.classList).not.toContain("animate-none");
+    expect(spinner?.classList).toContain("animate-spin");
+
+    await act(async () => resolve());
+    expect(idle.layer.hasAttribute("aria-hidden")).toBe(false);
+    expect(busy.layer.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("keeps its own wait when loading is false", async () => {
@@ -163,23 +211,34 @@ describe("AsyncButton", () => {
 });
 
 describe("CopyButton", () => {
-  const renderCopy = (onError = vi.fn()) => {
+  const renderCopy = () => {
+    const onError = vi.fn();
+    const onCopied = vi.fn();
     render(
       <TooltipProvider>
-        <CopyButton value="https://beta.solpg.io/abc" onError={onError} />
+        <CopyButton
+          value="https://beta.solpg.io/abc"
+          onError={onError}
+          onCopied={onCopied}
+        />
       </TooltipProvider>
     );
-    return { onError, button: screen.getByRole("button", { name: "Copy" }) };
+    return {
+      onError,
+      onCopied,
+      button: screen.getByRole("button", { name: "Copy" }),
+    };
   };
 
-  it("writes its value and says Copied", async () => {
+  it("writes its value, says Copied, and tells onCopied", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-    const { button } = renderCopy();
+    const { button, onCopied } = renderCopy();
 
     await act(async () => fireEvent.click(button));
     expect(writeText).toHaveBeenCalledWith("https://beta.solpg.io/abc");
     expect(button.getAttribute("aria-label")).toBe("Copied");
+    expect(onCopied).toHaveBeenCalledTimes(1);
   });
 
   it("does not say Copied when the clipboard refuses, and reports it", async () => {
@@ -187,11 +246,12 @@ describe("CopyButton", () => {
     vi.stubGlobal("navigator", {
       clipboard: { writeText: vi.fn().mockRejectedValue(refusal) },
     });
-    const { button, onError } = renderCopy();
+    const { button, onError, onCopied } = renderCopy();
 
     await act(async () => fireEvent.click(button));
     expect(onError).toHaveBeenCalledWith(refusal);
     expect(button.getAttribute("aria-label")).toBe("Copy");
+    expect(onCopied).not.toHaveBeenCalled();
   });
 
   it("reports a browser with no clipboard", async () => {

@@ -2,8 +2,9 @@ export {
   buildConnectionWith,
   fetchClusterByGenesisHash,
   getConnectionFor,
-  getReadBufferConnectionFor,
+  getNativeConnectionFor,
   getUnretriedConnectionFor,
+  UnknownClusterError,
 } from "./api/connection";
 export type {
   Cluster,

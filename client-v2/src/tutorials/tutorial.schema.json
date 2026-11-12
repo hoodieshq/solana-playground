@@ -555,6 +555,11 @@
                 "$ref": "#/definitions/callArg"
               },
               "minItems": 1
+            },
+            "creates": {
+              "description": "The account the instruction creates with Anchor's `init`, as the IDL names it. Give it on a one-time call that is not the step's goal: when the account already exists (a second pass with the same wallet), the card says so and the lesson goes on instead of stopping on the refusal.",
+              "type": "string",
+              "minLength": 1
             }
           }
         }
@@ -861,7 +866,7 @@
           "$ref": "#/definitions/text"
         },
         "failsWith": {
-          "description": "A line of the build log that marks the planned failure, e.g. \"cannot find type `Hello` in this scope\". A failed build is the planned one only when its log holds it.",
+          "description": "A line of the build log that marks the planned failure, e.g. \"could not find `__client_accounts_hello`\". A failed build is the planned one only when its log holds it.",
           "type": "string",
           "minLength": 1
         },

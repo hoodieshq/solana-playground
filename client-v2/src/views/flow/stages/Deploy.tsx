@@ -5,10 +5,12 @@ import { isSignInFailure, PgSession } from "@/features/auth";
 import type { GuideFrom } from "@/features/cli-deploy";
 import { CliDeployGuide } from "@/features/cli-deploy";
 import { PgStageDeploy, useDeployRun, useStageDeploy } from "@/features/deploy";
+import { IdlBuildGuide } from "@/features/idl-build-guide";
 import { ProgramKeypair } from "@/features/program-keypair";
 import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { requestConsole } from "@/widgets/layout-shell";
+import { pickNetwork } from "@/widgets/settings-page";
 import { useNetworkHold } from "@/widgets/status";
 
 import {
@@ -19,13 +21,7 @@ import {
   useWallet,
 } from "../../../hooks";
 import type { Cluster } from "../../../utils";
-import {
-  PgConnection,
-  PgExplorer,
-  PgGlobal,
-  PgSettings,
-  PgWallet,
-} from "../../../utils";
+import { PgConnection, PgExplorer, PgGlobal, PgWallet } from "../../../utils";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgDeployHistory } from "../state/deploy-history";
 import type { FlowState } from "../state/stage";
@@ -33,7 +29,11 @@ import { PgFlow } from "../state/stage";
 import type { DeployDetails, DeployPayer } from "./BaseDeploy";
 import BaseDeploy from "./BaseDeploy";
 import { deployViewFor } from "./deploy-view";
-import IdlActions, { useIdlName } from "./IdlActions";
+import IdlActions, {
+  loadIdlFile,
+  openInteract,
+  useIdlName,
+} from "./IdlActions";
 import { markIfToldByStage } from "./stage-failure";
 
 const log = createLogger("flow:deploy");
@@ -77,12 +77,12 @@ const signInThenDeploy = async () => {
 };
 
 /**
- * Switches the connection to the offered network of this cluster, as a pick
- * in Settings does
+ * Switches the connection to the offered network of this cluster through
+ * Settings' pick, so a running deploy or `anchor idl` write keeps its network
  */
 const showNetwork = (cluster: string) => {
   const network = NETWORKS.find((n) => n.cluster === cluster);
-  if (network) PgSettings.connection.endpoint = network.value;
+  if (network) pickNetwork(network.value);
 };
 
 /** The Deploy stage, connected: the flow, the history, the chain, commands */
@@ -209,6 +209,13 @@ const Deploy = ({ onChangeNetwork }: { onChangeNetwork: () => void }) => {
         }
         onShowNetwork={showNetwork}
         idlUpload={<IdlActions mode="upload-button" />}
+        idlGuide={
+          <IdlBuildGuide
+            surface="deploy"
+            onLoadIdl={loadIdlFile}
+            onInteract={openInteract}
+          />
+        }
         idlName={idlName}
         // Keyed on the project: an open dialog or a note never carries over
         // to another project's keypair

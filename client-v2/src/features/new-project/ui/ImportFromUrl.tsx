@@ -86,7 +86,7 @@ const ImportFromUrl = ({
           log.warn("import refused", { context: { source, reason, message } });
         }
         newProjectTelemetry.track("new_project_import_failed", {
-          source,
+          via: source,
           reason,
         });
         setStatus({ state: "failed", error: message });
@@ -98,7 +98,7 @@ const ImportFromUrl = ({
         // The project is open from here on: nothing below may call it a
         // failure
         newProjectTelemetry.track("new_project_imported", {
-          source: result.source,
+          via: result.source,
         });
         setStatus({ state: "idle" });
         try {
