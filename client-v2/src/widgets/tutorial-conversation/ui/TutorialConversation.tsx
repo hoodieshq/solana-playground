@@ -56,6 +56,7 @@ import { marksOf } from "../model/marks";
 import { mergeFeed } from "../model/merge";
 import { tutorialMode } from "../model/mode";
 import { announceDeploys } from "../model/runner";
+import { restartableIndex } from "../model/step-bar";
 import { tutorialTelemetry } from "../model/telemetry";
 import BaseAnswer from "./BaseAnswer";
 import BaseAskedBubble from "./BaseAskedBubble";
@@ -781,6 +782,9 @@ export const TutorialConversation = ({
   const running = view.turns.some(
     (t) => t.kind === "act" && t.state === "running"
   );
+  const restartAt = restartableIndex(view);
+  const restartable =
+    restartAt === null ? undefined : context.definition.steps[restartAt];
   return (
     <PhoneLayoutContext.Provider value={layout}>
       <BaseFeed
@@ -804,6 +808,12 @@ export const TutorialConversation = ({
         }
         live={view.live}
         steps={view.steps}
+        restart={
+          restartable && {
+            file: restartable.file,
+            onRestart: on.restartStep,
+          }
+        }
         onJump={onJump}
         onBack={onBack}
         renderTurn={(turn, live) => (

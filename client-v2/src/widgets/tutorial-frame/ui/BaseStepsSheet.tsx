@@ -2,6 +2,7 @@ import { Check, RotateCcw } from "lucide-react";
 
 import type { StepBarItem } from "@/features/tutorial-conversation";
 import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -38,6 +39,8 @@ export interface BaseStepsSheetProps {
   onPick: (index: number) => void;
   /** "Start over…" was pressed; absent, the row does not show */
   onStartOver?: () => void;
+  /** The head's "Restart this step" was pressed; absent, the button does not show */
+  onRestartStep?: () => void;
 }
 
 /** A step's mark: its number on a grey disc, a lighter disc while current, a check once done */
@@ -75,6 +78,7 @@ const BaseStepsSheet = ({
   started,
   onPick,
   onStartOver,
+  onRestartStep,
 }: BaseStepsSheetProps) => (
   <Sheet open={open} onOpenChange={onOpenChange}>
     <SheetContent side="bottom" showCloseButton={false} className={PHONE_SHEET}>
@@ -82,11 +86,32 @@ const BaseStepsSheet = ({
         aria-hidden
         className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-foreground/20"
       />
-      <SheetHeader className="gap-1 px-4 pt-3 pb-2 text-left">
-        <SheetTitle className="text-[1rem] leading-[1.35]">{name}</SheetTitle>
+      <SheetHeader className="relative gap-1 px-4 pt-3 pb-2 text-left">
+        <SheetTitle
+          className={cn(
+            "text-[1rem] leading-[1.35]",
+            started && onRestartStep && "pr-10"
+          )}
+        >
+          {name}
+        </SheetTitle>
         <SheetDescription className="text-caption">
           {passed} of {steps.length} steps done. Tap one to read it again.
         </SheetDescription>
+        {/* Beside the title, as the desktop step bar keeps it beside "Step n
+            of m": the way out of a step with nothing to press */}
+        {started && onRestartStep && (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Restart this step"
+            title="Restart this step"
+            onClick={onRestartStep}
+            className="absolute top-2 right-2 text-muted-foreground"
+          >
+            <RotateCcw className="size-4" />
+          </Button>
+        )}
       </SheetHeader>
       <nav
         aria-label="Tutorial steps"

@@ -40,6 +40,11 @@ export interface BaseTutorialPhoneHeadProps {
   /** Clears the tutorial's progress; absent, the sheet has no "Start over…" */
   onStartOver?: () => Promise<void>;
   /**
+   * The sheet's "Restart this step" was pressed; the caller asks first.
+   * Absent, the sheet has no such row.
+   */
+  onRestartStep?: () => void;
+  /**
    * The steps sheet, open or not. Held by the caller: the assistant's
    * open_menu opens it on a phone, where the frame's navigation is not drawn
    */
@@ -120,6 +125,7 @@ const BaseTutorialPhoneHead = ({
   onSpace,
   onJump,
   onStartOver,
+  onRestartStep,
   sheetOpen: sheet,
   onSheetOpenChange: setSheet,
 }: BaseTutorialPhoneHeadProps) => {
@@ -235,6 +241,14 @@ const BaseTutorialPhoneHead = ({
             ? () => {
                 setSheet(false);
                 setStartOver(true);
+              }
+            : undefined
+        }
+        onRestartStep={
+          onRestartStep
+            ? () => {
+                setSheet(false);
+                onRestartStep();
               }
             : undefined
         }

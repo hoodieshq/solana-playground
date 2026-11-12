@@ -1,5 +1,8 @@
 /* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
-import type { StepBarItem } from "@/features/tutorial-conversation";
+import type {
+  ConversationView,
+  StepBarItem,
+} from "@/features/tutorial-conversation";
 
 /**
  * From the step at index `at`, the step ⌥↑ (`by` -1) or ⌥↓ (`by` 1) moves the
@@ -25,6 +28,20 @@ export const liveStepIndex = (steps: readonly StepBarItem[]): number | null => {
   // learner is
   const done = steps.map((s) => s.state).lastIndexOf("done");
   return done === -1 ? null : done;
+};
+
+/**
+ * The step "Restart this step" would restart, by index: the current one while
+ * no act runs. Null before Start, after the finish and mid-run.
+ */
+export const restartableIndex = (
+  view: Pick<ConversationView, "steps" | "turns">
+): number | null => {
+  const isRunning = view.turns.some(
+    (t) => t.kind === "act" && t.state === "running"
+  );
+  const current = view.steps.findIndex((s) => s.state === "current");
+  return current === -1 || isRunning ? null : current;
 };
 
 if (import.meta.vitest) {

@@ -28,6 +28,7 @@ const props = (over: Partial<BaseStepBarProps> = {}): BaseStepBarProps => ({
   live: over.live === undefined ? 2 : over.live,
   viewing: over.viewing ?? null,
   onJump: over.onJump ?? vi.fn(),
+  restart: over.restart,
 });
 
 /** The step bar's segments, first to last */
@@ -120,6 +121,33 @@ describe("BaseStepBar", () => {
     expect(items[3].getAttribute("aria-disabled")).toBe("true");
     await userEvent.click(items[1]);
     expect(onJump).toHaveBeenCalledWith(1, "menu");
+  });
+
+  it("offers Restart this step beside the trigger, and restarts only once Reset confirms it", async () => {
+    const onRestart = vi.fn();
+    render(
+      <BaseStepBar
+        {...props({ restart: { file: "client/client.ts", onRestart } })}
+      />
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Restart this step" })
+    );
+    expect(
+      screen.getByRole("dialog", {
+        name: "Reset client/client.ts to this step's start?",
+      })
+    ).toBeTruthy();
+    expect(onRestart).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Reset" }));
+    expect(onRestart).toHaveBeenCalledTimes(1);
+  });
+
+  it("has no Restart this step when nothing can restart", () => {
+    render(<BaseStepBar {...props()} />);
+    expect(
+      screen.queryByRole("button", { name: "Restart this step" })
+    ).toBeNull();
   });
 
   it("reads 'Done · m of m' after the finish, every segment lit, the last step live", () => {

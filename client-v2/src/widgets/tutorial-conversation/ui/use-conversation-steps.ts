@@ -4,7 +4,7 @@ import { PgConversation } from "@/features/tutorial-conversation";
 import { PgExplorer } from "@/utils/explorer";
 
 import { requestStepJump } from "../model/jump";
-import { liveStepIndex } from "../model/step-bar";
+import { liveStepIndex, restartableIndex } from "../model/step-bar";
 import { useConversationState } from "./TutorialConversation";
 
 /** A step as the phone's steps sheet lists it: the bar's item and its objective */
@@ -25,6 +25,11 @@ export interface ConversationSteps {
   minutes: number;
   /** Brings step `index`'s heading into view in the feed */
   jump: (index: number) => void;
+  /**
+   * The live step's file and its restart, for the sheet's "Restart this
+   * step"; absent before Start, after the finish and while an act runs
+   */
+  restart?: { file: string; onRestart: () => void };
 }
 
 const NONE: ConversationSteps = {
@@ -61,6 +66,9 @@ export const useConversationSteps = (): ConversationSteps => {
   const objectives = new Map(
     context.definition.steps.map((step) => [step.id, step.objective])
   );
+  const restartAt = restartableIndex(view);
+  const restartable =
+    restartAt === null ? undefined : context.definition.steps[restartAt];
   const steps = view.steps.map((step) => ({
     ...step,
     objective: objectives.get(step.id) ?? "",
@@ -74,5 +82,9 @@ export const useConversationSteps = (): ConversationSteps => {
     loaded: true,
     minutes: context.definition.minutes,
     jump: requestStepJump,
+    restart: restartable && {
+      file: restartable.file,
+      onRestart: () => PgConversation.restartStep(),
+    },
   };
 };

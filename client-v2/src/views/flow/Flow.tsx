@@ -46,6 +46,7 @@ import {
   StatusRow,
 } from "@/widgets/status";
 import {
+  BaseResetStepDialog,
   TutorialComposer,
   TutorialConversation,
   useConversationMarks,
@@ -393,6 +394,8 @@ const FlowFrame = () => {
   // frame's width that navigation is not drawn: the phone's steps sheet is
   // the menu there
   const [phoneSteps, setPhoneSteps] = useState(false);
+  // The steps sheet's "Restart this step" asks first, as the step bar's does
+  const [restartAsk, setRestartAsk] = useState(false);
   useEffect(() => {
     openMenu.current = onPhone
       ? () => setPhoneSteps(true)
@@ -413,23 +416,36 @@ const FlowFrame = () => {
     ...tutorial.frame,
     phone: {
       head: (
-        <BaseTutorialPhoneHead
-          name={PgTutorial.current?.name ?? ""}
-          steps={steps.steps}
-          live={steps.live}
-          started={steps.started}
-          finished={steps.finished}
-          minutes={steps.minutes}
-          space={space.space}
-          dot={space.dot}
-          passed={conversation.passed ?? 0}
-          onBack={() => catalogPage.open("tutorials", "nav")}
-          onSpace={space.setSpace}
-          onJump={steps.jump}
-          onStartOver={conversation.onStartOver}
-          sheetOpen={phoneSteps}
-          onSheetOpenChange={setPhoneSteps}
-        />
+        <>
+          <BaseTutorialPhoneHead
+            name={PgTutorial.current?.name ?? ""}
+            steps={steps.steps}
+            live={steps.live}
+            started={steps.started}
+            finished={steps.finished}
+            minutes={steps.minutes}
+            space={space.space}
+            dot={space.dot}
+            passed={conversation.passed ?? 0}
+            onBack={() => catalogPage.open("tutorials", "nav")}
+            onSpace={space.setSpace}
+            onJump={steps.jump}
+            onStartOver={conversation.onStartOver}
+            onRestartStep={
+              steps.restart ? () => setRestartAsk(true) : undefined
+            }
+            sheetOpen={phoneSteps}
+            onSheetOpenChange={setPhoneSteps}
+          />
+          {steps.restart && (
+            <BaseResetStepDialog
+              open={restartAsk}
+              onOpenChange={setRestartAsk}
+              file={steps.restart.file}
+              onConfirm={steps.restart.onRestart}
+            />
+          )}
+        </>
       ),
       // TODO(SF#94 review, Greptile "Layout changes lose chat controls"): a
       // second chat, not the frame's moved: crossing the frame's width

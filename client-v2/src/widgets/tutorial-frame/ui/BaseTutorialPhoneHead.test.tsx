@@ -181,6 +181,27 @@ describe("BaseTutorialPhoneHead", () => {
     expect(props.onStartOver).toHaveBeenCalledTimes(1);
   });
 
+  it("offers Restart this step when given one, and hands it on with the sheet closed", async () => {
+    const onRestartStep = vi.fn();
+    draw({ onRestartStep });
+    await openSteps();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Restart this step" })
+    );
+    expect(onRestartStep).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("navigation", { name: "Tutorial steps" })
+    ).toBeNull();
+  });
+
+  it("has no Restart this step when nothing can restart", async () => {
+    draw({});
+    await openSteps();
+    expect(
+      screen.queryByRole("button", { name: "Restart this step" })
+    ).toBeNull();
+  });
+
   it("closes the sheet on Back and keeps the progress", async () => {
     const { props, unmount } = draw({});
     await openSteps();

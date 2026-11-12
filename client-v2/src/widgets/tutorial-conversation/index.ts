@@ -8,5 +8,6 @@ export {
 export { TutorialComposer } from "./ui/TutorialComposer";
 export type { ComposerTurn } from "./ui/TutorialComposer";
 export { requestStepJump } from "./model/jump";
+export { default as BaseResetStepDialog } from "./ui/BaseResetStepDialog";
 export { useConversationSteps } from "./ui/use-conversation-steps";
 export type { ConversationSteps, PhoneStep } from "./ui/use-conversation-steps";

@@ -1,18 +1,21 @@
 /* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, RotateCcw } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { StepJumpVia } from "@/entities/tutorial";
 import type { StepBarItem } from "@/features/tutorial-conversation";
 import { COARSE_HIT_BELOW, COARSE_HIT_ROW } from "@/shared/lib/hit-area";
 import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+
+import BaseResetStepDialog from "./BaseResetStepDialog";
 
 /** The ways the bar itself jumps; the feed adds the keys */
 export type JumpVia = Exclude<StepJumpVia, "key">;
@@ -29,6 +32,12 @@ export interface BaseStepBarProps {
   viewing: number | null;
   /** A done or current step was picked, by its index */
   onJump: (index: number, via: JumpVia) => void;
+  /**
+   * The way out of a card that left the live step with nothing to press: the
+   * live step's file and its restart. Absent while nothing can restart (before
+   * Start, after the finish, while an act runs).
+   */
+  restart?: { file: string; onRestart: () => void };
 }
 
 const FOCUS =
@@ -111,7 +120,14 @@ const Glyph = ({ step, index }: { step: StepBarItem; index: number }) => (
  * Tabs switch with one selection and `step-rail` the v1 vertical rail;
  * these are jump buttons marked with `aria-current`.
  */
-const BaseStepBar = ({ steps, live, viewing, onJump }: BaseStepBarProps) => {
+const BaseStepBar = ({
+  steps,
+  live,
+  viewing,
+  onJump,
+  restart,
+}: BaseStepBarProps) => {
+  const [confirming, setConfirming] = useState(false);
   const count = steps.length;
   const finished = count > 0 && steps.every((s) => s.state === "done");
   let lit = 0;
@@ -122,60 +138,82 @@ const BaseStepBar = ({ steps, live, viewing, onJump }: BaseStepBarProps) => {
 
   return (
     <nav aria-label="Tutorial steps" className="shrink-0 px-5 pt-3 pb-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          disabled={live === null}
-          className={cn(
-            COARSE_HIT_ROW,
-            "group -mx-1.5 flex h-[1.125rem] items-center gap-1.5 rounded-md px-1.5 text-[0.875rem] leading-[1.125rem] font-label hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
-            FOCUS
-          )}
-        >
-          <span className="text-muted-foreground tabular-nums">
-            {whereOf(count, live, finished)}
-          </span>
-          {name && (
-            <>
-              <span aria-hidden="true" className="text-subtle">
-                ·
-              </span>
-              <span className="font-medium text-foreground">{name}</span>
-            </>
-          )}
-          {live !== null && (
-            <ChevronDown
-              aria-hidden="true"
-              className="size-3.5 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180 motion-reduce:transition-none"
-            />
-          )}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" alignOffset={-8} className="w-64">
-          {steps.map((step, index) => {
-            const now = step.state === "current";
-            const looking = viewing === index;
-            return (
-              <DropdownMenuItem
-                key={step.id}
-                disabled={step.state === "not_reached"}
-                aria-current={currentOf(looking, live === index)}
-                onSelect={() => onJump(index, "menu")}
-                className={cn(
-                  "min-h-10 gap-3 px-2.5",
-                  (now || looking) && "bg-foreground/[0.06]"
-                )}
-              >
-                <Glyph step={step} index={index} />
-                <span className="min-w-0 flex-1 truncate">{step.title}</span>
-                {step.state !== "not_reached" && (
-                  <span className="shrink-0 text-caption text-muted-foreground">
-                    {step.state === "done" ? "Done" : "Now"}
-                  </span>
-                )}
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex items-center justify-between gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            disabled={live === null}
+            className={cn(
+              COARSE_HIT_ROW,
+              "group -mx-1.5 flex h-[1.125rem] items-center gap-1.5 rounded-md px-1.5 text-[0.875rem] leading-[1.125rem] font-label hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
+              FOCUS
+            )}
+          >
+            <span className="text-muted-foreground tabular-nums">
+              {whereOf(count, live, finished)}
+            </span>
+            {name && (
+              <>
+                <span aria-hidden="true" className="text-subtle">
+                  ·
+                </span>
+                <span className="font-medium text-foreground">{name}</span>
+              </>
+            )}
+            {live !== null && (
+              <ChevronDown
+                aria-hidden="true"
+                className="size-3.5 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+              />
+            )}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" alignOffset={-8} className="w-64">
+            {steps.map((step, index) => {
+              const now = step.state === "current";
+              const looking = viewing === index;
+              return (
+                <DropdownMenuItem
+                  key={step.id}
+                  disabled={step.state === "not_reached"}
+                  aria-current={currentOf(looking, live === index)}
+                  onSelect={() => onJump(index, "menu")}
+                  className={cn(
+                    "min-h-10 gap-3 px-2.5",
+                    (now || looking) && "bg-foreground/[0.06]"
+                  )}
+                >
+                  <Glyph step={step} index={index} />
+                  <span className="min-w-0 flex-1 truncate">{step.title}</span>
+                  {step.state !== "not_reached" && (
+                    <span className="shrink-0 text-caption text-muted-foreground">
+                      {step.state === "done" ? "Done" : "Now"}
+                    </span>
+                  )}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {restart && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Restart this step"
+            title="Restart this step"
+            onClick={() => setConfirming(true)}
+            className="-my-1 text-muted-foreground"
+          >
+            <RotateCcw className="size-4" />
+          </Button>
+        )}
+      </div>
+      {restart && (
+        <BaseResetStepDialog
+          open={confirming}
+          onOpenChange={setConfirming}
+          file={restart.file}
+          onConfirm={restart.onRestart}
+        />
+      )}
       <span
         className="mt-2 grid gap-1"
         style={{

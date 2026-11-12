@@ -10,6 +10,7 @@ import type { FeedEntry } from "../model/merge";
 import { gapBefore, spacedOf } from "../model/rhythm";
 import { liveStepIndex, stepBeside } from "../model/step-bar";
 import BaseBackPill from "./BaseBackPill";
+import type { BaseStepBarProps } from "./BaseStepBar";
 import BaseStepBar from "./BaseStepBar";
 import { typing } from "./keys";
 
@@ -42,6 +43,8 @@ export interface BaseFeedProps {
    * and asks for jumps through `requestStepJump`. On by default.
    */
   bar?: boolean;
+  /** The step bar's Restart this step (`BaseStepBarProps.restart`) */
+  restart?: BaseStepBarProps["restart"];
 }
 
 const reducedMotion = () =>
@@ -70,6 +73,7 @@ const BaseFeed = ({
   onJump,
   onBack,
   bar = true,
+  restart,
 }: BaseFeedProps) => {
   const root = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -243,6 +247,7 @@ const BaseFeed = ({
           live={liveIndex}
           viewing={viewing}
           onJump={jump}
+          restart={restart}
         />
       )}
       <div
