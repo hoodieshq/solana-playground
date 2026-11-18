@@ -1,9 +1,9 @@
 import { toast } from "sonner"
 
 import { shortKey } from "../../../lessons/common"
-import { MAIN_FILE } from "../../data"
+import { MAIN_FILE, mainOf, programBySlug } from "../../data"
 import { STARTERS } from "../../starters"
-import { ask, behind, busy, deploy, hashFiles, liveAction, liveTurn, onChain, refCall, retryDeploy, runLive, stale, type Project, type StepId, type Turn } from "../../store"
+import { behind, busy, hashFiles, onChain, stale, type Project, type Turn } from "../../store"
 
 export { shortKey }
 
@@ -11,8 +11,13 @@ export { shortKey }
 
 export const baseName = (file: string) => file.split("/").pop() ?? file
 
-/** The file a project lands on: a catalog program's processor, a starter's own */
-export const mainFile = (p: Project) => (p.source === "example" || p.slug ? MAIN_FILE : STARTERS[p.framework].main)
+/** The file a project lands on: a catalog program's own (an SPL program's processor, an Anchor basic's
+ * lib.rs), a starter's own */
+export function mainFile(p: Project) {
+  const meta = p.slug ? programBySlug(p.slug) : undefined
+  if (meta) return mainOf(meta)
+  return p.source === "example" ? MAIN_FILE : STARTERS[p.framework].main
+}
 
 export function copyText(value: string, what: string) {
   navigator.clipboard
@@ -30,31 +35,6 @@ export function changedFiles(p: Project): string[] {
 }
 
 export const firstChanged = (p: Project) => changedFiles(p)[0] ?? p.open
-
-/** Which step a turn belongs to, for the strip's jumps */
-export function stepOf(t: Turn): StepId | null {
-  switch (t.k) {
-    case "build-ok":
-    case "build-fail":
-      return "build"
-    case "deploy-ok":
-    case "deploy-fail":
-      return "deploy"
-    case "call-ok":
-    case "call-fail":
-    case "run-ok":
-    case "milestone":
-      return "call"
-    case "stop":
-      return t.stop
-    case "act":
-      // A TS client's one step, Run, takes the strip's first slot
-      if (t.act === "overview" || t.act === "instructions" || t.act === "accounts") return t.act
-      return t.act === "build" || t.act === "run" ? "build" : t.act === "deploy" || t.act === "upgrade" ? "deploy" : "call"
-    default:
-      return null
-  }
-}
 
 const RESULTS = new Set(["build-ok", "build-fail", "deploy-ok", "deploy-fail", "call-ok", "call-fail", "run-ok"])
 
@@ -78,19 +58,6 @@ export function failLive(p: Project, t: Turn) {
 /** Whether a turn is the feed's last, so its buttons may be the one primary */
 export const isLast = (p: Project, t: Turn) => p.feed[p.feed.length - 1] === t
 
-/** What ⌘↵ does now: the live card's action, or the live failure's first button */
-export function runPrimary(id: string, p: Project) {
-  if (busy(p)) return
-  if (liveAction(p) && liveTurn(p)) return runLive(id)
-  // Read mode: the failed call's Try again
-  if (p.read) return lastResult(p)?.k === "call-fail" ? refCall(id) : undefined
-  const fail = [...p.feed].reverse().find((t) => failLive(p, t))
-  if (fail?.k === "build-fail") ask(id, "Explain the error")
-  else if (fail?.k === "deploy-fail") retryDeploy(id)
-  else if (liveAction(p)) runLive(id)
-  else if (onChain(p) && behind(p)) deploy(id)
-}
-
 /** The console strip's words and dot for where the project is (ux-architecture.md 3.6.6) */
 export function statusOf(p: Project): { dot: "idle" | "running" | "success" | "warning" | "error"; text: string } {
   if (p.build.s === "running") return { dot: "running", text: p.build.slow ? `Still compiling ${p.name}` : `Compiling ${p.name}` }
@@ -109,7 +76,7 @@ export function statusOf(p: Project): { dot: "idle" | "running" | "success" | "w
   if (!r) return { dot: "idle", text: "Ready · Devnet" }
   switch (r.k) {
     case "build-ok":
-      return { dot: "success", text: `Build successful · IDL: ${r.ixs} ${r.ixs === 1 ? "instruction" : "instructions"}` }
+      return { dot: "success", text: p.idl ? `Build successful · IDL: ${r.ixs} ${r.ixs === 1 ? "instruction" : "instructions"}` : "Build successful" }
     case "build-fail":
       return r.kind === "compile" ? { dot: "error", text: `Build failed · line ${r.line}` } : { dot: "error", text: "Build didn't start · the build server didn't answer" }
     case "deploy-ok":
@@ -150,7 +117,6 @@ export const onReveal = (fn: (d: Reveal) => void) => {
   bus.addEventListener("reveal", h)
   return () => bus.removeEventListener("reveal", h)
 }
-export const focusComposer = () => bus.dispatchEvent(new Event("composer"))
 export const onFocusComposer = (fn: () => void) => {
   bus.addEventListener("composer", fn)
   return () => bus.removeEventListener("composer", fn)
@@ -174,8 +140,6 @@ export function flash(el: Element | null) {
   void (el as HTMLElement).offsetWidth
   el.classList.add("pg-anchor-flash")
 }
-export const focusEditor = () => requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("[data-shell-editor] textarea")?.focus())
-
 /** What the program itself said in a call: its msg! lines, else the runtime's last word */
 export const saidLines = (log: string[]) => {
   const said = log.filter((l) => l.startsWith("Program log: ") && !l.startsWith("Program log: Signed by"))

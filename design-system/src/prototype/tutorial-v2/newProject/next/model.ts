@@ -2,7 +2,7 @@ import { useChoices, withChoices } from "../../desktop/navLit/choices"
 import { useNavState } from "../../navStates"
 import type { Source } from "../../programs/project"
 import { usePrograms } from "../../programs/store"
-import { BASICS, frameworkOf, SAMPLE_PROGRAMS, SAMPLE_REPO, type FrameworkId, type RepoProgram } from "./data"
+import { frameworkOf, SAMPLE_PROGRAMS, SAMPLE_REPO, type FrameworkId, type RepoProgram } from "./data"
 
 /* First Light's state (CONSENSUS.md, 4.1), its reducer, and what is derived from it: the name rule,
    the default name, the primary's label. The dialog and the phone page share all of it */
@@ -205,8 +205,8 @@ export function primary(s: FirstLightState, env: Env): { label: string; enabled:
     case "example": {
       const picked = s.examples.picked
       if (!picked) return { label: "Pick an example", enabled: false }
-      const isProgram = !BASICS.some((b) => b.slug === picked)
-      return { label: `Create from ${picked}`, enabled: nameOk && (env.online || !isProgram) }
+      // Every example downloads from GitHub, so none can be made offline
+      return { label: `Create from ${picked}`, enabled: nameOk && env.online }
     }
     case "describe":
       if (!s.describe.text.trim()) return { label: "Write a description", enabled: false }

@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { ChevronDown, FileCode, Folder, Hammer, Play, Rocket, Send, Terminal } from "lucide-react"
+import { ChevronDown, ChevronLeft, Folder, Terminal } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ConsoleDrawer, ConsoleDrawerBar, ConsoleDrawerContent, ConsoleDrawerStatus } from "@/components/ui/console-drawer"
 import { CopyButton } from "@/components/ui/copy-button"
-import { EditorTab, EditorTabLabel, EditorTabs, EditorTabTrigger } from "@/components/ui/editor-tabs"
+import { EditorTab, EditorTabClose, EditorTabLabel, EditorTabs, EditorTabTrigger } from "@/components/ui/editor-tabs"
 import { Kbd } from "@/components/ui/kbd"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Spinner } from "@/components/ui/spinner"
 import { StatusDot } from "@/components/ui/status-dot"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -17,19 +15,33 @@ import { Editor } from "../../../desktop/Editor"
 import { FILES_KEYS, TERMINAL_KEYS } from "../../../desktop/keys"
 import { BuildLog } from "../../../ui/BuildLog"
 import { ROW } from "../../../ui/FileTreeList"
-import { view } from "../../../view"
-import { behind, build, busy, deploy, edit, metaOf, onChain, openFile, runClient, setPane, setTerminal, stale, usePrograms, type Project, type Turn } from "../../store"
+import { AssistantMark } from "../../../ui/AssistantMark"
+import { ask, busy, edit, go, metaOf, onChain, openFile, setTerminal, usePrograms, type Project, type Turn } from "../../store"
 import { WalletChip } from "../../../desktop/WalletChip"
+import { AskPanel } from "./AskPanel"
 import { CallPanel } from "./CallPanel"
+import { MoreMenu, ProjectName, ShortcutsDialog } from "./GuideColumn"
+import { OpeningCard } from "./Opening"
 import { FullNotice } from "./Quota"
-import { DevnetChip, LIT_CSS, ReadNotice, ReadOnlyChip, onReadOnlyKey, useLit } from "./Read"
-import { baseName, changedFiles, onReveal, shortKey, statusOf } from "./util"
-
-const mac = /Mac|iPhone|iPad/.test(navigator.userAgent)
-const BUILD_KEYS = mac ? "⌘⇧B" : "Ctrl Shift B"
+import { DevnetChip, LIT_CSS, ReadNotice, onReadOnlyKey, useLit } from "./Read"
+import { StageBar, StageNote, stagesOf } from "./Stages"
+import { baseName, changedFiles, failLive, onReveal, shortKey, statusOf } from "./util"
 
 /** The workspace docks the tree beside the editor from this width (ui-design.md, --tree-dock-min) */
 const TREE_DOCK_MIN = 900
+/** Under this the assistant lies over the code's right edge: the files and the editor keep their room */
+const ASK_DOCK_MIN = 1160
+
+/** Whether the assistant's panel is out: yours once you toggle it, open at first where there's room */
+const ASK_KEY = "oak.programs.ask"
+function askStored() {
+  try {
+    const raw = localStorage.getItem(ASK_KEY)
+    return raw === null ? window.innerWidth >= 1280 : raw === "1"
+  } catch {
+    return false
+  }
+}
 
 /** The tabs' order: every file as the project lists it, README.md last */
 const tabsOf = (p: Project) => {
@@ -38,7 +50,7 @@ const tabsOf = (p: Project) => {
 }
 
 /** A tool at the head's right end: its glyph alone, the name and key in the tip */
-function Tool({ label, keys, icon, pressed, onClick }: { label: string; keys: string; icon: ReactNode; pressed: boolean; onClick: () => void }) {
+function Tool({ label, keys, icon, pressed, onClick }: { label: string; keys?: string; icon: ReactNode; pressed: boolean; onClick: () => void }) {
   return (
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
@@ -56,29 +68,8 @@ function Tool({ label, keys, icon, pressed, onClick }: { label: string; keys: st
       </TooltipTrigger>
       <TooltipContent side="bottom">
         {label}
-        <Kbd className="ml-1.5">{keys}</Kbd>
+        {keys && <Kbd className="ml-1.5">{keys}</Kbd>}
       </TooltipContent>
-    </Tooltip>
-  )
-}
-
-/** A quiet action in the head, icon and word: Build, Deploy, Call. The running one shows a spinner */
-const HEAD_ACTION = "relative rounded-lg text-[0.8125rem] text-muted-foreground hover:text-foreground [&_svg]:size-4! [&_svg]:stroke-[1.5]"
-
-function HeadAction({ tip, icon, label, running, disabled, pressed, dot, onClick, ...rest }: { tip: string; icon: ReactNode; label: string; running?: boolean; disabled?: boolean; pressed?: boolean; dot?: boolean; onClick: () => void; "data-oak"?: string }) {
-  return (
-    <Tooltip delayDuration={300}>
-      <TooltipTrigger asChild>
-        {/* A span keeps the tip on a disabled button */}
-        <span className="inline-flex">
-          <Button variant="ghost" disabled={disabled} aria-pressed={pressed} aria-busy={running || undefined} onClick={onClick} className={cn(HEAD_ACTION, pressed && "bg-surface-hover text-foreground", running && "disabled:opacity-100")} {...rest}>
-            {running ? <Spinner className="size-4" /> : icon}
-            {label}
-            {dot && <StatusDot variant="warning" className="absolute top-1.5 right-1.5" />}
-          </Button>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{tip}</TooltipContent>
     </Tooltip>
   )
 }
@@ -129,7 +120,8 @@ function treeOf(files: string[]): Entry[] {
   ]
 }
 
-/** The project's files by folder, the open one marked, a changed one with the warning dot */
+/** The project's files by folder, the open one marked, a changed one with the warning dot. A file is its
+ * name alone, set under its folder's name: the folder keeps the only glyph (Almaz, 18 Nov) */
 export function TreeList({ p, onPick, tall = false }: { p: Project; onPick: (file: string) => void; tall?: boolean }) {
   const changed = changedFiles(p)
   return (
@@ -147,10 +139,9 @@ export function TreeList({ p, onPick, tall = false }: { p: Project; onPick: (fil
             role="treeitem"
             aria-selected={p.pane === "code" && p.open === e.path}
             onClick={() => onPick(e.path)}
-            style={{ paddingLeft: `${8 + e.depth * 20}px` }}
+            style={{ paddingLeft: `${8 + e.depth * 24}px` }}
             className={cn(ROW, tall && "h-11 text-[0.9375rem]", p.pane === "code" && p.open === e.path ? "bg-surface-hover text-foreground" : "text-muted-foreground")}
           >
-            <FileCode aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate">{baseName(e.path)}</span>
             {changed.includes(e.path) && <StatusDot variant="warning" aria-label="Changed" />}
           </button>
@@ -168,29 +159,51 @@ export function errorIn(p: Project, file: string) {
   return { line: t.line, column: t.col, span: t.code === "E0425" ? 4 : undefined }
 }
 
-/** The project side: one head row (files, the program chip, Call, Build, Deploy, Files, Terminal),
- * the editor or the Call panel with the tree docked beside it on a wide workspace, and the console */
+/** The project page: one bar (back, the name, the stages, the program chip, the panels' toggles), then
+ * every file in a tree beside the editor, the console under it and the assistant at the right, closed
+ * or open (the client, 17 Nov: the whole program at once, as an IDE shows it, and the assistant only
+ * for questions) */
 export function Workspace({ p }: { p: Project }) {
   const id = p.id
   const box = useRef<HTMLElement>(null)
-  const [wide, setWide] = useState(true)
-  // Closed at first, the code takes the width; the open tab's arrow brings the tree, as in a tutorial (Almaz, 6 Nov)
-  const [docked, setDocked] = useState(false)
+  const [width, setWidth] = useState(1280)
+  // Out at first: all the files show as the project opens
+  const [docked, setDocked] = useState(true)
   const [pop, setPop] = useState(false)
+  const [asking, setAsking] = useState(askStored)
+  const [keys, setKeys] = useState(false)
   const [jump, setJump] = useState<{ line: number; at: number; caret: boolean } | null>(null)
   // Tabs are the files opened in this visit, as an IDE keeps them: the main file first, the rest as the
-  // tree, the Guide or an error link opens them. Every file in a tab overflowed the head once deployed
+  // tree or an error link opens them. Every file in a tab overflowed the head once deployed
   const [opened, setOpened] = useState<string[]>(() => [p.open])
   useEffect(() => setOpened((o) => (o.includes(p.open) ? o : [...o, p.open])), [p.open])
 
   useEffect(() => {
     const el = box.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => setWide(e.contentRect.width >= TREE_DOCK_MIN))
+    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width))
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
+  const setAsk = (open: boolean) => {
+    setAsking(open)
+    try {
+      localStorage.setItem(ASK_KEY, open ? "1" : "0")
+    } catch {
+      // Storage blocked: the panel keeps its place until the page reloads
+    }
+  }
+  // A question from anywhere (the console's Explain, the Read only chip) brings the panel with its answer,
+  // for now: only your own toggle is remembered
+  const asked = p.feed.reduce((n, t) => n + (t.k === "user" ? 1 : 0), 0)
+  const seen = useRef(asked)
+  useEffect(() => {
+    if (asked > seen.current) setAsking(true)
+    seen.current = asked
+  }, [asked])
+
+  const wide = width >= TREE_DOCK_MIN
   const toggleFiles = () => (wide ? setDocked((d) => !d) : setPop((o) => !o))
   const filesShown = wide ? docked : pop
 
@@ -206,8 +219,7 @@ export function Workspace({ p }: { p: Project }) {
     return () => window.removeEventListener("keydown", onKey)
   })
 
-  // A --> link in a card, or a line in the log: the editor goes there with the caret on it
-  // (the card opens the file first; the editor that mounts for it takes the jump)
+  // A --> link in an answer, or a line in the log: the editor goes there with the caret on it
   // A lit range is brought in by its last line, so the editor's "already in view" check covers all of it
   useEffect(() => onReveal(({ line, to }) => setJump({ line: to ?? line, at: Date.now(), caret: true })), [])
 
@@ -222,13 +234,8 @@ export function Workspace({ p }: { p: Project }) {
 
   const ts = p.framework === "ts-client"
   const running = busy(p)
-  const chain = onChain(p)
   const changed = changedFiles(p)
-  const building = p.build.s === "running" && !p.chain
-  const deploying = p.deploy.s === "running" || (p.build.s === "running" && !!p.chain)
-  const needsBuild = !(p.build.s === "ok" && !stale(p))
-  const moved = stale(p) || behind(p)
-  // While it comes in from GitHub there are no files to show yet: no tabs, no tree, lines of grey
+  // While it comes in from GitHub there are no files to show yet: no tabs, no tree, the import's card
   const tabs = p.opening ? [] : opened.filter((f) => f in p.files)
   const active = p.pane === "code" ? p.open : null
   const file = p.open
@@ -237,6 +244,13 @@ export function Workspace({ p }: { p: Project }) {
   const err = errorIn(p, file)
   const lit = useLit(file)
   const meta = metaOf(p)
+  const buildFail = [...p.feed].reverse().find((t) => t.k === "build-fail")
+  // A tab closes as in the lesson's workspace: the last one stays, and closing the open one shows its neighbour
+  const close = (tab: string) => {
+    const at = tabs.indexOf(tab)
+    setOpened((o) => o.filter((f) => f !== tab))
+    if (tab === p.open) openFile(id, tabs[at + 1] ?? tabs[at - 1])
+  }
   const pick = (f: string) => {
     openFile(id, f)
     setPop(false)
@@ -259,144 +273,169 @@ export function Workspace({ p }: { p: Project }) {
 
   return (
     <section ref={box} aria-label="Project" className="flex min-w-0 flex-1 flex-col bg-surface-base">
-      <div className="flex h-11 shrink-0 items-stretch border-b border-border bg-surface-base">
-        <Popover open={!wide && pop} onOpenChange={setPop}>
-          <PopoverAnchor asChild>
-            <EditorTabs variant="quiet" className="h-full min-w-0 flex-1 border-b-0!">
-              {tabs.map((tab) => (
-                <EditorTab key={tab} active={tab === active} className="shrink-0 px-0! before:hidden data-active:bg-(--code-ground)">
-                  <EditorTabTrigger className={cn("gap-1.5 px-2.5", tab === active && "pr-0.5")} onClick={() => openFile(id, tab)}>
-                    <EditorTabLabel>{baseName(tab)}</EditorTabLabel>
-                    {changed.includes(tab) && (
-                      <>
-                        <StatusDot variant="warning" />
-                        <span className="sr-only">, changed</span>
-                      </>
-                    )}
-                  </EditorTabTrigger>
-                  {/* The tutorial's arrow beside the open file's name: the tree, docked or as the popover.
-                      It turns over while the tree is out */}
-                  {tab === active && (
-                    <Tooltip delayDuration={300}>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label="Files"
-                          aria-expanded={filesShown}
-                          onClick={toggleFiles}
-                          data-files-toggle=""
-                          className="mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <ChevronDown aria-hidden="true" className={cn("size-3.5 transition-transform duration-150 ease-standard motion-reduce:transition-none", filesShown && "rotate-180")} />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        Files
-                        <Kbd className="ml-1.5">{FILES_KEYS}</Kbd>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </EditorTab>
-              ))}
-            </EditorTabs>
-          </PopoverAnchor>
-          {tree}
-        </Popover>
-        <div className="ml-auto flex shrink-0 items-center gap-1 pr-2 pl-2">
-          {/* Read mode: Build, Deploy and Call are left out, not disabled; Solana's devnet id and the Read
-              only chip take their place. Its reason shows when the code zone has room and no devnet chip
-              sits beside it; a 1152 tablet keeps the label alone */}
-          {p.read && meta && (
-            <>
-              <DevnetChip meta={meta} />
-              <ReadOnlyChip p={p} reason={wide && !meta.devnetId && view !== "tablet"} />
-            </>
-          )}
-          {!ts && !p.read && <ProgramChip p={p} />}
-          {/* From the first build: the panel reads the interface before the deploy, with Deploy in its foot */}
-          {!ts && !p.read && (chain || p.build.s === "ok") && (
-            <HeadAction tip="Call an instruction" icon={<Send />} label="Call" pressed={p.pane === "call"} onClick={() => setPane(id, p.pane === "call" ? "code" : "call")} />
-          )}
-          {!p.read && <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />}
-          {p.read ? null : ts ? (
-            <HeadAction data-oak="run" tip={`Run client.ts ${BUILD_KEYS}`} icon={<Play />} label="Run" running={!!p.calling} disabled={running} onClick={() => runClient(id)} />
-          ) : (
-            <>
-              <HeadAction data-oak="build" tip={`Build ${BUILD_KEYS}`} icon={<Hammer />} label="Build" running={building} disabled={running} dot={moved} onClick={() => build(id)} />
-              <HeadAction
-                tip={`${chain ? "Upgrade on devnet" : "Deploy to devnet"}${needsBuild ? " · builds first" : ""}`}
-                icon={<Rocket />}
-                label={moved ? "Build and deploy" : "Deploy"}
-                running={deploying}
-                disabled={running}
-                onClick={() => deploy(id)}
-              />
-            </>
-          )}
-          <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
-          <Tool label="Files" keys={FILES_KEYS} icon={<span className="flex size-[18px] [&>svg]:size-full"><Folder aria-hidden="true" strokeWidth={1.5} className="size-full" /></span>} pressed={filesShown} onClick={toggleFiles} />
-          <Tool label="Terminal" keys={TERMINAL_KEYS} icon={<Terminal />} pressed={p.terminal} onClick={() => setTerminal(id, !p.terminal)} />
-        </div>
+      <div className="@container/bar flex h-11 shrink-0 items-center gap-1 border-b border-border px-1.5">
+        {/* Every project goes back to Programs, as a lesson to Tutorials: yours are listed there too (Almaz, 10 Nov) */}
+        <Button variant="ghost" size="sm" aria-label="Programs" className="shrink-0 gap-0.5 pl-1.5 text-muted-foreground" onClick={() => go({ at: "catalog" })}>
+          <ChevronLeft className="size-4" />
+          <span className="@max-[1100px]/bar:hidden">Programs</span>
+        </Button>
+        <ProjectName p={p} className="ml-1 min-w-0 shrink truncate text-[0.875rem] text-foreground" />
+        {/* Opened from the catalog and not saved: it isn't in your projects until you build or change it */}
+        {p.example && !p.read && !p.opening && (
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} className="ml-1 shrink-0 rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-[0.75rem] leading-4 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring @max-[1100px]/bar:hidden">
+                Example
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-60">
+              Not in your projects yet. Build or change it to keep it.
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {!p.opening && (
+          <>
+            {/* The bar's rules are one rule: 20 high, with 14 to the words on each side */}
+            <span aria-hidden="true" className="ml-2.5 h-5 w-px shrink-0 bg-border" />
+            <StageBar p={p} />
+            {/* With one stage there is no path, so the rule before it is the note's own: a second one doubled it */}
+            <StageNote p={p} className={cn("h-5 leading-5 @max-[1150px]/bar:hidden", stagesOf(p).length > 1 ? "border-l border-border pl-3.5" : "pl-2.5")} />
+          </>
+        )}
+        <span className="min-w-2 flex-1" />
+        {/* A Native program from the catalog: Solana's devnet id and why it's for reading, where the
+            program chip is for one of your own */}
+        {p.read && meta && (
+          <span className="flex shrink-0 items-center gap-1 @max-[900px]/bar:hidden">
+            <DevnetChip meta={meta} />
+          </span>
+        )}
+        {!ts && !p.read && !p.opening && (
+          <span className="flex shrink-0 @max-[900px]/bar:hidden">
+            <ProgramChip p={p} />
+          </span>
+        )}
+        {/* A gap, not a rule: the chip's own outline already ends the group before the tools (Almaz, 18 Nov) */}
+        <span aria-hidden="true" className="w-1 shrink-0" />
+        <Tool label="Files" keys={FILES_KEYS} icon={<span className="flex size-[18px] [&>svg]:size-full"><Folder aria-hidden="true" strokeWidth={1.5} className="size-full" /></span>} pressed={filesShown} onClick={toggleFiles} />
+        <Tool label="Terminal" keys={TERMINAL_KEYS} icon={<Terminal />} pressed={p.terminal} onClick={() => setTerminal(id, !p.terminal)} />
+        <Tool label="Assistant" icon={<AssistantMark strokeWidth={1.5} />} pressed={asking} onClick={() => setAsk(!asking)} />
+        {/* 32 here, as the three tools beside it: the menu's own 28 is the phone head's */}
+        <span className="flex shrink-0 [&>button]:size-8 [&>button]:rounded-lg [&>button_svg]:size-[18px]!">
+          <MoreMenu p={p} onKeys={() => setKeys(true)} />
+        </span>
       </div>
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         {wide && docked && !p.opening && (
-          <nav aria-label="Files" className="w-[200px] shrink-0 overflow-y-auto border-r border-border bg-surface-base p-1.5">
+          <nav aria-label="Files" className="w-[220px] shrink-0 overflow-y-auto border-r border-border bg-surface-base p-1.5">
             <TreeList p={p} onPick={pick} />
           </nav>
         )}
-        {p.opening ? (
-          <div aria-hidden="true" className="flex min-w-0 flex-1 flex-col gap-2.5 px-6 py-4">
-            {[38, 0, 22, 54, 48, 30, 0, 26, 62, 44, 58, 20].map((w, i) => (w ? <Skeleton key={i} className="h-3.5 motion-reduce:animate-none" style={{ width: `${w}%` }} /> : <span key={i} className="h-3.5" />))}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {!p.opening && (
+            <div className="flex h-10 shrink-0 items-stretch border-b border-border bg-surface-base">
+              <Popover open={!wide && pop} onOpenChange={setPop}>
+                <PopoverAnchor asChild>
+                  <EditorTabs variant="quiet" className="h-full min-w-0 flex-1 border-b-0!">
+                    {tabs.map((tab) => (
+                      <EditorTab key={tab} active={tab === active} className="shrink-0 px-0! before:hidden data-active:bg-(--code-ground)">
+                        <EditorTabTrigger className={cn("gap-1.5 px-2.5", (tabs.length > 1 || (tab === active && !wide)) && "pr-0.5")} onClick={() => openFile(id, tab)}>
+                          <EditorTabLabel>{baseName(tab)}</EditorTabLabel>
+                          {changed.includes(tab) && (
+                            <>
+                              <StatusDot variant="warning" />
+                              <span className="sr-only">, changed</span>
+                            </>
+                          )}
+                        </EditorTabTrigger>
+                        {/* Too narrow to dock the tree: the arrow beside the open file's name brings it as a list */}
+                        {tab === active && !wide && (
+                          <button
+                            type="button"
+                            aria-label="Files"
+                            aria-expanded={filesShown}
+                            onClick={toggleFiles}
+                            data-files-toggle=""
+                            className="mr-1.5 grid size-6 shrink-0 place-items-center self-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <ChevronDown aria-hidden="true" className={cn("size-3.5 transition-transform duration-150 ease-standard motion-reduce:transition-none", filesShown && "rotate-180")} />
+                          </button>
+                        )}
+                        {tabs.length > 1 && <EditorTabClose aria-label={`Close ${baseName(tab)}`} onClick={() => close(tab)} className={cn("mr-1 size-6 self-center opacity-100", tab !== active && "text-muted-foreground/60")} />}
+                      </EditorTab>
+                    ))}
+                  </EditorTabs>
+                </PopoverAnchor>
+                {tree}
+              </Popover>
+            </div>
+          )}
+          <div className="flex min-h-0 flex-1">
+            {p.opening ? (
+              <div className="flex min-w-0 flex-1 justify-center overflow-y-auto p-6">
+                <div className="w-full max-w-[26rem]">
+                  <OpeningCard p={p} />
+                </div>
+              </div>
+            ) : p.pane === "call" && !ts ? (
+              <CallPanel p={p} />
+            ) : (
+              <div
+                data-shell-editor
+                onKeyDown={(e) => onReadOnlyKey(p, e)}
+                onPaste={() => onReadOnlyKey(p, { key: "v", metaKey: false, ctrlKey: false, altKey: false })}
+                className="prog-lit flex min-h-0 min-w-0 flex-1 flex-col"
+              >
+                <style>{LIT_CSS}</style>
+                <Editor
+                  key={file}
+                  code={p.files[file] ?? ""}
+                  onChange={(code) => edit(id, file, code)}
+                  readOnly={p.read}
+                  busy={running}
+                  error={err}
+                  label={p.read ? `${file}, read only` : `${file}, editable`}
+                  jump={jump}
+                  written={lit.written}
+                  arrive={lit.arrive}
+                  chip={p.notice === "read" ? <ReadNotice p={p} /> : p.notice === "full" ? <FullNotice p={p} /> : undefined}
+                />
+              </div>
+            )}
           </div>
-        ) : p.pane === "call" && !ts ? (
-          <CallPanel p={p} />
-        ) : (
-          <div
-            data-shell-editor
-            onKeyDown={(e) => onReadOnlyKey(p, e)}
-            onPaste={() => onReadOnlyKey(p, { key: "v", metaKey: false, ctrlKey: false, altKey: false })}
-            className="prog-lit flex min-h-0 min-w-0 flex-1 flex-col"
-          >
-            <style>{LIT_CSS}</style>
-            <Editor
-              key={file}
-              code={p.files[file] ?? ""}
-              onChange={(code) => edit(id, file, code)}
-              readOnly={p.read}
-              busy={running}
-              error={err}
-              label={p.read ? `${file}, read only` : `${file}, editable`}
-              jump={jump}
-              written={lit.written}
-              arrive={lit.arrive}
-              chip={p.notice === "read" ? <ReadNotice p={p} /> : p.notice === "full" ? <FullNotice p={p} /> : undefined}
-            />
-          </div>
-        )}
+          <ConsoleDrawer open={p.terminal} onOpenChange={(open) => setTerminal(id, open)}>
+            <ConsoleDrawerBar>
+              <ConsoleDrawerStatus className="flex-1">
+                <StatusDot variant={status.dot} />
+                <span className="truncate">{status.text}</span>
+                {/* The compiler's words are in the log; what they mean is a question for the assistant */}
+                {buildFail && failLive(p, buildFail) && (
+                  <Button variant="ghost" size="xs" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={() => ask(id, "Explain the error")}>
+                    Explain
+                  </Button>
+                )}
+              </ConsoleDrawerStatus>
+              <WalletChip sol={funded ? 3.73 : 0} />
+            </ConsoleDrawerBar>
+            <ConsoleDrawerContent style={{ height: p.terminal ? 240 : 0 }} className="relative overscroll-contain">
+              <div className="flex min-h-full flex-col">
+                <BuildLog
+                  log={p.log}
+                  onJump={(line) => {
+                    const fail = [...p.feed].reverse().find((x): x is Extract<Turn, { k: "build-fail" }> => x.k === "build-fail")
+                    const to = fail?.file ?? file
+                    openFile(id, to)
+                    setJump({ line, at: Date.now(), caret: true })
+                  }}
+                  empty="Nothing run yet. Builds, deploys and calls print here."
+                />
+              </div>
+            </ConsoleDrawerContent>
+          </ConsoleDrawer>
+        </div>
+        {asking && <AskPanel p={p} onClose={() => setAsk(false)} className={cn("flex w-[360px] shrink-0 flex-col border-l border-border bg-surface-base", width < ASK_DOCK_MIN && "absolute inset-y-0 right-0 z-10 max-w-full shadow-panel")} />}
       </div>
-      <ConsoleDrawer open={p.terminal} onOpenChange={(open) => setTerminal(id, open)}>
-        <ConsoleDrawerBar>
-          <ConsoleDrawerStatus className="flex-1">
-            <StatusDot variant={status.dot} />
-            <span className="truncate">{status.text}</span>
-          </ConsoleDrawerStatus>
-          <WalletChip sol={funded ? 3.73 : 0} />
-        </ConsoleDrawerBar>
-        <ConsoleDrawerContent style={{ height: p.terminal ? 240 : 0 }} className="relative overscroll-contain">
-          <div className="flex min-h-full flex-col">
-            <BuildLog
-              log={p.log}
-              onJump={(line) => {
-                const fail = [...p.feed].reverse().find((x): x is Extract<Turn, { k: "build-fail" }> => x.k === "build-fail")
-                const to = fail?.file ?? file
-                openFile(id, to)
-                setJump({ line, at: Date.now(), caret: true })
-              }}
-              empty="Nothing run yet. Builds, deploys and calls print here."
-            />
-          </div>
-        </ConsoleDrawerContent>
-      </ConsoleDrawer>
+      <ShortcutsDialog open={keys} onOpenChange={setKeys} read={p.read} />
     </section>
   )
 }

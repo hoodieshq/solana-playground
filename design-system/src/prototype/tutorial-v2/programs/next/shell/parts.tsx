@@ -95,9 +95,8 @@ export function Quote({ children }: { children: ReactNode }) {
  * desktop, full width under a thumb */
 export const FOOT = "-mx-4 -mb-4 mt-1 flex flex-col items-start gap-3 border-t border-border bg-surface-panel px-4 py-3 max-sm:items-stretch"
 
-/** A chip under an assistant's answer */
-export const CHIP_BUTTON =
-  "h-7 shrink-0 rounded-full border border-border-strong px-3 text-[0.8125rem] whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground outline-none focus-visible:outline-2 focus-visible:outline-brand-purple"
+/** A suggested question: the chip of the row over the composer (ui/ChipRow.tsx) */
+export { CHIP as CHIP_BUTTON } from "../../../ui/ChipRow"
 
 /** A way on from a done card: icon, words, chevron */
 export function NextRow({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {

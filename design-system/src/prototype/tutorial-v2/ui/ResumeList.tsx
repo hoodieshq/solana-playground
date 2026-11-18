@@ -20,6 +20,8 @@ export type ResumeItem = {
   name: string
   where: string
   done?: boolean
+  /** The step it stopped on failed: its dot is red */
+  failed?: boolean
   onOpen: () => void
   /** The row's own ⋯, after Continue */
   menu?: ReactNode
@@ -107,7 +109,7 @@ export function ResumeList({ id, title, items, className }: { id: string; title:
                 <p className="truncate font-heading text-[1.0625rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">{it.name}</p>
                 {/* Green and white once it's done, as the catalog's standing; grey while it's under way */}
                 <p className={cn("mt-1 flex items-center gap-1.5 text-[0.8125rem] leading-[1.125rem]", it.done ? "text-foreground" : "text-muted-foreground")}>
-                  <StatusDot variant={it.done ? "success" : "idle"} />
+                  <StatusDot variant={it.failed ? "error" : it.done ? "success" : "idle"} />
                   <span className="truncate">{it.where}</span>
                 </p>
               </div>

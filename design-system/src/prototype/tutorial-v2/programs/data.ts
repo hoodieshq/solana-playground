@@ -39,6 +39,10 @@ export type ProgramMeta = Program & {
   /** Callable without a build: the input is raw bytes, so no IDL is needed (memo and noop). Off for every
    * program since 11/09: calling Solana's copies on devnet is out of scope for now (Sergey) */
   callable?: boolean
+  /** What it is written in. Anchor builds on Playground's server; Native is read only for now */
+  kind: "anchor" | "native"
+  /** Files of its own, for the small examples written by hand: the SPL ones are generated from `ixs` */
+  own?: { files: Record<string, string>; main: string }
 }
 
 /** Three groups of three or four: five finer topics left two of them with one program each */
@@ -46,6 +50,11 @@ export const TOPICS = ["Basics", "Tokens and trading", "Network services"] as co
 export type Topic = (typeof TOPICS)[number]
 
 const TOPIC: Record<string, Topic> = {
+  "hello-solana": "Basics",
+  counter: "Basics",
+  "create-account": "Basics",
+  "transfer-sol": "Basics",
+  favorites: "Basics",
   "spl-memo": "Basics",
   "spl-noop": "Basics",
   "spl-record": "Basics",
@@ -59,7 +68,255 @@ const TOPIC: Record<string, Topic> = {
 
 const SPL_REPO = "solana-labs/solana-program-library"
 
-const META: Record<string, Omit<ProgramMeta, keyof Program | "slug" | "topic">> = {
+/* The five small programs a beginner starts from, the basics of solana-developers/program-examples
+   (Almaz, 16 Nov: they live in the catalog with the rest, not as a separate bundled set in New project).
+   Written by hand, short versions of the repo's own */
+
+const EXAMPLES_REPO = "solana-developers/program-examples"
+
+const BASIC_PROGRAMS: Program[] = [
+  { name: "hello-solana", framework: "Native", categories: ["Basics"], icon: "", description: "Logs a message. The smallest program there is." },
+  { name: "counter", framework: "Anchor", categories: ["Basics"], icon: "", description: "Stores a number in an account and adds one to it." },
+  { name: "create-account", framework: "Anchor", categories: ["Basics"], icon: "", description: "Makes a new account owned by the program." },
+  { name: "transfer-sol", framework: "Anchor", categories: ["Basics"], icon: "", description: "Sends SOL from one account to another." },
+  { name: "favorites", framework: "Anchor", categories: ["Basics"], icon: "", description: "Saves each wallet's favorite number in its own account." },
+]
+
+const anchorReadme = (name: string, about: string, ixs: Ix[], path: string) => `# ${name}
+
+${about}
+
+## Instructions
+
+${ixs.map((ix) => `- \`${ixSignature(ix)}\`: ${ix.line}`).join("\n")}
+
+Source: github.com/${EXAMPLES_REPO}/tree/main/${path}
+`
+
+const COUNTER_LIB = `use anchor_lang::prelude::*;
+
+declare_id!("11111111111111111111111111111111");
+
+#[program]
+pub mod counter {
+    use super::*;
+
+    pub fn initialize_counter(_ctx: Context<InitializeCounter>) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn increment(ctx: Context<Increment>) -> Result<()> {
+        ctx.accounts.counter.count = ctx.accounts.counter.count.checked_add(1).unwrap();
+        msg!("Count is now {}", ctx.accounts.counter.count);
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct InitializeCounter<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(init, payer = payer, space = 8 + Counter::INIT_SPACE)]
+    pub counter: Account<'info, Counter>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Increment<'info> {
+    #[account(mut)]
+    pub counter: Account<'info, Counter>,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct Counter {
+    count: u64,
+}
+`
+
+const CREATE_ACCOUNT_LIB = `use anchor_lang::prelude::*;
+use anchor_lang::system_program::{create_account, CreateAccount};
+
+declare_id!("11111111111111111111111111111111");
+
+#[program]
+pub mod create_account_example {
+    use super::*;
+
+    pub fn create_system_account(ctx: Context<CreateSystemAccount>) -> Result<()> {
+        msg!("Creating a new account: {}", ctx.accounts.new_account.key());
+        // Enough lamports to keep an empty account open
+        let lamports = Rent::get()?.minimum_balance(0);
+        create_account(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                CreateAccount {
+                    from: ctx.accounts.payer.to_account_info(),
+                    to: ctx.accounts.new_account.to_account_info(),
+                },
+            ),
+            lamports,
+            0,
+            &ctx.accounts.system_program.key(),
+        )?;
+        msg!("Account created");
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct CreateSystemAccount<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut)]
+    pub new_account: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+`
+
+const TRANSFER_SOL_LIB = `use anchor_lang::prelude::*;
+use anchor_lang::system_program::{transfer, Transfer};
+
+declare_id!("11111111111111111111111111111111");
+
+#[program]
+pub mod transfer_sol {
+    use super::*;
+
+    pub fn transfer_sol_with_cpi(ctx: Context<TransferSolWithCpi>, amount: u64) -> Result<()> {
+        transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.payer.to_account_info(),
+                    to: ctx.accounts.recipient.to_account_info(),
+                },
+            ),
+            amount,
+        )?;
+        msg!("Sent {} lamports", amount);
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct TransferSolWithCpi<'info> {
+    #[account(mut)]
+    payer: Signer<'info>,
+    #[account(mut)]
+    recipient: SystemAccount<'info>,
+    system_program: Program<'info, System>,
+}
+`
+
+const FAVORITES_LIB = `use anchor_lang::prelude::*;
+
+declare_id!("11111111111111111111111111111111");
+
+pub const ANCHOR_DISCRIMINATOR_SIZE: usize = 8;
+
+#[program]
+pub mod favorites {
+    use super::*;
+
+    pub fn set_favorites(ctx: Context<SetFavorites>, number: u64, color: String) -> Result<()> {
+        let user = ctx.accounts.user.key();
+        msg!("{} likes {} and {}", user, number, color);
+        ctx.accounts.favorites.set_inner(Favorites { number, color });
+        Ok(())
+    }
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct Favorites {
+    pub number: u64,
+    #[max_len(50)]
+    pub color: String,
+}
+
+#[derive(Accounts)]
+pub struct SetFavorites<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(
+        init_if_needed,
+        payer = user,
+        space = ANCHOR_DISCRIMINATOR_SIZE + Favorites::INIT_SPACE,
+        seeds = [b"favorites", user.key().as_ref()],
+        bump,
+    )]
+    pub favorites: Account<'info, Favorites>,
+    pub system_program: Program<'info, System>,
+}
+`
+
+type MetaEntry = Omit<ProgramMeta, keyof Program | "slug" | "topic" | "kind">
+
+/** An Anchor basic: its entry, with its lib.rs and a README as its files */
+function anchorBasic(slug: string, path: string, librs: string, m: Omit<MetaEntry, "repo" | "path" | "devnetId" | "own">): MetaEntry {
+  return {
+    ...m,
+    repo: EXAMPLES_REPO,
+    path,
+    devnetId: null,
+    own: { files: { "src/lib.rs": librs, "README.md": anchorReadme(slug, m.about, m.ixs, path) }, main: "src/lib.rs" },
+  }
+}
+
+const BASIC_META: Record<string, MetaEntry> = {
+  "hello-solana": {
+    devnetId: null,
+    level: "Beginner",
+    minutes: 3,
+    cost: 0.14,
+    repo: EXAMPLES_REPO,
+    path: "basics/hello-solana/native",
+    first: "hello",
+    about: "Writes one line to the transaction log and returns. No accounts and no input, so it shows the bare shape every program has.",
+    ixs: [{ name: "hello", args: [], accounts: [], line: "Logs a greeting and the program's own id." }],
+  },
+  counter: anchorBasic("counter", "basics/counter/anchor", COUNTER_LIB, {
+    level: "Beginner",
+    minutes: 8,
+    cost: 1.21,
+    first: "initialize_counter",
+    about: "Keeps one number in an account of its own. You make the account, then each call adds one to it, so you see a program keep state between calls.",
+    ixs: [
+      { name: "initialize_counter", args: [], accounts: ["payer", "counter", "system_program"], line: "Makes the counter account, starting at zero." },
+      { name: "increment", args: [], accounts: ["counter"], line: "Adds one to the count." },
+    ],
+  }),
+  "create-account": anchorBasic("create-account", "basics/create-account/anchor", CREATE_ACCOUNT_LIB, {
+    level: "Beginner",
+    minutes: 6,
+    cost: 1.18,
+    first: "create_system_account",
+    about: "Asks the System Program to make a new account and pays its rent. The first cross program call most programs make.",
+    ixs: [{ name: "create_system_account", args: [], accounts: ["payer", "new_account", "system_program"], line: "Creates a new empty account and pays its rent." }],
+  }),
+  "transfer-sol": anchorBasic("transfer-sol", "basics/transfer-sol/anchor", TRANSFER_SOL_LIB, {
+    level: "Beginner",
+    minutes: 6,
+    cost: 1.19,
+    first: "transfer_sol_with_cpi",
+    about: "Moves SOL from your wallet to another account by calling the System Program, the way most programs pay or refund.",
+    ixs: [{ name: "transfer_sol_with_cpi", args: [{ name: "amount", type: "u64", example: "1000000" }], accounts: ["payer", "recipient", "system_program"], line: "Sends lamports from the payer to the recipient." }],
+  }),
+  favorites: anchorBasic("favorites", "basics/favorites/anchor", FAVORITES_LIB, {
+    level: "Beginner",
+    minutes: 10,
+    cost: 1.33,
+    first: "set_favorites",
+    about: "Gives every wallet its own account, found from the wallet's address, and saves a favorite number and color there.",
+    ixs: [
+      { name: "set_favorites", args: [{ name: "number", type: "u64", example: "7" }, { name: "color", type: "string", example: "purple" }], accounts: ["user", "favorites", "system_program"], line: "Saves your favorite number and color." },
+    ],
+  }),
+}
+
+const META: Record<string, MetaEntry> = {
+  ...BASIC_META,
   "spl-memo": {
     devnetId: "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
     level: "Beginner",
@@ -195,13 +452,24 @@ const LEVEL_ORDER: Level[] = ["Beginner", "Intermediate", "Advanced"]
 /** Easiest first, so the top of the list is where a beginner starts; the product's order within a level.
  * token-vesting and spl-stake-pool are out (11/07): the team dropped the first, the second is over the
  * project limits */
-export const CATALOG: ProgramMeta[] = PROGRAMS.filter((p) => p.name in META).map((p) => ({ ...p, slug: p.name, topic: TOPIC[p.name], ...META[p.name] })).sort(
-  (a, b) => LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level)
-)
+export const CATALOG: ProgramMeta[] = [...BASIC_PROGRAMS, ...PROGRAMS]
+  .filter((p) => p.name in META)
+  .map((p) => ({ ...p, slug: p.name, topic: TOPIC[p.name], kind: p.framework === "Anchor" ? ("anchor" as const) : ("native" as const), ...META[p.name] }))
+  .sort((a, b) => LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level))
+
+/** The catalog a search leaves: name, line, framework and topic */
+export function searchCatalog(query: string) {
+  const q = query.trim().toLowerCase()
+  if (!q) return CATALOG
+  return CATALOG.filter((p) => [p.name, p.description, p.framework, p.topic].some((f) => f.toLowerCase().includes(q)))
+}
 
 export const programBySlug = (slug: string) => CATALOG.find((p) => p.slug === slug)
 
-export const ixSignature = (ix: Ix) => `${ix.name}(${ix.args.map((a) => `${a.name}: ${a.type}`).join(", ")})`
+// A function, not a const: the basics' READMEs call it while the module is still loading
+export function ixSignature(ix: Ix) {
+  return `${ix.name}(${ix.args.map((a) => `${a.name}: ${a.type}`).join(", ")})`
+}
 
 // ----- Files ---------------------------------------------------------------------------------------
 
@@ -266,12 +534,30 @@ pub fn process_instruction(
 }
 `
 
-/** The two programs whose input is raw bytes, with no list of instructions to unpack */
-const RAW = ["spl-memo", "spl-noop"]
+/** hello-solana as the examples repo has it: log a line, return */
+const helloProcessor = () => `//! Program state processor
+
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
+
+/// Instruction processor: says hello and returns
+pub fn process_instruction(
+    program_id: &Pubkey,
+    _accounts: &[AccountInfo],
+    _input: &[u8],
+) -> ProgramResult {
+    msg!("Hello, Solana!");
+    msg!("Our program's Program ID: {}", program_id);
+    Ok(())
+}
+`
+
+/** The programs whose input is raw bytes, with no list of instructions to unpack */
+export const RAW = ["spl-memo", "spl-noop", "hello-solana"]
 
 function processor(p: ProgramMeta) {
   if (p.slug === "spl-memo") return memoProcessor()
   if (p.slug === "spl-noop") return noopProcessor()
+  if (p.slug === "hello-solana") return helloProcessor()
   const arms = p.ixs
     .map((ix) => {
       const fields = ix.args.map((a) => a.name).join(", ")
@@ -415,6 +701,7 @@ Source: github.com/${p.repo}/tree/master/${p.path}
 
 /** The files the import brings, in the order the tree lists them */
 export function filesOf(p: ProgramMeta): Record<string, string> {
+  if (p.own) return p.own.files
   const files: Record<string, string> = {
     "src/entrypoint.rs": entrypoint(),
     ...(RAW.includes(p.slug) ? {} : { "src/instruction.rs": instruction(p) }),
@@ -428,6 +715,9 @@ export function filesOf(p: ProgramMeta): Record<string, string> {
 
 /** The file a program opens on: where its instructions are handled */
 export const MAIN_FILE = "src/processor.rs"
+
+/** The file a catalog program opens on: its own main file, or the SPL layout's processor */
+export const mainOf = (p: ProgramMeta) => p.own?.main ?? MAIN_FILE
 
 
 // ----- Fake chain values -------------------------------------------------------------------------

@@ -1,23 +1,22 @@
 import { useEffect, useRef, useState } from "react"
 
-import { Send } from "lucide-react"
+import { BookOpen } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
 import { Page } from "../../desktop/Catalog"
 import { CATALOG, TOPICS, type ProgramMeta } from "../data"
 import { useProgState } from "../design"
-import { go, openProgram, usePrograms } from "../store"
+import { openProgram, usePrograms } from "../store"
 import { ProgramBanner } from "./catalog-banner"
-import { FOCUS, Problem, StandingWord, resumeLabel, standing } from "./catalog-parts"
+import { FOCUS, Problem, StandingWord, standing } from "./catalog-parts"
 import { ProgramCover } from "./ProgramCover"
 import { YourPrograms } from "./YourPrograms"
 
 /* The redesigned catalog (ui-design.md 2, CONSENSUS.md row 5): the Tutorials gallery's head and card,
    no Open button. The whole card opens the program's project, there is no preview page (Almaz, 6 Nov);
-   a program you already opened says where it stands and offers Continue */
+   a program you already opened says where it stands */
 
 /** Try again in the prototype: a short skeleton flash, then the forced state again */
 const RETRY_MS = 700
@@ -70,16 +69,20 @@ export function Catalog({ phone = false }: { phone?: boolean }) {
 }
 
 /** Solana's examples under one heading of their own, by what they are for. Without it "Basics" stood
- * level with "Your projects" and read as more of your own (Almaz, 11 Nov). No line about Native Rust and
- * reading under it: a program says that itself once it's opened */
+ * level with "Your projects" and read as more of your own (Almaz, 11 Nov) */
 function Sections({ list }: { list: ProgramMeta[] }) {
+  const native = usePrograms((s) => s.native)
+  // The ones you can build and deploy lead each section while the rest are for reading (Almaz, 18 Nov:
+  // Programs is a sandbox, and the first card of Basics opened a program with nothing to run)
+  const runnable = (p: ProgramMeta) => native || p.kind === "anchor"
   return (
     <section aria-labelledby="programs-examples" className="flex flex-col gap-6">
       <h2 id="programs-examples" className="font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground">
         Solana examples
       </h2>
       {TOPICS.map((topic) => {
-        const items = list.filter((p) => p.topic === topic)
+        const all = list.filter((p) => p.topic === topic)
+        const items = [...all.filter(runnable), ...all.filter((p) => !runnable(p))]
         if (!items.length) return null
         const id = `programs-${topic.toLowerCase().replace(/ /g, "-")}`
         return (
@@ -102,13 +105,15 @@ function Sections({ list }: { list: ProgramMeta[] }) {
 
 /** One program (Almaz, 10 Nov): its cover of tiles, the name and what it does, and at the foot what it
  * is made of, in the code's own face: its instructions by name, and how long a read takes. A stretched
- * button opens its project; on a returning card Continue sits over it */
+ * button opens its project. No Continue on a returning card: the card is the button already, and a second one
+ * crowded the name (Almaz, 18 Nov) */
 function ProgramCard({ p }: { p: ProgramMeta }) {
   const project = usePrograms((s) => Object.values(s.projects).find((x) => x.slug === p.slug))
   const native = usePrograms((s) => s.native)
   const st = project ? standing(project) : null
-  // No mark while every card is read only; memo and noop say they can be called, where the standing goes
-  const callable = !native && !st && p.callable && !!p.devnetId
+  // Said on the card, before the click: this one is for reading, and whether Solana's copy can be called
+  const readOnly = !native && p.kind !== "anchor" && !st?.done
+  const callable = readOnly && p.callable && !!p.devnetId
 
   return (
     <div className="group/card relative flex flex-col overflow-hidden rounded-panel border border-border bg-surface-panel transition-colors duration-100 hover:border-border-strong hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] has-[[data-open]:active]:bg-[color-mix(in_srgb,var(--foreground)_6%,var(--surface-panel))] motion-reduce:transition-none">
@@ -125,18 +130,22 @@ function ProgramCard({ p }: { p: ProgramMeta }) {
         <h4 title={p.name} className="pointer-events-none line-clamp-1 min-w-0 font-heading text-[1.125rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
           {p.name}
         </h4>
-        {project && (
-          <Button variant="outline" size="sm" onClick={() => go({ at: "project", id: project.id })} className="relative z-10 -my-1 cursor-pointer pointer-coarse:after:absolute pointer-coarse:after:-inset-2 pointer-coarse:after:content-['']">
-            {resumeLabel(project)}
-          </Button>
-        )}
         <p className="pointer-events-none col-span-2 col-start-2 mt-1 line-clamp-2 text-[0.8125rem] leading-[1.4] text-foreground/78">{p.description}</p>
         {/* The state leads; a card's column is too narrow for it and the facts on one row, so it takes its own */}
-        {st && <StandingWord s={st} className="pointer-events-none col-span-2 col-start-2 mt-2 text-[0.8125rem] leading-[1.125rem]" />}
-        {callable && (
+        {st && !readOnly && <StandingWord s={st} className="pointer-events-none col-span-2 col-start-2 mt-2 text-[0.8125rem] leading-[1.125rem]" />}
+        {readOnly && (
           <span className="pointer-events-none col-span-2 col-start-2 mt-2 inline-flex items-center gap-1.5 text-[0.8125rem] leading-[1.125rem] text-muted-foreground">
-            <Send aria-hidden="true" className="size-3.5" />
-            Call on devnet
+            <BookOpen aria-hidden="true" className="size-3.5" />
+            {callable ? "Read only · call on devnet" : "Read only"}
+            {/* One you opened says so on the same line: read only has no stage to stand at */}
+            {st && (
+              <>
+                <span aria-hidden="true" className="text-subtle">
+                  ·
+                </span>
+                Opened
+              </>
+            )}
           </span>
         )}
       </div>

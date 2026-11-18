@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react"
 
 import { assistantFaucetNote, readAirdrop, SHORT_SOL } from "../airdrop"
-import { MAIN_FILE, WALLET_KEY, fakeKey, filesOf, programBySlug, type Ix, type ProgramMeta } from "./data"
+import { MAIN_FILE, WALLET_KEY, fakeKey, filesOf, mainOf, programBySlug, type Ix, type ProgramMeta } from "./data"
 import { STOP_LABEL, readAnswer, readPath, type Stop } from "./read"
 import { STARTERS } from "./starters"
 
@@ -66,6 +66,8 @@ export type Project = {
   /** The instruction the Call panel has picked */
   ix: string | null
   idl: boolean
+  /** When an IDL was uploaded by hand: a deploy after it may have changed what the form should show */
+  idlAt?: number
   ranSrc: string | null
   feed: Turn[]
   /** Runs the bar asked to go wrong, used once */
@@ -121,7 +123,9 @@ function settle(p: Project): Project {
   }
 }
 
-function loadState(): ProgramsState {
+/** The saved state. `keep` is a project id this window has on screen: an untouched example is dropped on
+ * load unless it is the one on screen, and in another window's save "the one on screen" is theirs */
+function loadState(keep?: string | null): ProgramsState {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return fresh()
@@ -130,7 +134,7 @@ function loadState(): ProgramsState {
     const projects = Object.fromEntries(
       Object.entries(s.projects ?? {})
         // An import cut off by the reload is no project yet; an untouched example is kept only while on screen
-        .filter(([k, p]) => !p.opening && (!p.example || k === on))
+        .filter(([k, p]) => !p.opening && (!p.example || k === on || k === keep))
         .map(([k, p]) => [k, ensureLive(settle(p))])
     )
     // The preview page is gone (Almaz, 6 Nov): a saved route to it lands on the catalog
@@ -141,7 +145,10 @@ function loadState(): ProgramsState {
   }
 }
 
-let state = loadState()
+// Filled from the save at the foot of this file: loading runs ensureLive, which reads consts declared
+// further down (busy, liveAction). Read here it threw before they existed, the catch above swallowed it,
+// and every reload started with no projects though the save had them (found 18 Nov)
+let state = fresh()
 const listeners = new Set<() => void>()
 
 function save() {
@@ -172,12 +179,23 @@ export function usePrograms<T>(pick: (s: ProgramsState) => T): T {
 
 export const useProject = (id: string) => usePrograms((s) => s.projects[id])
 
-// Another window (the tablet's frame) changing the store
-window.addEventListener("storage", (e) => {
-  if (e.key !== KEY) return
-  state = loadState()
+/* Another window changing the store: a second Oak tab, or the tablet's frame. Each window keeps its own
+   screen (the route) and the project it has open, as it is here, running build included; the rest comes
+   from the other window's save. Taking the whole save switched one tab's Programs to whatever the other
+   tab opened, and dropped an example this tab had open, so its shell drew a project that was gone
+   (17 Nov). Nothing is written back here, so two tabs never answer each other */
+function fromOtherWindow(e: StorageEvent) {
+  if (e.key !== KEY && e.key !== null) return
+  const open = state.route.at === "project" ? state.route.id : null
+  const theirs = loadState(open)
+  const mine = open ? state.projects[open] : undefined
+  const projects = mine ? { ...theirs.projects, [mine.id]: mine } : theirs.projects
+  // A project this tab has open that the other tab deleted stays here until this tab leaves it
+  const route: Route = open && !(open in projects) ? { at: "catalog" } : state.route
+  state = { ...theirs, projects, route, seq: Math.max(theirs.seq, state.seq) }
   listeners.forEach((l) => l())
-})
+}
+window.addEventListener("storage", fromOtherWindow)
 
 export function resetPrograms(native = state.native) {
   timers.forEach((t) => clearTimeout(t))
@@ -198,6 +216,12 @@ export function hashFiles(files: Record<string, string>) {
 }
 
 export const metaOf = (p: Project): ProgramMeta | undefined => (p.slug ? programBySlug(p.slug) : undefined)
+
+/** Where a project's instructions are handled: a catalog program's main file, or its starter's */
+const mainFileOf = (p: Project) => {
+  const meta = metaOf(p)
+  return meta ? mainOf(meta) : STARTERS[p.framework].main
+}
 
 /** The instructions a project's IDL lists: a catalog program's, or a starter's */
 export function ixsOf(p: Project): Ix[] {
@@ -336,7 +360,7 @@ function update(id: string, fn: (p: Project) => Project) {
 
 const post = (p: Project, ...turns: NewTurn[]): Project => ({ ...p, feed: [...p.feed, ...turns.map((t) => ({ ...t, id: nextId() }) as Turn)] })
 
-/** Leaving an example you didn't touch drops it: only what you built or changed is yours */
+/** Leaving an example you didn't build or change drops it: only what you worked on is yours */
 const tidy = (projects: Record<string, Project>, on: string | null) =>
   Object.fromEntries(Object.entries(projects).filter(([k, p]) => k === on || (!p.example && !p.opening)))
 
@@ -344,8 +368,8 @@ export function go(route: Route) {
   set({ ...state, route, projects: tidy(state.projects, route.at === "project" ? route.id : null) })
 }
 
-/** The first edit or the first deploy saves a build mode example as a project (CONSENSUS-delta 2.7).
- * Opening, reading, building, calling and pinning never do */
+/** The first edit, the first build that passes or the first deploy saves a build mode example as a project
+ * (CONSENSUS-delta 2.7; the build since 18 Nov). Opening, reading, calling and pinning never do */
 function keep(id: string) {
   const p = state.projects[id]
   if (p?.example) set({ ...state, projects: { ...state.projects, [id]: { ...p, example: false } } })
@@ -446,7 +470,7 @@ function buildLog(p: Project, ok: boolean) {
         `$ build`,
         `   Compiling ${crate} v1.0.0 (/src)`,
         `    Finished release [optimized] target(s)`,
-        p.framework === "native" ? `Build successful. IDL: ${ixsOf(p).length} instruction(s)` : "Build successful. No IDL: the build server doesn't make one yet",
+        p.framework === "native" ? "Build successful" : "Build successful. No IDL: the build server doesn't make one yet",
       ]
     : [`$ build`, `   Compiling ${crate} v1.0.0 (/src)`]
 }
@@ -482,6 +506,9 @@ export function build(id: string, opts: { instant?: boolean; chain?: "deploy" | 
       // An upgrade posts one card for the build and the deploy together; the build alone stays quiet
       return chained === "upgrade" ? done : post(done, { k: "build-ok", took: force === "slow" ? SLOW_MS : BUILD_MS, ixs: ixsOf(q).length })
     })
+    // A build that passed is work done on it: the example is yours from here, so its card can say Built
+    // (Almaz, 18 Nov). With every slot taken it stays an example, and the deploy says why
+    if (!blocked(state.projects[id])) keep(id)
     if (chained) deploy(id, { instant: opts.instant })
   }
   if (opts.instant) return finish()
@@ -708,7 +735,7 @@ export function retryDeploy(id: string) {
 
 /** Upload IDL: the prototype has one ready (decision 17) */
 export function uploadIdl(id: string) {
-  update(id, (p) => post({ ...p, idl: true }, { k: "assistant", text: "IDL uploaded. The call form is built from it now, so the instructions show up in the Call panel." }))
+  update(id, (p) => post({ ...p, idl: true, idlAt: Date.now() }, { k: "assistant", text: "IDL uploaded. The call form is built from it now, so the instructions show up in the Call panel." }))
 }
 
 // ----- The assistant (canned, decision 20) --------------------------------------------------------
@@ -747,14 +774,20 @@ function answerFor(p: Project, text: string): NewTurn {
       text:
         fail?.kind === "compile"
           ? `The compiler stopped at \`${(fail.file ?? MAIN_FILE).split("/").pop()}\` line ${fail.line}: ${fail.message}. ${fail.code === "E0425" ? "Declare the name before that line, or use the one that is declared." : "Close the block that's left open, or drop the brace that has no match."} Change it there, then Build and deploy.`
-          : `Each instruction is handled in \`${MAIN_FILE}\`, one function each, so a change to what one does goes in its function there. Change it there, then Build and deploy.`,
+          : `Each instruction is handled in \`${mainFileOf(p)}\`, one function each, so a change to what one does goes in its function there. Change it there, then Build and deploy.`,
     }
-  if (t.includes("cost")) return { k: "assistant", text: `A first deploy of ${p.name} takes about ${meta?.cost ?? 0.48} devnet SOL, mostly rent for the program's account. Devnet SOL is free test money from the faucet, and the Guide gets it for you.` }
+  if (t.includes("cost")) return { k: "assistant", text: `A first deploy of ${p.name} takes about ${meta?.cost ?? 0.48} devnet SOL, mostly rent for the program's account. Devnet SOL is free test money from the faucet, and Playground gets it for you.` }
   if (t.includes("safe")) return { k: "assistant", text: "Yes. Everything here runs on devnet, a test network. Nothing touches real money, and you can deploy and call as often as you like." }
   if (t.includes("walk") || t.includes("read first") || t.includes("file"))
-    return { k: "assistant", text: `Start with \`${MAIN_FILE}\`: \`process_instruction\` gets every call, reads which instruction it is, and runs it. \`entrypoint.rs\` only hands the call over, and \`lib.rs\` ties the files together.` }
+    return {
+      k: "assistant",
+      text:
+        p.framework === "anchor"
+          ? `Start with \`${mainFileOf(p)}\`: the functions under \`#[program]\` are the instructions, and each \`#[derive(Accounts)]\` struct lists the accounts one of them takes. Anchor checks those accounts before your function runs.`
+          : `Start with \`${MAIN_FILE}\`: \`process_instruction\` gets every call, reads which instruction it is, and runs it. \`entrypoint.rs\` only hands the call over, and \`lib.rs\` ties the files together.`,
+    }
   const ix = meta?.ixs.find((i) => t.includes(i.name))
-  if (ix) return { k: "assistant", text: `\`${ix.name}\`: ${ix.line} ${ix.accounts.length ? `It takes ${ix.accounts.length} accounts (${ix.accounts.join(", ")}).` : "It needs no accounts, only your wallet's signature."}` }
+  if (ix) return { k: "assistant", text: `\`${ix.name}\`: ${ix.line} ${ix.accounts.length ? `It takes ${ix.accounts.length === 1 ? "one account" : `${ix.accounts.length} accounts`} (${ix.accounts.join(", ")}).` : "It needs no accounts, only your wallet's signature."}` }
   // Anything else, "what now?" included: say the one next step, not a list of things to ask
   return { k: "assistant", text: nextStep(p) }
 }
@@ -782,19 +815,19 @@ function nextStep(p: Project): string {
   const ix = firstIx(p)
   switch (liveAction(p)) {
     case "build":
-      return `Next is Build: it compiles \`${MAIN_FILE.split("/").pop()}\` on Playground's build server. Press Build in the card above.`
+      return `Next is Build: it compiles \`${mainFileOf(p).split("/").pop()}\` on Playground's build server.`
     case "deploy":
-      return "Next is Deploy: it puts your program on devnet, the free test network. Press Deploy in the card above."
+      return "Next is Deploy: it puts your program on devnet, the free test network."
     case "upgrade":
       return "You changed the code since the last deploy. Next is Build and deploy: it upgrades your program on devnet."
     case "call":
-      return `Next is Call \`${ix ?? "the program"}\`: it sends that instruction to your program on devnet. Press Call in the card above.`
+      return `Next is Call \`${ix ?? "the program"}\`: it sends that instruction to your program on devnet.`
     case "no-idl":
       if (p.framework !== "native")
-        return "Next is the IDL: the call form is built from it, and Playground's build server doesn't make one yet. Build the IDL locally in the card above, then upload it."
-      return "Next is Run client.ts: it calls your program on devnet and prints what comes back. Press Run in the card above."
+        return "Next is the IDL: the call form is built from it, and Playground's build server doesn't make one yet. Build the IDL locally, then upload it."
+      return "Next is Run client.ts: it calls your program on devnet and prints what comes back."
     case "run":
-      return "Next is Run client.ts: it calls your program on devnet and prints what comes back. Press Run in the card above."
+      return "Next is Run client.ts: it calls your program on devnet and prints what comes back."
     default:
       return `That's the whole path: ${p.name} is built, on devnet and it answered. Change the code and upgrade, or ask what a line does.`
   }
@@ -845,7 +878,9 @@ export const projectOfSlug = (slug: string) => Object.values(state.projects).fin
 
 function makeFromProgram(meta: ProgramMeta, name = meta.name): Project {
   const files = filesOf(meta)
-  // Read mode while the build server can't build Native, which today is every catalog program
+  // An Anchor example builds and deploys like a starter: no IDL from the build until the server makes one
+  if (meta.kind === "anchor") return { ...blank(name, "anchor", "example", files), open: mainOf(meta), slug: meta.slug, idl: false, read: false }
+  // Read mode while the build server can't build Native: every SPL program and hello-solana
   return { ...blank(name, "native", "example", files), slug: meta.slug, idl: true, read: !state.native }
 }
 
@@ -917,7 +952,7 @@ export function openProgram(slug: string, o: { fail?: OpenFail; hold?: boolean; 
   if (!meta) return
   const existing = projectOfSlug(slug)
   if (existing) return openProject({ name: existing.name, framework: existing.framework, source: existing.source, slug })
-  const p = ensureLive(post({ ...makeFromProgram(meta), example: state.native, opening: o.several ? { s: "pick", options: SEVERAL } : { s: "reading" } }, { k: "intro" }))
+  const p = ensureLive(post({ ...makeFromProgram(meta), example: state.native || meta.kind === "anchor", opening: o.several ? { s: "pick", options: SEVERAL } : { s: "reading" } }, { k: "intro" }))
   set({ ...state, projects: tidy({ ...state.projects, [p.id]: p }, p.id), route: { at: "project", id: p.id } })
   show()
   if (!o.several) runOpening(p.id, o)
@@ -1100,3 +1135,6 @@ export function seedReturning() {
     answerStop(record.name)
   }
 }
+
+// The save, read once everything it needs is declared (see `let state` above)
+state = loadState()

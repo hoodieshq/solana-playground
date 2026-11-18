@@ -14,14 +14,15 @@ import { soon } from "../Catalog"
 import { healthWith, MODELS, networksFor, setChoices, useChoices, withChoices } from "./choices"
 import { FOCUS, HOVER, Tip, useRoomy } from "./parts"
 
-/** The chip's dot: quiet grey while all is well (green only inside the popover), a purple pulse while
- * connecting, amber with a ring cut into the ground when something needs you */
+/** The chip's dot: green while all is well, the same dot the popover's Network row shows for the network
+ * the chip names (Almaz, 17 Nov: a grey dot here beside a green one in the popover read as out of sync);
+ * a purple pulse while connecting, amber with a ring cut into the ground when something needs you */
 export function HealthMark({ health }: { health: Health }) {
   if (health.tone === "busy") return <StatusDot variant="running" />
   return (
     <span
       aria-hidden="true"
-      className={cn("inline-block size-1.5 shrink-0 rounded-full", health.tone === "attention" ? "bg-warning shadow-[0_0_0_2px_var(--nav-bg)]" : "bg-(--text-quiet)")}
+      className={cn("inline-block size-1.5 shrink-0 rounded-full", health.tone === "attention" ? "bg-warning shadow-[0_0_0_2px_var(--nav-bg)]" : "bg-success")}
     />
   )
 }

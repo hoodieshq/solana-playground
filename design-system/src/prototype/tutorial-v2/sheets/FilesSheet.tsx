@@ -1,4 +1,3 @@
-import { FileCode } from "lucide-react"
 
 import type { ReactNode } from "react"
 
@@ -37,7 +36,6 @@ function FilesList({ onPick }: { onPick: (file: string) => void }) {
                 onClick={() => onPick(file)}
                 className={cn(ROW, "h-11 text-[0.9375rem] text-muted-foreground hover:bg-transparent active:bg-foreground/[0.05]")}
               >
-                <FileCode className="size-4 shrink-0 text-subtle" aria-hidden="true" />
                 <span className="truncate text-foreground">{file.slice(at + 1)}</span>
                 {at > 0 && <span className="ml-auto pl-3 text-caption">{file.slice(0, at)}</span>}
               </button>

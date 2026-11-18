@@ -1,6 +1,6 @@
 import type { Framework } from "../../programs/project"
 
-/* What First Light offers: the four starters, the bundled Basics, and the fake repos Import reads
+/* What First Light offers: the four starters and the fake repos Import reads
    (CONSENSUS.md, sections 3.5 to 3.7 and 8) */
 
 export type FrameworkId = Framework
@@ -48,16 +48,6 @@ export const FRAMEWORKS: FrameworkInfo[] = [
 
 export const frameworkOf = (id: FrameworkId) => FRAMEWORKS.find((f) => f.id === id)!
 
-/** The five small programs bundled with the app (concept): they create offline and cost no GitHub call */
-export type Basic = { slug: string; framework: FrameworkId; line: string }
-
-export const BASICS: Basic[] = [
-  { slug: "hello-solana", framework: "native", line: "Logs a message. The smallest program there is." },
-  { slug: "counter", framework: "anchor", line: "Stores a number in an account and adds one to it." },
-  { slug: "create-account", framework: "anchor", line: "Makes a new account owned by the program." },
-  { slug: "transfer-sol", framework: "anchor", line: "Sends SOL from one account to another." },
-  { slug: "favorites", framework: "anchor", line: "Saves each wallet's favorite number in its own account." },
-]
 
 /** A program found in a repo */
 export type RepoProgram = { path: string; name: string; framework: FrameworkId; readme: boolean }

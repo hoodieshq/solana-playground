@@ -2,7 +2,8 @@ import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "rea
 
 import type { OpenProject } from "../../programs/project"
 import type { NextStateId } from "../design"
-import { BASICS, frameworkOf, type RepoProgram } from "./data"
+import { frameworkOf, type RepoProgram } from "./data"
+import { mainOf, programBySlug } from "../../programs/data"
 import { checkName, fakeRepo, finalName, INITIAL, isGithubLink, primary, reducer, useEnv, wait, type FirstLightState } from "./model"
 import { keepEnv, land, type Preset } from "./open"
 import { SEEDS } from "./states"
@@ -66,7 +67,6 @@ export function useFirstLight(forced: NextStateId | undefined, preset: Preset | 
     if (g !== gen.current) return
     const st = now.current
     const name = st.into ?? finalName(st, env)
-    if (st.source === "example") return finish({ name, framework: BASICS.find((b) => b.slug === st.examples.picked)!.framework, source: "example", slug: st.examples.picked, openFile: "src/lib.rs" })
     if (st.source === "describe" && !st.into) return finish({ name, framework: st.framework, source: "describe", prompt: st.describe.text.trim() })
     finish({ name, framework: st.framework, source: "starter", openFile: frameworkOf(st.framework).main, ...(express && { firstRun: true, build: true }) })
   }
@@ -85,7 +85,9 @@ export function useFirstLight(forced: NextStateId | undefined, preset: Preset | 
     step({ step: 2, loaded: 24 })
     await wait(200)
     if (g !== gen.current) return
-    finish({ name: finalName(now.current, env), framework: "native", source: "example", slug, openFile: "src/lib.rs" })
+    // The project takes the program's own framework: an Anchor example builds, a Native one is read
+    const meta = programBySlug(slug)
+    finish({ name: finalName(now.current, env), framework: meta?.kind ?? "native", source: "example", slug, openFile: meta ? mainOf(meta) : "src/lib.rs" })
   }
 
   /** The import's copy and open, once the program is known */
@@ -138,7 +140,8 @@ export function useFirstLight(forced: NextStateId | undefined, preset: Preset | 
       return
     }
     const picked = s.examples.picked
-    if (s.source === "example" && !s.into && picked && !BASICS.some((b) => b.slug === picked)) return download(picked)
+    // Every example is a catalog program now, so every one downloads (Almaz, 16 Nov)
+    if (s.source === "example" && !s.into && picked) return download(picked)
     localCreate()
   }
 

@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils"
 import { highlight } from "../../../ui/CodeView"
 import { ACTION, ACTION_FILL, ACTION_SOFT, FOCUS, secs } from "../../../ui/type"
 import { WALLET_KEY, fakeKey, type Ix } from "../../data"
-import { CALL_MS, ask, behind, busy, call, deploy, firstIx, ixsOf, onChain, runClient, setPane, setValue, uploadIdl, valuesFor, type Project, type Turn } from "../../store"
+import { CALL_MS, ask, behind, busy, call, deploy, firstIx, ixsOf, onChain, setPane, setValue, uploadIdl, valuesFor, type Project, type Turn } from "../../store"
 import { accountRoles, idlJson } from "./GuideColumn"
 import { IdlGuide } from "./IdlGuide"
 import { Actions, QUIET, shortKeys } from "./parts"
@@ -84,6 +84,7 @@ function problem(type: string, value: string): string | null {
 export function CallPanel({ p }: { p: Project }) {
   const [view, setView] = useState<"form" | "idl">("form")
   const [reading, setReading] = useState<"schema" | "json">("schema")
+  const [guide, setGuide] = useState(false)
   const chain = onChain(p)
   const built = p.build.s === "ok" || !!chain
 
@@ -107,9 +108,11 @@ export function CallPanel({ p }: { p: Project }) {
   const ix = ixs.find((i) => i.name === p.ix) ?? ixs.find((i) => i.name === firstIx(p)) ?? ixs[0]
   if (!ix) return <NoIdl p={p} />
   const json = idlJson(p)
+  const idlBehind = !!p.idlAt && !!chain && chain.at > p.idlAt
 
   return (
     <div className="@container/call flex min-h-0 min-w-0 flex-1 flex-col bg-(--code-ground)">
+      <IdlGuide p={p} open={guide} onOpenChange={setGuide} />
       <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4 @min-[560px]/call:px-6">
         <Segmented variant="quiet" aria-label="Call panel view" value={view} onValueChange={(v) => v && setView(v as "form" | "idl")}>
           <SegmentedItem value="form" className="cursor-pointer">
@@ -119,6 +122,16 @@ export function CallPanel({ p }: { p: Project }) {
             IDL
           </SegmentedItem>
         </Segmented>
+        {/* An IDL uploaded by hand doesn't follow the code: after an upgrade the form may list what the program
+            no longer takes. Said here, where it matters, not in the upload dialog (Almaz, 18 Nov) */}
+        {view === "form" && idlBehind && (
+          <p className="ml-auto flex min-w-0 items-center gap-1 text-[0.75rem] leading-4 text-muted-foreground">
+            <span className="truncate">Upgraded since this IDL was uploaded</span>
+            <Button variant="ghost" size="xs" className="shrink-0 text-foreground/90" onClick={() => setGuide(true)}>
+              Update IDL
+            </Button>
+          </p>
+        )}
         {view === "idl" && (
           <div className="ml-auto flex items-center gap-2">
             <Segmented aria-label="IDL reading" value={reading} onValueChange={(v) => v && setReading(v as "schema" | "json")}>
@@ -620,45 +633,29 @@ function IxTitle({ p, ix }: { p: Project; ix: Ix }) {
 
 function NoIdl({ p }: { p: Project }) {
   const [guide, setGuide] = useState(false)
-  const client = p.framework === "native" && "client/client.ts" in p.files
-  // An Anchor program on the new build server: no IDL from the build, so the guide to build it locally
-  const anchor = p.framework !== "native"
+  // The new build server makes no IDL, so the way on is the guide to build it locally. A Native program
+  // never gets here: its last stage is Run, not Interact
   return (
     <Empty className="flex-1">
-      <EmptyHeader>
-        <EmptyMedia className="grid size-12 place-items-center rounded-panel bg-surface-raised text-muted-foreground">
+      {/* Three steps down: the title at 18, one grey line at 14, then the buttons. The title and the line
+          were both 14 and the buttons 15, so the buttons led and the title read as a caption (Almaz, 18 Nov) */}
+      <EmptyHeader className="gap-1.5">
+        <EmptyMedia className="mb-2.5 grid size-12 place-items-center rounded-panel bg-surface-raised text-muted-foreground">
           <FileQuestion className="size-6" />
         </EmptyMedia>
-        <EmptyTitle>{anchor ? "No IDL yet" : "No IDL for this program"}</EmptyTitle>
-        <EmptyDescription>
-          {anchor
-            ? "The call form is built from an IDL, the list of a program's instructions. Playground's build server doesn't make one yet: build it on your machine, then upload it."
-            : "The call form is built from an IDL, the list of a program's instructions. Native programs don't make one when they build."}
-        </EmptyDescription>
+        <EmptyTitle className="text-[1.125rem] leading-6">No IDL yet</EmptyTitle>
+        <EmptyDescription className="text-[0.875rem] leading-5 text-balance">The call form is read from an IDL, and Playground can't build one yet. Build it locally, then upload it.</EmptyDescription>
       </EmptyHeader>
       <div className="flex flex-wrap justify-center gap-2">
-        {/* Soft here: the Guide's card beside it holds the one primary for the same step */}
-        {anchor ? (
-          <>
-            <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => setGuide(true)}>
-              Build the IDL locally
-            </Button>
-            <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => uploadIdl(p.id)}>
-              Upload IDL
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => (client ? runClient(p.id) : uploadIdl(p.id))}>
-              {client ? "Run client.ts" : "Upload IDL"}
-            </Button>
-            <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => (client ? uploadIdl(p.id) : ask(p.id, "What is an IDL?"))}>
-              {client ? "Upload IDL" : "Ask the assistant"}
-            </Button>
-          </>
-        )}
+        {/* The first is the way on, filled; the second is for someone who has the file already */}
+        <Button className={cn(ACTION, ACTION_FILL)} onClick={() => setGuide(true)}>
+          Build the IDL locally
+        </Button>
+        <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => uploadIdl(p.id)}>
+          Upload IDL
+        </Button>
       </div>
-      {anchor && <IdlGuide p={p} open={guide} onOpenChange={setGuide} />}
+      <IdlGuide p={p} open={guide} onOpenChange={setGuide} />
     </Empty>
   )
 }

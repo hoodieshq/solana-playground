@@ -1083,7 +1083,7 @@ Client
 * Section labels `h-7 px-2 text-[0.75rem] text-subtle`: "Program", "Client" (the product explorer's
   sections).
 * Rows: v1 `ROW` (`h-7 rounded-[6px] px-2 text-[0.8125rem] gap-2`, hover `bg-surface-hover`), indent 16
-  per depth. Folders `NAV_ICONS.folder` `text-subtle`; files `FileCode` 15 tinted.
+  per depth. Folders `NAV_ICONS.folder` `text-subtle`; files are the name alone, no glyph.
 * Open file: `bg-surface-hover`, a 2 px `bg-primary` bar on the left inside the row.
 * The live step's file: `ml-auto size-1.5 rounded-full bg-brand-purple`.
 * client.ts before step 3: `opacity-50 cursor-default`, `Tag neutral` "Step 3", tooltip "Created in step 3".

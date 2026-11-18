@@ -1,4 +1,4 @@
-import { MAIN_FILE, filesOf, type Ix, type ProgramMeta } from "./data"
+import { MAIN_FILE, RAW as RAW_SLUGS, filesOf, type Ix, type ProgramMeta } from "./data"
 
 /* Read mode (research/program-redesign/delta/CONSENSUS-delta.md 2.3): a catalog program the build server
    can't build is read with the assistant along a path of stops. Calling Solana's copies on devnet is out of
@@ -39,7 +39,7 @@ export function lineOf(meta: ProgramMeta, file: string, needle: string) {
   return at + 1 || 1
 }
 
-const RAW = (meta: ProgramMeta) => meta.slug === "spl-memo" || meta.slug === "spl-noop"
+const RAW = (meta: ProgramMeta) => RAW_SLUGS.includes(meta.slug)
 
 /** The Overview stop's answer, and the lines it quotes */
 export function overview(meta: ProgramMeta): { parts: Part[]; quote: Ref } {
@@ -59,6 +59,15 @@ export function overview(meta: ProgramMeta): { parts: Part[]; quote: Ref } {
     return {
       parts: ["A call comes in at `entrypoint.rs` and goes straight to `process_instruction`, at ", { file: MAIN_FILE, from: entry }, ". It reads nothing and returns `Ok(())`, so any input succeeds."],
       quote: { file: MAIN_FILE, from: entry + 5 },
+    }
+  if (meta.slug === "hello-solana")
+    return {
+      parts: [
+        "A call comes in at `entrypoint.rs` and goes straight to `process_instruction`, at ",
+        { file: MAIN_FILE, from: entry },
+        ". It writes two lines to the log with `msg!`, the greeting and its own program id, and returns `Ok(())`.",
+      ],
+      quote: { file: MAIN_FILE, from: entry + 5, to: entry + 6 },
     }
   const unpack = lineOf(meta, MAIN_FILE, "Instruction::unpack(input)")
   return {
@@ -92,6 +101,7 @@ export function instructionsLead(meta: ProgramMeta): Part[] {
       ".",
     ]
   if (meta.slug === "spl-noop") return ["noop has one instruction, and it takes anything: no accounts, any bytes, and nothing comes back but success."]
+  if (meta.slug === "hello-solana") return ["hello-solana has one thing to do: any call logs the greeting. It takes no accounts and ignores its input."]
   return [`${meta.name} can be asked to do ${meta.ixs.length} things. Each one is a variant of \`Instruction\` in \`instruction.rs\`, handled by its own function in \`processor.rs\`.`]
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { ArrowUp, ChevronLeft, Ellipsis } from "lucide-react"
+import { ArrowUp, Ellipsis } from "lucide-react"
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
@@ -8,20 +8,18 @@ import { Composer, ComposerInput, ComposerSend, ComposerToolbar } from "@/compon
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-import { Column } from "../../../desktop/Column"
 import { FILES_KEYS, MENU_KEYS, PRIMARY_KEYS, TERMINAL_KEYS } from "../../../desktop/keys"
+import { ChipRow } from "../../../ui/ChipRow"
 import { openExplorer } from "../../../ui/explorer"
+import { launch } from "../../../ui/turns/YouPill"
+import { showFailLine } from "./Talk"
 import { setPinned, usePins } from "../../../desktop/navLit/pins"
 import { ask, build, busy, deleteProject, deploy, go, ixsOf, metaOf, onChain, renameProject, type Project } from "../../store"
-import { Feed } from "./Feed"
-import { StepStrip } from "./StepStrip"
+import { BUILD_KEYS } from "./Stages"
 import { copyText, onFocusComposer } from "./util"
 
-const mac = /Mac|iPhone|iPad/.test(navigator.userAgent)
-const BUILD_KEYS = mac ? "⌘⇧B" : "Ctrl Shift B"
 
 const SHORTCUTS = [
   { group: "In the project", what: "Run the next step", keys: PRIMARY_KEYS },
@@ -32,7 +30,7 @@ const SHORTCUTS = [
 ]
 
 /** Read mode has nothing to build, so Build leaves the list there */
-function ShortcutsDialog({ open, onOpenChange, read = false }: { open: boolean; onOpenChange: (open: boolean) => void; read?: boolean }) {
+export function ShortcutsDialog({ open, onOpenChange, read = false }: { open: boolean; onOpenChange: (open: boolean) => void; read?: boolean }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-80!">
@@ -236,8 +234,15 @@ export function MoreMenu({ p, onKeys }: { p: Project; onKeys?: () => void }) {
 }
 
 /** The composer at the foot: questions about the project go into the same thread */
-export function Ask({ p, phone = false }: { p: Project; phone?: boolean }) {
+export function Ask({ p, phone = false, chips = [] }: { p: Project; phone?: boolean; chips?: string[] }) {
   const [text, setText] = useState("")
+  const [focused, setFocused] = useState(false)
+  // A chip's question flies from the chip into the thread, as in a tutorial
+  const pick = (label: string, button?: HTMLElement) => {
+    if (button) launch(label, button.getBoundingClientRect())
+    if (label === "Show me the line") showFailLine(p, label)
+    else ask(p.id, label)
+  }
   // One line, Send beside it, until the words outgrow it; focus alone moves nothing (Almaz, 6 Nov:
   // the button jumped on a press). Once tall it stays tall until the box is empty, or a line that
   // fits the wider box would flip it back and forth
@@ -246,7 +251,13 @@ export function Ask({ p, phone = false }: { p: Project; phone?: boolean }) {
   useEffect(() => onFocusComposer(() => input.current?.focus()), [])
   return (
     <div className={cn("shrink-0", phone ? "px-4 pt-3 pb-[calc(var(--safe-bottom)+12px)] [html.portrait_&]:px-8" : "px-5 pt-3 pb-5")}>
+      {/* On a phone the chips go while the keyboard is up: the field needs the room */}
+      {!(phone && focused) && <ChipRow chips={chips} phone={phone} onPick={pick} />}
       <Composer
+        onFocus={() => setFocused(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) window.setTimeout(() => setFocused(false), 0)
+        }}
         onSubmit={() => {
           if (!text.trim()) return
           ask(p.id, text.trim())
@@ -264,57 +275,19 @@ export function Ask({ p, phone = false }: { p: Project; phone?: boolean }) {
             const v = e.target.value
             setText(v)
             if (!v) setTall(false)
-            else if (!tall && (v.includes("\n") || e.target.scrollHeight > 44)) setTall(true)
+            else if (!tall && (v.includes("\n") || e.target.scrollHeight > 46)) setTall(true)
           }}
           placeholder={p.read ? "Ask about this program" : `Ask about ${p.name}`}
           aria-label={p.read ? "Ask about this program" : `Ask about ${p.name}`}
           enterKeyHint="send"
-          className={cn("leading-[22px] placeholder:text-muted-foreground/80!", !tall && "min-h-10 pt-2.5 pb-2.5")}
+          className={cn("leading-[22px] placeholder:text-muted-foreground/80!", !tall && "min-h-10 pt-2.5 pb-2.5", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
         />
         <ComposerToolbar className={cn(!tall && "py-1 pr-1")}>
-          <ComposerSend className="relative after:absolute after:-inset-1.5 after:content-[''] disabled:bg-surface-hover disabled:text-muted-foreground disabled:opacity-100">
+          <ComposerSend className="pointer-coarse:size-11 disabled:bg-surface-hover disabled:text-subtle disabled:opacity-100">
             <ArrowUp />
           </ComposerSend>
         </ComposerToolbar>
       </Composer>
     </div>
-  )
-}
-
-/** The left column, as in a lesson: the head, the step strip, the one thread and the composer */
-export function GuideColumn({ p }: { p: Project }) {
-  const scroller = useRef<HTMLDivElement>(null)
-  const [keys, setKeys] = useState(false)
-  return (
-    <Column label="Guide">
-      <div className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-1.5">
-        {/* Every project goes back to Programs, as a lesson to Tutorials: yours are listed there too (Almaz, 10 Nov) */}
-        <Button variant="ghost" size="sm" className="gap-0.5 pl-1.5 text-muted-foreground" onClick={() => go({ at: "catalog" })}>
-          <ChevronLeft className="size-4" />
-          Programs
-        </Button>
-        <ProjectName p={p} className="ml-2 min-w-0 truncate text-[0.875rem] text-foreground" />
-        {/* Build mode, opened from the catalog and not saved: it isn't in your projects until you change or
-            deploy it. Read mode has no tag here, its mark is in the workspace head */}
-        {p.example && !p.read && !p.opening && (
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} className="ml-1 shrink-0 rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-[0.75rem] leading-4 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                Example
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-60">
-              Not in your projects yet. Change or deploy it to keep it.
-            </TooltipContent>
-          </Tooltip>
-        )}
-        <span className="flex-1" />
-        <MoreMenu p={p} onKeys={() => setKeys(true)} />
-      </div>
-      <StepStrip p={p} scroller={scroller} />
-      <Feed p={p} scroller={scroller} />
-      <Ask p={p} />
-      <ShortcutsDialog open={keys} onOpenChange={setKeys} read={p.read} />
-    </Column>
   )
 }

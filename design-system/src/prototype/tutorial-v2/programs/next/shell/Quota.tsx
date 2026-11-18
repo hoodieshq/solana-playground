@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -9,55 +9,15 @@ import { StatusDot } from "@/components/ui/status-dot"
 import { cn } from "@/lib/utils"
 
 import { SHEET, SHEET_HEAD, SHEET_TITLE } from "../../../sheets/sheet"
-import { ACTION, ACTION_FILL, ACTION_SOFT, READ } from "../../../ui/type"
+import { ACTION_SOFT } from "../../../ui/type"
 import { view } from "../../../view"
-import { LIMIT, blocked, deleteProject, onQuotaFlash, setNotice, usePrograms, usedSlots, type Project } from "../../store"
-import { ago, flash, onManage, openManage } from "./util"
+import { LIMIT, blocked, deleteProject, setNotice, usePrograms, type Project } from "../../store"
+import { ago, onManage, openManage } from "./util"
 
 /* The account's 10 projects, in build mode only (CONSENSUS-delta 2.7): a line on the Deploy card at 8 or
    9, a card in its place at 10, a notice when a first edit would save an 11th, and Manage projects */
 
 const touch = view === "phone" || view === "portrait"
-
-/** One more line in the Deploy card's context at 8 or 9 used, while the deploy would save the project */
-export function QuotaLine({ p }: { p: Project }) {
-  const used = usePrograms((s) => usedSlots(s))
-  if (!p.example || used < 8 || used >= LIMIT) return null
-  return (
-    <p className="pl-11 text-[0.8125rem] leading-[1.125rem] text-muted-foreground tabular-nums max-sm:pl-0">
-      Deploying saves {p.name} to your projects ({used} of {LIMIT} used).
-    </p>
-  )
-}
-
-/** In the Deploy card's place at 10 of 10. A count, not a failure: no icon, no red. Head Deploy brings
- * it into view and flashes it */
-export function QuotaCard({ p }: { p: Project }) {
-  const ref = useRef<HTMLElement>(null)
-  useEffect(
-    () =>
-      onQuotaFlash(() => {
-        ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
-        flash(ref.current)
-      }),
-    []
-  )
-  return (
-    <section ref={ref} data-live-card aria-label="Your projects are full" className="mt-2 overflow-hidden rounded-panel border border-border bg-(--card-ground) animate-in fade-in-0 duration-150">
-      <div className="flex flex-col gap-1 p-4">
-        <h3 className="font-heading text-[1rem] leading-6 font-medium text-foreground">Your projects are full</h3>
-        <p className={READ}>
-          Deploying saves {p.name} as a project, and your account has {LIMIT} of {LIMIT}. Delete one you don't need, then deploy.
-        </p>
-      </div>
-      <div className="border-t border-border bg-surface-panel px-4 py-3">
-        <Button onClick={openManage} className={cn(ACTION, ACTION_FILL, touch && "max-sm:h-12 max-sm:w-full [html.portrait_&]:min-w-60")}>
-          Manage projects
-        </Button>
-      </div>
-    </section>
-  )
-}
 
 /** A first edit with the projects full: the keystroke didn't land. Stays until ✕, or until a slot frees */
 export function FullNotice({ p, phone = false }: { p: Project; phone?: boolean }) {

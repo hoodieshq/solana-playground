@@ -1,3 +1,6 @@
+// First, before any store reads its saved state: each tab keeps its own (tabStorage.ts)
+import "./tabStorage"
+
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 

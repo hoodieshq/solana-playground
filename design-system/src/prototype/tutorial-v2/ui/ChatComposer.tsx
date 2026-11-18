@@ -1,19 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
-import { ArrowUp, ChevronDown } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { ArrowUp } from "lucide-react"
 
 import { Composer, ComposerInput, ComposerSend, ComposerToolbar } from "@/components/ui/composer"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
 import { CHANGE_CHIP, EXPLAIN_STEP, NEXT_CHIP, STUCK } from "../answers"
 import { LESSON, STEPS } from "../data"
 import { LimitNotice } from "../desktop/navLit/LimitNotice"
 import { liveFail, liveWin, useStore, type State } from "../store"
+import { ChipRow } from "./ChipRow"
 import { on } from "./events"
 import { launch } from "./turns/YouPill"
-
-const CHIP =
-  "h-6 shrink-0 rounded-full border border-border-strong px-2.5 text-[0.75rem] whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground outline-none focus-visible:outline-2 focus-visible:outline-brand-purple pointer-coarse:h-11 pointer-coarse:px-4"
 
 /** The chips for the moment, in order (spec 6.6): after a failure the step's error chips, otherwise
  * its own, then Explain this step; I'm stuck always last. None while a run goes or a win is live,
@@ -42,8 +39,6 @@ function placeholderFor(s: State) {
   return "Ask about this step"
 }
 
-const MORE_W = 68
-
 // Whether a pointer is down right now, anywhere on the page
 let pressing = false
 window.addEventListener("pointerdown", () => (pressing = true), { capture: true })
@@ -61,35 +56,10 @@ export function ChatComposer({ phone = false }: { phone?: boolean }) {
   // outgrow the line and stays open until it's empty, or a line that fits the wider box would flip it
   const [open, setOpen] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
-  const row = useRef<HTMLDivElement>(null)
   const chips = chipsFor(s)
   const placeholder = placeholderFor(s)
-  const [fits, setFits] = useState(chips.length)
-  // Where More sits: right after the last chip that shows
-  const [moreAt, setMoreAt] = useState(0)
 
   useEffect(() => on("composer:focus", () => input.current?.focus()), [])
-
-  // How many chips fit whole beside More; all of them when they fit without it
-  const key = chips.join("|")
-  useLayoutEffect(() => {
-    const el = row.current
-    if (!el || phone) return
-    const measure = () => {
-      const kids = [...el.querySelectorAll<HTMLElement>("[data-chip]")]
-      const room = el.clientWidth
-      const end = (k: HTMLElement) => k.offsetLeft + k.offsetWidth
-      if (kids.every((k) => end(k) <= room + 0.5)) return setFits(kids.length)
-      const i = kids.findIndex((k) => end(k) > room - MORE_W)
-      const n = i === -1 ? kids.length : i
-      setFits(n)
-      setMoreAt(n > 0 ? end(kids[n - 1]) + 6 : 0)
-    }
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [key, phone])
 
   // The answers point at where things are, and that differs on a phone
   const send = (q: string) => dispatch({ type: "ask", text: q, phone })
@@ -97,7 +67,6 @@ export function ChatComposer({ phone = false }: { phone?: boolean }) {
     if (button) launch(label, button.getBoundingClientRect())
     send(label)
   }
-  const hidden = phone ? [] : chips.slice(fits)
 
   return (
     // In the tablet frame the screen already keeps 20 clear for the home bar, so nothing more: the field
@@ -106,45 +75,7 @@ export function ChatComposer({ phone = false }: { phone?: boolean }) {
       {!phone && <LimitNotice className="mb-3" />}
       {/* On a phone the chips scroll sideways under a fade at the right edge, and go while the
           keyboard is up: the field needs the room */}
-      {chips.length > 0 && !(phone && focused) && (
-        <div
-          ref={row}
-          className={cn("relative mb-3 flex gap-1.5", phone ? "-mx-4 overflow-x-auto px-4 [scrollbar-width:none] mask-r-from-[calc(100%-2.5rem)]" : "overflow-hidden")}
-        >
-          {chips.map((c, i) => {
-            const out = !phone && i >= fits
-            return (
-              <button
-                key={c}
-                type="button"
-                data-chip
-                onClick={(e) => pick(c, e.currentTarget)}
-                tabIndex={out ? -1 : undefined}
-                aria-hidden={out || undefined}
-                // Kept in the row, unseen, so the row can measure it again when it widens
-                className={cn(CHIP, out && "invisible")}
-              >
-                {c}
-              </button>
-            )
-          })}
-          {hidden.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger style={{ left: moreAt }} className={cn(CHIP, "absolute top-0 flex items-center gap-1 bg-surface-base")}>
-                More
-                <ChevronDown className="size-3" aria-hidden="true" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="min-w-52">
-                {hidden.map((c) => (
-                  <DropdownMenuItem key={c} onSelect={() => pick(c)} className="text-[0.8125rem]">
-                    {c}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      )}
+      {!(phone && focused) && <ChipRow chips={chips} phone={phone} onPick={pick} />}
       <Composer
         onFocus={() => setFocused(true)}
         onBlur={(e) => {

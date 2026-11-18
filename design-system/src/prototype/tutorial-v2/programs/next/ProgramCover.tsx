@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Binary, Braces, Code, Cpu, Eye, Hourglass, IdCard, Layers, Save, SquareCheckBig, StickyNote, type LucideIcon } from "lucide-react"
+import { ArrowRightLeft, Binary, Braces, CirclePlus, Code, Cpu, Eye, FilePlus, Heart, Hourglass, IdCard, Layers, MessageSquare, Save, Send, SquareCheckBig, StickyNote, type LucideIcon } from "lucide-react"
 
 import { TileCover } from "../../ui/TileCover"
 import type { ProgramMeta, Topic } from "../data"
@@ -22,6 +22,79 @@ const SWEEP: Record<Topic, [string, string]> = {
  * oracle), a stack of layers (the stake pool), a ticked box (a proposal), a name card (the name
  * service); then code's two brackets for a program with no picture of its own */
 const ART: Record<string, string[]> = {
+  // The basics (16 Nov): a speech bubble with three dots (hello), a plus one (counter), a thin plus between two brackets (a new
+  // account: a thick plus in a box read as an ambulance, a plus at the box's corner tipped the picture
+  // to one side, Almaz, 16 Nov), an arrow out of a coin (a transfer), a heart (favorites; a star never drew well on this grid, Almaz, 16 Nov)
+  "hello-solana": [
+    "............",
+    ".#########..",
+    "#.........#.",
+    "#.........#.",
+    "#..#.#.#..#.",
+    "#.........#.",
+    "#.........#.",
+    ".#########..",
+    "..##........",
+    "..#.........",
+    "............",
+    "............",
+  ],
+  counter: [
+    "............",
+    "............",
+    ".......##...",
+    "..#...###...",
+    "..#....##...",
+    "#####..##...",
+    "..#....##...",
+    "..#....##...",
+    ".......##...",
+    "......####..",
+    "............",
+    "............",
+  ],
+  "create-account": [
+    "............",
+    "###.....###.",
+    "#.........#.",
+    "#....#....#.",
+    "#....#....#.",
+    "#..#####..#.",
+    "#....#....#.",
+    "#....#....#.",
+    "#.........#.",
+    "###.....###.",
+    "............",
+    "............",
+  ],
+  "transfer-sol": [
+    "............",
+    "............",
+    "..####......",
+    ".#....#.....",
+    "#..##..#.#..",
+    "#.#..#.#..#.",
+    "#.#..#.#####",
+    "#..##..#..#.",
+    ".#....#..#..",
+    "..####......",
+    "............",
+    "............",
+  ],
+  favorites: [
+    "............",
+    "............",
+    "..###..###..",
+    ".##########.",
+    ".##########.",
+    ".##########.",
+    "..########..",
+    "...######...",
+    "....####....",
+    ".....##.....",
+    "............",
+    "............",
+  ],
   "spl-memo": [
     "............",
     ".#######....",
@@ -194,6 +267,11 @@ const ART: Record<string, string[]> = {
 
 /** What each program does as a line icon: the catalog banner lays this one as its voxel sculpture */
 const ICONS: Record<string, LucideIcon> = {
+  "hello-solana": MessageSquare,
+  counter: CirclePlus,
+  "create-account": FilePlus,
+  "transfer-sol": Send,
+  favorites: Heart,
   "spl-memo": StickyNote,
   "spl-noop": Braces,
   "spl-record": Save,

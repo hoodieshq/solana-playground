@@ -109,12 +109,18 @@ function usePicked<T>(get: () => T): T {
 export const useProgramsDesign = () => usePicked(readProgramsDesign)
 export const useProgState = () => usePicked(readProgState)
 
-/** Listens for bar picks, own window and frames alike */
+/** Listens for bar picks, own window and frames alike. From other windows only a pick of the Programs
+ * design or state counts: any write there (a lesson saving its screen) used to bring Programs forward, so
+ * two Oak tabs sent each other back to Programs and a lesson opened from Your projects never stayed open
+ * (17 Nov) */
 export function onProgramsPick(fn: () => void) {
+  const storage = (e: StorageEvent) => {
+    if (e.key === DESIGN_KEY || e.key === STATE_KEY) fn()
+  }
   window.addEventListener(EVENT, fn)
-  window.addEventListener("storage", fn)
+  window.addEventListener("storage", storage)
   return () => {
     window.removeEventListener(EVENT, fn)
-    window.removeEventListener("storage", fn)
+    window.removeEventListener("storage", storage)
   }
 }

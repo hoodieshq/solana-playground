@@ -5,19 +5,14 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 import { CatalogSearch } from "../../desktop/Catalog"
-import { filterPrograms } from "../../ui/programs"
-import { BASICS, frameworkOf, type Basic } from "./data"
 import { ImportSteps, type Step } from "./ImportSteps"
-import { programBySlug } from "../../programs/data"
+import { programBySlug, searchCatalog, TOPICS } from "../../programs/data"
 import { ProgramCover } from "../../programs/next/ProgramCover"
-import { ProjectCover } from "../../programs/next/ProjectCover"
 import { CheckBadge, LitPick } from "./LitPick"
 import type { FirstLightState } from "./model"
 import { ProblemCallout } from "./ProblemCallout"
 
 const GROUP_LABEL = "flex h-7 items-end gap-2 pb-1 text-xs leading-4 font-[380] text-(color:--text-quiet)"
-
-const matches = (b: Basic, q: string) => [b.slug, b.line, frameworkOf(b.framework).name].some((f) => f.toLowerCase().includes(q))
 
 /** One example: the tile, the name it will take, its line. The framework is in the tile and the
  * radio's label. The radio is stretched under the row */
@@ -83,8 +78,16 @@ function Skeletons() {
   )
 }
 
-/** Example program (CONSENSUS.md, 3.6): search, then Basics (bundled) and Programs (the catalog) in one
- * radio group. Nothing is picked until the person picks. Creating from a catalog program shows its
+/** The repo a catalog program downloads from, and its branch */
+function repoLine(slug?: string | null) {
+  const meta = slug ? programBySlug(slug) : undefined
+  if (!meta) return undefined
+  return `${meta.repo} · ${meta.repo.startsWith("solana-developers") ? "main" : "master"}`
+}
+
+/** Example program: search, then the one catalog the Programs page shows, in its topics (Basics first),
+ * in one radio group (Almaz, 16 Nov: the five small programs were a bundled set of their own here, which
+ * read as something other than programs). Nothing is picked until the person picks. Creating shows the
  * download as the import checklist */
 export function ExamplePanel({
   s,
@@ -112,7 +115,7 @@ export function ExamplePanel({
     const { step, loaded } = run.copy
     const at = (i: number): Step["status"] => (i < step ? "done" : i === step ? "running" : "waiting")
     const steps: Step[] = [
-      { label: "Read the repo", detail: "solana-labs/solana-program-library · master", status: at(0) },
+      { label: "Read the repo", detail: repoLine(picked), status: at(0) },
       { label: "Copy files", detail: step >= 1 ? `${loaded} of 24` : undefined, status: at(1) },
       { label: "Open lib.rs", status: at(2) },
     ]
@@ -124,16 +127,8 @@ export function ExamplePanel({
     )
   }
 
-  const q = query.trim().toLowerCase()
-  const basics = BASICS.filter((b) => matches(b, q))
-  // The catalog's own programs with their covers: the two it dropped (token-vesting, spl-stake-pool) aren't
-  // offered here either
-  const listed = online && programs === "ready" ? filterPrograms(query).flatMap((p) => programBySlug(p.name) ?? []) : []
-  const none = q && !basics.length && (programs !== "ready" || !listed.length)
-  // The catalog's heading only parts it from the rows above: a search that leaves one group shows its rows
-  // bare (Almaz, 10 Nov)
-  const programsShown = !online || programs !== "ready" || listed.length > 0
-  const labelled = basics.length > 0 && programsShown
+  const listed = online && programs === "ready" ? searchCatalog(query) : []
+  const none = !!query.trim() && online && programs === "ready" && !listed.length
 
   return (
     <div className="flex flex-col gap-3">
@@ -159,54 +154,38 @@ export function ExamplePanel({
           // one that scrolls (Almaz, 10 Nov)
           className="flex flex-col"
         >
-          {/* The small bundled ones lead with no heading: "Basics" over the first rows named nothing the rows
-              didn't show (Almaz, 10 Nov). Programs keeps its own, as the line where the catalog begins */}
-          {basics.map((b) => (
-            <ExampleRow
-              key={b.slug}
-              slug={b.slug}
-              line={b.line}
-              tag={`${frameworkOf(b.framework).name} · Rust`}
-              tile={<ProjectCover framework={b.framework} className="size-10" />}
-              picked={picked === b.slug}
-              dim={busy && picked !== b.slug}
-              onCreate={onCreate}
-            />
-          ))}
-          {labelled && (
-            <div className={cn(GROUP_LABEL, "mt-3")}>
-              Programs
-              {online && programs === "loading" && <span>Loading…</span>}
-            </div>
-          )}
-          {!online && <ProblemCallout tone="warning" title="Programs need a connection" cause="Basics work offline." focus={false} />}
+          {!online && <ProblemCallout tone="warning" title="Examples need a connection" cause="They download from GitHub." focus={false} />}
           {online && programs === "loading" && (
             <>
-              <span className="sr-only">Loading programs…</span>
+              <span className="sr-only">Loading examples…</span>
               <Skeletons />
             </>
           )}
           {online && programs === "failed" && (
-            <ProblemCallout
-              tone="error"
-              title="Could not load the programs."
-              cause="The list comes from the Playground server. Basics still work."
-              primary={{ label: "Try again", onClick: onRetry }}
-              focus={false}
-            />
+            <ProblemCallout tone="error" title="Could not load the examples." cause="The list comes from the Playground server." primary={{ label: "Try again", onClick: onRetry }} focus={false} />
           )}
-          {listed.map((p) => (
-            <ExampleRow
-              key={p.name}
-              slug={p.name}
-              line={p.description}
-              tag="Native · Rust"
-              tile={<ProgramCover p={p} className="size-10 rounded-[9px]" />}
-              picked={picked === p.name}
-              dim={busy && picked !== p.name}
-              onCreate={onCreate}
-            />
-          ))}
+          {/* The Programs page's topics, in its order: a search that leaves one topic still names it */}
+          {TOPICS.map((topic, i) => {
+            const rows = listed.filter((p) => p.topic === topic)
+            if (!rows.length) return null
+            return (
+              <div key={topic} className="flex flex-col">
+                <div className={cn(GROUP_LABEL, i > 0 && "mt-3")}>{topic}</div>
+                {rows.map((p) => (
+                  <ExampleRow
+                    key={p.slug}
+                    slug={p.slug}
+                    line={p.description}
+                    tag={`${p.framework} · Rust`}
+                    tile={<ProgramCover p={p} className="size-10 rounded-[9px]" />}
+                    picked={picked === p.slug}
+                    dim={busy && picked !== p.slug}
+                    onCreate={onCreate}
+                  />
+                ))}
+              </div>
+            )
+          })}
         </RadioGroup.Root>
       )}
     </div>

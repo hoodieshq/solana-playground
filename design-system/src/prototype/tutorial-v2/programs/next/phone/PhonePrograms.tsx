@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, type TouchEvent } from "react"
-import { ChevronDown, ChevronLeft, ChevronUp, Code, MessageSquare, Play, Send } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronUp, Code } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Spinner } from "@/components/ui/spinner"
 import { StatusDot } from "@/components/ui/status-dot"
 import { cn } from "@/lib/utils"
 
@@ -15,21 +13,23 @@ import { BuildLog } from "../../../ui/BuildLog"
 import { PhoneMenu } from "../../../ui/PhoneMenu"
 import { TopBar } from "../../../ui/TopBar"
 import { ACTION_SOFT } from "../../../ui/type"
-import { busy, edit, go, onChain, openFile, runClient, setPane, setTerminal, usePrograms, useProject, type Project, type Turn } from "../../store"
+import { AssistantMark } from "../../../ui/AssistantMark"
+import { busy, edit, go, openFile, setPane, setTerminal, usePrograms, useProject, type Project, type Turn } from "../../store"
 import { Catalog } from "../Catalog"
 import { CallPanel } from "../shell/CallPanel"
-import { Feed } from "../shell/Feed"
-import { Ask, MoreMenu, ProjectName } from "../shell/GuideColumn"
+import { AskThread } from "../shell/AskPanel"
+import { MoreMenu, ProjectName } from "../shell/GuideColumn"
+import { OpeningCard } from "../shell/Opening"
 import { ManageProjects, FullNotice } from "../shell/Quota"
-import { LIT_CSS, ReadNotice, ReadOnlyMark, onReadOnlyKey, useLit } from "../shell/Read"
-import { StepStrip } from "../shell/StepStrip"
+import { LIT_CSS, ReadNotice, onReadOnlyKey, useLit } from "../shell/Read"
+import { StageBar, StageNote } from "../shell/Stages"
 import { baseName, changedFiles, onReveal, reveal, statusOf } from "../shell/util"
 import { TreeList, errorIn } from "../shell/Workspace"
 
 /* Programs on a phone and an upright tablet (ui-design.md 7, ux-architecture.md 7, Almaz, 6 Nov): the
-   catalog in the phone's frame, and a project as the tutorial's phone screen has it. Two spaces side by
-   side: the Guide, where the project happens, and Code, the desktop's workspace folded to a phone. The
-   Call panel and the files are sheets */
+   catalog in the phone's frame, and a project as the desktop's page folded to a phone (the client, 17 Nov:
+   the program first, the assistant only for questions). Two spaces side by side: Code, with the stages
+   over the open file, and the assistant. The Call panel and the files are sheets */
 
 export function PhonePrograms() {
   const route = usePrograms((s) => s.route)
@@ -53,16 +53,14 @@ function PhoneCatalog() {
   )
 }
 
-type Space = "guide" | "code"
+type Space = "code" | "ask"
 
 function PhoneProject({ id }: { id: string }) {
   const p = useProject(id)
-  const [space, setSpace] = useState<Space>("guide")
+  const [space, setSpace] = useState<Space>("code")
   const [files, setFiles] = useState(false)
   const [jump, setJump] = useState<{ line: number; at: number; caret: boolean } | null>(null)
-  const scroller = useRef<HTMLDivElement>(null)
-
-  // A line link in a card, or a file the Guide opens, brings Code in with the line in view
+  // A line link in an answer brings Code in with the line in view
   useEffect(
     () =>
       onReveal(({ line, to }) => {
@@ -71,6 +69,14 @@ function PhoneProject({ id }: { id: string }) {
       }),
     []
   )
+  // A failed build brings its line into view in the open file, as on the desktop
+  const failAt = p ? (errorIn(p, p.open)?.line ?? null) : null
+  useEffect(() => {
+    if (failAt === null) return
+    // After the terminal has opened and the editor took its new height
+    const t = setTimeout(() => setJump({ line: failAt, at: Date.now(), caret: false }), 260)
+    return () => clearTimeout(t)
+  }, [failAt])
   const open = p?.open
   const was = useRef(open)
   useEffect(() => {
@@ -79,7 +85,15 @@ function PhoneProject({ id }: { id: string }) {
     setSpace("code")
   }, [open])
 
-  // Sideways strokes change space, as in the tutorial: left brings Code in, right takes it back
+  // A question from Code (the Read only mark, its notice) brings the assistant with the answer
+  const asked = (p?.feed ?? []).reduce((n, t) => n + (t.k === "user" ? 1 : 0), 0)
+  const seen = useRef(asked)
+  useEffect(() => {
+    if (asked > seen.current) setSpace("ask")
+    seen.current = asked
+  }, [asked])
+
+  // Sideways strokes change space, as in the tutorial: left brings the assistant in, right takes it back
   const area = useRef<HTMLDivElement>(null)
   const touch = useRef<{ x: number; y: number } | null>(null)
   const onTouchStart = (e: TouchEvent) => {
@@ -93,11 +107,11 @@ function PhoneProject({ id }: { id: string }) {
     if (!from || !t) return
     const dx = t.clientX - from.x
     if (Math.abs(dx) < SWIPE_PX || Math.abs(dx) < Math.abs(t.clientY - from.y) * 2) return
-    setSpace(dx < 0 ? "code" : "guide")
+    setSpace(dx < 0 ? "ask" : "code")
   }
 
   if (!p) return null
-  const onCode = space === "code"
+  const onAsk = space === "ask"
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -112,31 +126,24 @@ function PhoneProject({ id }: { id: string }) {
         <MoreMenu p={p} />
         <Button
           variant="ghost"
-          onClick={() => setSpace(onCode ? "guide" : "code")}
+          onClick={() => setSpace(onAsk ? "code" : "ask")}
           data-keep-notice
-          aria-label={onCode ? "Back to the Guide" : "Show the code"}
+          aria-label={onAsk ? "Back to the code" : "Ask the assistant"}
           className={cn("relative ml-1 h-9 shrink-0 gap-1.5 rounded-[10px] px-3 text-[0.875rem] font-act pointer-coarse:h-9 after:absolute after:-inset-1 after:content-['']", ACTION_SOFT)}
         >
-          {onCode ? <MessageSquare className="size-4" aria-hidden="true" /> : <Code className="size-4" aria-hidden="true" />}
-          {onCode ? "Guide" : "Code"}
+          {onAsk ? <Code className="size-4" aria-hidden="true" /> : <AssistantMark strokeWidth={1.75} />}
+          {onAsk ? "Code" : "Ask"}
         </Button>
       </header>
 
       <div ref={area} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} className="relative flex min-h-0 flex-1 overflow-clip">
-        {/* Both spaces stay mounted, so the Guide keeps its place while you read the code. The one out of
-            view is inert */}
-        <div style={{ transform: onCode ? "translateX(-50%)" : undefined }} className="flex w-[200%] shrink-0 transition-transform duration-300 ease-standard motion-reduce:transition-none">
+        {/* Both spaces stay mounted, so the code keeps its place while you ask. The one out of view is inert */}
+        <div style={{ transform: onAsk ? "translateX(-50%)" : undefined }} className="flex w-[200%] shrink-0 transition-transform duration-300 ease-standard motion-reduce:transition-none">
+          <CodeSpace p={p} active={!onAsk} jump={jump} onFiles={() => setFiles(true)} onAsk={() => setSpace("ask")} />
           {/* The phone's 16 at the sides; an upright tablet keeps the chat to a 40rem measure, as the tutorial does */}
-          <section
-            aria-label="Guide"
-            inert={onCode}
-            className="flex w-1/2 min-w-0 flex-col [&_[data-feed-scroller]]:px-0 [&>*]:px-4 [&>nav]:px-4 [html.portrait_&>*]:px-[max(2rem,calc((100%-40rem)/2))]"
-          >
-            <StepStrip p={p} scroller={scroller} />
-            <Feed p={p} scroller={scroller} />
-            <Ask p={p} phone />
+          <section aria-label="Assistant" inert={!onAsk} className="flex w-1/2 min-w-0 flex-col [html.portrait_&>*]:px-[max(2rem,calc((100%-40rem)/2))]">
+            <AskThread p={p} phone />
           </section>
-          <CodeSpace p={p} active={onCode} jump={jump} onFiles={() => setFiles(true)} onGuide={() => setSpace("guide")} />
         </div>
       </div>
 
@@ -158,7 +165,7 @@ function PhoneProject({ id }: { id: string }) {
         </DrawerContent>
       </Drawer>
 
-      {/* The Call panel as the tutorial's Call sheet: from Code's Call or the Guide's "Call panel". One
+      {/* The Call panel as the tutorial's Call sheet, from the Interact stage. One
           height for Form and IDL, so switching doesn't make the sheet jump */}
       <Drawer open={p.pane === "call"} onOpenChange={(o) => !o && setPane(id, "code")}>
         <DrawerContent className={cn(SHEET, "h-[88dvh] max-h-[88dvh] overflow-hidden")}>
@@ -174,23 +181,25 @@ function PhoneProject({ id }: { id: string }) {
   )
 }
 
-/** Code: the open file under its name, which opens the files; Call or Run at the right once there's
- * something to call; the terminal's status at the foot, which opens to the log */
-function CodeSpace({ p, active, jump, onFiles, onGuide }: { p: Project; active: boolean; jump: { line: number; at: number; caret: boolean } | null; onFiles: () => void; onGuide: () => void }) {
+/** Code: the stages and what to do next, the open file under its name, which opens the files, and the
+ * terminal's status at the foot, which opens to the log */
+function CodeSpace({ p, active, jump, onFiles, onAsk }: { p: Project; active: boolean; jump: { line: number; at: number; caret: boolean } | null; onFiles: () => void; onAsk: () => void }) {
   const id = p.id
   const file = p.open
   const lit = useLit(file)
-  const ts = p.framework === "ts-client"
-  const built = p.build.s === "ok" || !!onChain(p)
   const changed = changedFiles(p).includes(file)
   const status = statusOf(p)
 
   return (
     <section aria-label="Code" inert={!active} className="flex w-1/2 min-w-0 flex-col bg-(--code-ground)">
-      <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border bg-surface-base pr-4 pl-2 [html.portrait_&]:pr-8 [html.portrait_&]:pl-6">
-        {p.opening ? (
-          <Skeleton className="ml-2 h-3.5 w-28 motion-reduce:animate-none" />
-        ) : (
+      {!p.opening && (
+        <div className="flex shrink-0 flex-col gap-1.5 border-b border-border bg-surface-base px-2.5 pt-2 pb-2.5 [html.portrait_&]:px-6">
+          <StageBar p={p} />
+          <StageNote p={p} className="px-2" />
+        </div>
+      )}
+      <div className={cn("flex h-12 shrink-0 items-center gap-1 border-b border-border bg-surface-base pr-4 pl-2 [html.portrait_&]:pr-8 [html.portrait_&]:pl-6", p.opening && "hidden")}>
+        {!p.opening && (
           <button
             type="button"
             onClick={onFiles}
@@ -204,29 +213,13 @@ function CodeSpace({ p, active, jump, onFiles, onGuide }: { p: Project; active: 
             </span>
           </button>
         )}
-        {/* Read mode: the Read only mark where Call sits; a tap asks why and slides to the Guide */}
-        {p.read ? (
-          <ReadOnlyMark p={p} onAsk={onGuide} />
-        ) : ts ? (
-          <Button variant="ghost" disabled={busy(p)} onClick={() => runClient(id)} className={CODE_ACTION}>
-            {p.calling ? <Spinner className="size-4" /> : <Play className="size-4" aria-hidden="true" />}
-            Run
-          </Button>
-        ) : (
-          built && (
-            <Button variant="ghost" onClick={() => setPane(id, "call")} className={CODE_ACTION}>
-              <Send className="size-4" aria-hidden="true" />
-              Call
-            </Button>
-          )
-        )}
       </div>
       {/* The notices pinned under the Code row, full width, so no line of code moves under the finger */}
-      <ReadNotice p={p} phone onAsk={onGuide} />
+      <ReadNotice p={p} phone onAsk={onAsk} />
       <FullNotice p={p} phone />
       {p.opening ? (
-        <div aria-hidden="true" className="flex min-h-0 flex-1 flex-col gap-2.5 px-4 py-4">
-          {[38, 0, 22, 54, 48, 30, 0, 26, 62, 44].map((w, i) => (w ? <Skeleton key={i} className="h-3.5 motion-reduce:animate-none" style={{ width: `${w}%` }} /> : <span key={i} className="h-3.5" />))}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-surface-base p-4 [html.portrait_&]:px-8">
+          <OpeningCard p={p} />
         </div>
       ) : (
         <div data-shell-editor onKeyDown={(e) => onReadOnlyKey(p, e)} className="prog-lit flex min-h-0 min-w-0 flex-1 flex-col">
@@ -277,7 +270,3 @@ function CodeSpace({ p, active, jump, onFiles, onGuide }: { p: Project; active: 
     </section>
   )
 }
-
-/** Call or Run where the tutorial's phone puts Call: ghosted at the row's end, a finger's 44 round it */
-const CODE_ACTION =
-  "relative -mr-3 ml-auto h-9 shrink-0 gap-1.5 rounded-[10px] px-3 text-[0.875rem] font-act text-foreground/90 pointer-coarse:h-9 after:absolute after:-inset-1 after:content-[''] hover:bg-foreground/[0.06] active:bg-foreground/[0.08]"

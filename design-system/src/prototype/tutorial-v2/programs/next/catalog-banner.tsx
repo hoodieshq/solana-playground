@@ -9,8 +9,9 @@ import { programCoverIcon } from "./ProgramCover"
 import { ProgramVoxels } from "./ProgramVoxels"
 import { StandingWord, resumeLabel, standing, useProjectOf } from "./catalog-parts"
 
-/** The program a beginner starts with: the one they can call in one press, no setup */
-const FIRST = "spl-memo"
+/** The program to start with: one you can build, deploy and call. While the build server can't build
+ * Native that is the Anchor counter; once it can, memo, called in one press with no setup */
+const firstFor = (native: boolean) => (native ? "spl-memo" : "counter")
 
 /** The banner's width, in px, from which the sculpture stands beside the words, as on the Tutorials banner */
 const WIDE_MIN = 640
@@ -38,11 +39,11 @@ const GO = "start-beam h-10 font-heading text-[0.9375rem] font-medium tracking-[
  * mark as a voxel sculpture beside them, here telling a deploy. Under 640px wide the sculpture hangs
  * from the top right corner and the words run under it */
 export function ProgramBanner({ phone = false }: { phone?: boolean }) {
+  const native = usePrograms((s) => s.native)
+  const FIRST = firstFor(native)
   const p = programBySlug(FIRST)!
   const project = useProjectOf(FIRST)
   const st = project ? standing(project) : null
-  // Read mode promises a read and a call, not a deploy (CONSENSUS-delta 2.2)
-  const read = !usePrograms((s) => s.native)
   const titleId = useId()
   const box = useRef<HTMLElement>(null)
   const [wide, setWide] = useState(true)
@@ -74,7 +75,7 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
             {p.name}
           </h2>
           <p className="mt-2 max-w-[44ch] text-[0.9375rem] leading-[1.35] text-balance text-foreground/78">
-            {read ? "Read how it works with the assistant" : "Send it text and read it back on devnet"}
+            {native ? "Send it text and read it back on devnet" : "Build it, deploy it and count up on devnet"}
           </p>
           <p className="mt-3 text-[0.75rem] leading-4 font-[380] text-muted-foreground/80 tabular-nums">
             {phone ? `${p.level} · ${p.minutes} min` : `${p.minutes} min · ${p.level}`}

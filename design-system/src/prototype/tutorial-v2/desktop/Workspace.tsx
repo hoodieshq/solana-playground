@@ -125,11 +125,12 @@ export function Workspace({ treeOpen, onTree }: { treeOpen: boolean; onTree: (op
           <WalletChip sol={!s.funded ? 0 : s.deployedLib === null ? 5 : 3.73} />
         </ConsoleDrawerBar>
         <ConsoleDrawerContent style={{ height: s.terminal ? drawer.h : 0 }} className="relative overscroll-contain">
-          {/* The top edge drags: 9px to grab, the hairline lights while held */}
+          {/* The top edge drags: 9px to grab. Its hairline shows at rest, so the log reads as its own pane
+              under the editor or the Call panel, whose grounds it shares (Almaz, 17 Nov); it lights while held */}
           <div
             aria-hidden="true"
             {...drawer.handle}
-            className="sticky top-0 z-10 -mb-[9px] h-[9px] cursor-row-resize touch-none after:absolute after:inset-x-0 after:top-0 after:h-px after:transition-colors hover:after:bg-border-strong active:after:bg-ring"
+            className="sticky top-0 z-10 -mb-[9px] h-[9px] cursor-row-resize touch-none after:absolute after:inset-x-0 after:top-0 after:h-px after:bg-border after:transition-colors hover:after:bg-border-strong active:after:bg-ring"
           />
           <TerminalBody onPoint={link("log")} lit={error && linked?.from === "editor" ? linked.line : null} />
         </ConsoleDrawerContent>

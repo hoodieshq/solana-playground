@@ -45,6 +45,7 @@ import { diffLines } from "./diff"
 import { deployedArgs, idlLine, idlOf, idlShape, signature } from "./idl"
 import { Runner } from "./runner"
 import { resetSettings } from "./settings/bar"
+import { clearTabState } from "./tabStorage"
 
 export type Screen = "home" | "gallery" | "programs" | "step" | "finish"
 /** Only whether something runs. What is offered comes from the live card (spec 9.1) */
@@ -1452,16 +1453,14 @@ function loadSaved(): State {
   return initial()
 }
 
+/** The bar's Reset: the whole flow starts over in this tab, as a first visit. Every lesson, Programs and
+ * its projects, New project, the nav's picks and Settings go; other tabs keep theirs (tabStorage.ts).
+ * It used to clear the open lesson only, so the rest stayed and Reset looked like it did nothing
+ * (Almaz, 17 Nov). The caller reloads */
 export function resetStorage() {
-  try {
-    localStorage.removeItem(key())
-    // First Light's own keys (the Build hint's "done") go with it
-    Object.keys(localStorage).filter((k) => k.startsWith("oak.np.")).forEach((k) => localStorage.removeItem(k))
-  } catch {
-    // Nothing stored, nothing to clear
-  }
-  // Settings too: Dark, Devnet, the built in model, no RPCs, closed
+  // Settings first, while writes still land: Dark, Devnet, the built in model, no RPCs, closed
   resetSettings()
+  clearTabState()
 }
 
 const Ctx = createContext<{ s: State; dispatch: Dispatch<Action> } | null>(null)

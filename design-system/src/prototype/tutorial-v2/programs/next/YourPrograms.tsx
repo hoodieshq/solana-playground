@@ -16,20 +16,15 @@ import { progressOf, savedProgress, useStore } from "../../store"
 import { CATALOG as CATALOG_TUTORIALS, shownName } from "../../ui/catalog"
 import { ResumeList, type ResumeItem } from "../../ui/ResumeList"
 import { CATALOG } from "../data"
-import { deleteProject, go, steps, usePrograms, type Project } from "../store"
-import { ProgramIcon } from "./catalog-parts"
+import { deleteProject, go, usePrograms, type Project } from "../store"
+import { ProgramIcon, standing } from "./catalog-parts"
 import { ProjectCover } from "./ProjectCover"
 import { deletable, deleteQuestion, startRename } from "./shell/GuideColumn"
 
-/** Where a project of yours stands, in its step strip's words: the step it's on, or how it ended */
-function whereNow(p: Project): { where: string; done: boolean } {
-  const list = steps(p)
-  const at = list.findIndex((s) => s.state !== "done" && s.state !== "stale")
-  // Done first, as the strip says it, then where it lives
-  if (at === -1) return { where: p.framework === "ts-client" ? "Done · Ran on devnet" : "Done · Runs on devnet", done: true }
-  const step = list[at]
-  if (step.state === "failed") return { where: `${step.label} failed`, done: false }
-  return { where: list.length > 1 ? `Step ${at + 1} of ${list.length} · ${step.label}` : step.label, done: false }
+/** Where a project of yours stands: the words its catalog card says, from one place */
+function whereNow(p: Project): { where: string; done: boolean; failed: boolean } {
+  const st = standing(p)
+  return { where: st.word, done: !!st.done, failed: !!st.failed }
 }
 
 /** The last thing you did in it: made, built, deployed or called. Opening it or typing leaves no time in

@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from "react"
-import { ChevronDown, FileCode } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -33,7 +33,8 @@ function treeOf(files: string[]): Entry[] {
   ]
 }
 
-/** The project's files by folder. A child starts right under its parent's name (caret 12 + gap 8 per
+/** The project's files by folder. A file is its name alone, no glyph: at 16px a sheet with brackets was
+ * noise, and the name already says the type (Almaz, 18 Nov). A child starts right under its parent's name (caret 12 + gap 8 per
  * level). The open file is marked, the live step's file carries a dot and client.ts says when it
  * arrives. Only the lesson's files are listed: a file it never uses would be a dead end. Arrows move between files. `tall` is the phone's 44px rows */
 /** A level's indent: the folder's caret (12) and the gap after it (8), so a child lines up with its parent's name */
@@ -91,7 +92,6 @@ export function FileTreeList({ onPick, tall = false }: { onPick: (file: string) 
               tall && (open ? "hover:bg-foreground/[0.07]" : "hover:bg-transparent active:bg-foreground/[0.05]")
             )}
           >
-            <FileCode className={cn("shrink-0 text-subtle", tall ? "size-4" : "size-[15px]")} aria-hidden="true" />
             <span className="truncate">{name}</span>
             {/* Not there yet, so said once in words: no fade, no lock */}
             {waiting && <span className="ml-auto pl-3 text-caption text-muted-foreground">{generated ? "Made by the build" : `Created in step ${clientStep()}`}</span>}

@@ -3,14 +3,14 @@ import { useEffect } from "react"
 import { flashKeys } from "../../desktop/flash"
 import { PRIMARY_KEYS } from "../../desktop/keys"
 import { build, getPrograms, runClient, useProject } from "../store"
-import { GuideColumn } from "./shell/GuideColumn"
 import { ManageProjects } from "./shell/Quota"
-import { flashReadOnly, runPrimary } from "./shell/util"
+import { runNext } from "./shell/Stages"
+import { flashReadOnly } from "./shell/util"
 import { Workspace } from "./shell/Workspace"
 
-/** The project shell (CONSENSUS.md): the Guide's column on the left as in a lesson, one thread under a
- * step strip, and the workspace on the right with the file tabs, the program chip and the expert's
- * Build and Deploy in one head row. ⌘↵ runs the live step from anywhere but the composer; ⌘⇧B builds,
+/** The project shell: the whole program at once, as an IDE shows it (the client, 17 Nov). One bar with
+ * the stages, the files beside the editor, the console under it, the assistant at the side for
+ * questions. ⌘↵ runs the next stage from anywhere but the composer; ⌘⇧B builds,
  * and in read mode flashes the Read only chip, since there is nothing to build.
  * ⌘J is the console's own key, ⌘E the workspace's */
 export function Shell({ id }: { id: string }) {
@@ -26,7 +26,7 @@ export function Shell({ id }: { id: string }) {
         if (e.repeat || target?.closest('[data-slot="composer"]')) return
         e.preventDefault()
         flashKeys(PRIMARY_KEYS)
-        runPrimary(id, now)
+        runNext(now)
         return
       }
       if (e.shiftKey && e.key.toLowerCase() === "b") {
@@ -43,7 +43,6 @@ export function Shell({ id }: { id: string }) {
   if (!p) return null
   return (
     <>
-      <GuideColumn p={p} />
       <Workspace p={p} />
       <ManageProjects />
     </>

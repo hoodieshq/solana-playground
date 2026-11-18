@@ -12,11 +12,35 @@ import { DECK } from "./view"
 
 const KEY = "pg-proto-lesson-v2"
 
+/* The landing prototype (src/prototype/landing) hands off with `?from=landing`, as the product's
+   `/tutorials/<slug>` opens the lesson itself, not Home. A one shot flag carries it into the device
+   frame's page, which loads its own address without the query */
+const FROM_LANDING = "pg-proto-open-lesson"
+
+/** Whether this page should open on the lesson: once, after a hand off from the landing */
+function takeLandingOpen(): boolean {
+  try {
+    if (!localStorage.getItem(FROM_LANDING)) return false
+    localStorage.removeItem(FROM_LANDING)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** The lesson to open: the address's `?tutorial=`, then the one open last time. A deck slide is
  * always Hello Anchor, which the deck is about */
 export function firstLesson(): string {
   if (DECK !== null) return "hello-anchor"
-  const asked = new URLSearchParams(location.search).get("tutorial")
+  const params = new URLSearchParams(location.search)
+  if (params.get("from") === "landing") {
+    try {
+      localStorage.setItem(FROM_LANDING, "1")
+    } catch {
+      // Storage blocked: Oak opens on Home
+    }
+  }
+  const asked = params.get("tutorial")
   if (asked && playable(asked)) {
     // Remembered at once: the device frame's page loads its own address, without `?tutorial=`
     try {
@@ -42,7 +66,7 @@ export function LessonHost({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(() => {
     const slug = firstLesson()
     openLesson(slug)
-    return { slug, screen: undefined as Screen | undefined }
+    return { slug, screen: (takeLandingOpen() ? "step" : undefined) as Screen | undefined }
   })
   const go = useCallback<Open>((slug, screen = "step") => {
     try {
