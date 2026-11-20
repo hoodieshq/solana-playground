@@ -8,7 +8,7 @@ import { freeName, remember, wait, type Env, type Source } from "./model"
    payload, so the preset waits here until the dialog reads it */
 
 export type Entry = "nav-row" | "home-tile" | "empty-list" | "phone-menu" | "express-failed"
-export type Preset = { entry: Entry; source?: Source; framework?: FrameworkId; url?: string; into?: string }
+export type Preset = { entry: Entry; source?: Source; framework?: FrameworkId; url?: string; into?: string; text?: string }
 
 let pending: Preset | null = null
 
@@ -36,6 +36,23 @@ export function land(o: OpenProject, ignoreDone = false) {
   remember(o.name)
   if (o.source !== "describe") armHint(o.firstRun ? "express" : o.framework === "ts-client" ? "run" : "build", ignoreDone)
   openProject(o)
+}
+
+const FILLER = new Set(["a", "an", "the", "that", "which", "with", "for", "of", "to", "and", "my", "me", "i", "want", "build", "make", "write", "create", "program", "please"])
+
+/** A project's name from a description, as Spec 15 asks: its first three words that say something, lower
+ * case, joined by hyphens. "A tip jar that splits tips" becomes tip-jar-splits */
+export function nameFrom(text: string) {
+  const words = text.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter((w) => w && !FILLER.has(w))
+  return words.slice(0, 3).join("-") || "anchor-project"
+}
+
+/** Home's field: a new Anchor project, made with no dialog, opened with the words sent to its assistant.
+ * The words are the request, as a first message to Claude or ChatGPT is */
+export async function describeCreate(text: string, env: Env) {
+  const name = freeName(nameFrom(text), env)
+  await wait(700)
+  land({ name, framework: "anchor", source: "describe", prompt: text })
 }
 
 /** Home's "Run the Anchor starter": the default Anchor project, made with no dialog, then Build */

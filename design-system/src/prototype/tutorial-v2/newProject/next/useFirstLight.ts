@@ -19,6 +19,7 @@ function start(forced: NextStateId | undefined, preset: Preset | undefined): Fir
   if (preset?.framework) s.framework = preset.framework
   if (preset?.url) s.import = { state: "typed", url: preset.url }
   if (preset?.into) s.into = preset.into
+  if (preset?.text) s.describe = { text: preset.text }
   return s
 }
 

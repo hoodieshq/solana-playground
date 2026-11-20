@@ -387,8 +387,14 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
           {/* The lockup left; the pin (in a lesson) and the fold right; a rule under them at the height
               every column's head shares. A sheet has the menu's own bar instead */}
           <div className={cn(headH, "flex shrink-0 items-center gap-0.5 border-b border-border pr-2 pl-3", sheet && "hidden")}>
-            <button type="button" onClick={go(() => dispatch({ type: "open", screen: "home" }))} aria-label="Solana Playground, home" className={cn("group/brand mr-auto flex h-9 shrink-0 items-center rounded-lg px-1 text-foreground", FOCUS)}>
+            <button type="button" onClick={go(() => dispatch({ type: "open", screen: "home" }))} aria-label="Solana Playground Beta, home" className={cn("group/brand mr-auto flex h-9 shrink-0 items-center rounded-lg px-1 text-foreground", FOCUS)}>
               <ProductLogo className="block h-7 w-auto shrink-0 transition-opacity duration-100 group-hover/brand:opacity-82 motion-reduce:transition-none" />
+              {/* Beta until the full release (Grigory, 19 Nov), as the brand file has it: an outlined tag on the
+                  line of "Playground", whose status it is (on the line of "Solana" it read as Solana Beta). Set as
+                  text beside the lockup, not drawn into it: at 28 high the drawn one's letters came out 4px */}
+              <span className="ml-2 translate-y-[6px] rounded-full border border-current px-1.5 font-heading text-[0.625rem] leading-[0.875rem] font-semibold tracking-[0.06em] text-muted-foreground">
+                BETA
+              </span>
             </button>
             <Tip label="Collapse sidebar" keys={MENU_KEYS} side="bottom">
               <button type="button" onClick={toggle} aria-expanded={true} aria-label="Collapse the sidebar" data-flash={flash} className={headBtn}>

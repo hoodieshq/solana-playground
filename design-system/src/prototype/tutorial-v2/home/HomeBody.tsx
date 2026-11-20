@@ -1,7 +1,8 @@
 import { ArrowRight, ArrowUp, Check, CirclePlay } from "lucide-react"
-import { useEffect, useRef, useState, type ComponentType } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentType } from "react"
 
 import { BrandButton, BrandButtonIcon } from "@/components/ui/brand-button"
+import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 import { LIT_ICONS, LIT_STROKE } from "../desktop/navLit/icons"
@@ -10,7 +11,8 @@ import { TutorialThumb } from "../desktop/TutorialList"
 import { LADDER, useFeatured, useOpenTutorial, useProgress, useStartedLessons } from "../host"
 import { LESSONS } from "../lessons"
 import { useNavState } from "../navStates"
-import { expressCreate, openFirstLight } from "../newProject/next/open"
+import { describeUnavailable, useEnv } from "../newProject/next/model"
+import { describeCreate, expressCreate, openFirstLight } from "../newProject/next/open"
 import { GitHubMark } from "../newProject/next/SourceRail"
 import { YourPrograms } from "../programs/next/YourPrograms"
 import { useStore } from "../store"
@@ -19,8 +21,7 @@ import { FOCUS } from "../ui/type"
 
 /* Home (Almaz, 10 Nov): the page you land on. Three things, in the order a visit needs them: what to
    carry on with, a way to start something new, the path of tutorials. No banner and no picture, which
-   Tutorials and Programs have: Home is told from them at a glance, and comes alive in how it arrives
-   and in the field that types its own examples */
+   Tutorials and Programs have: Home is told from them at a glance, and comes alive in how it arrives */
 
 const H2 = "font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground"
 
@@ -45,7 +46,8 @@ function useLead() {
     steps: n,
     at: at === -1 ? n : at,
     next: at === -1 ? "One more tap to finish" : lesson.steps[at].objective,
-    facts: `${lesson.card.level} · ${n} steps · ${lesson.minutes} min`,
+    // On a first visit the title already says "your first program", so the line says how, not what again
+    sub: back ? `${lesson.line} · ${lesson.minutes} min` : `Write it, deploy it to devnet and call it. About ${lesson.minutes} minutes.`,
     line: lesson.line,
     open: () => openTutorial(slug),
   }
@@ -99,15 +101,9 @@ function Hero({ phone }: { phone: boolean }) {
             </div>
           </>
         )}
-        {l.state === "fresh" && (
-          <>
-            <p className="mt-4 max-w-[40ch] text-[0.9375rem] leading-[1.35] text-foreground/78">
-              <span className="text-foreground">{l.name}</span>
-              {`: ${l.line.charAt(0).toLowerCase()}${l.line.slice(1)}`}
-            </p>
-            <p className="mt-2 text-[0.75rem] leading-4 text-muted-foreground tabular-nums">{l.facts}</p>
-          </>
-        )}
+        {/* One line under the title, not three: the lesson's name is on the button, and its level and steps said
+            little a first visit needs (Almaz, 20 Nov). Its time stays, as how long the yes costs */}
+        {l.state === "fresh" && <p className="mt-4 max-w-[44ch] text-[0.9375rem] leading-[1.4] text-muted-foreground">{l.sub}</p>}
         {l.state === "done" && (
           <p className="mt-4 flex max-w-[40ch] items-start gap-2 text-[0.9375rem] leading-[1.35] text-foreground/78">
             <span aria-hidden="true" className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
@@ -137,84 +133,114 @@ function Hero({ phone }: { phone: boolean }) {
 /* The play ring cut from the mark trails the words of the main Start: taken off once, the art director asked for it back (11 Nov) */
 const GO = "h-10 font-heading text-[0.9375rem] font-medium tracking-[-0.005em] pointer-coarse:h-11"
 
-/** A way to start, in the box's foot: an icon and its words, no box of its own */
+/** A way to start, in the box's foot: an icon and its words, no box of its own. A step under the field (13 to its
+ * 16), so the field reads first and the ways as the alternatives (Almaz, 20 Nov) */
 function Way({ icon: Icon, label, onClick }: { icon: ComponentType<{ className?: string; strokeWidth?: number }>; label: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "group/way flex h-9 items-center gap-2 rounded-lg px-2 text-[0.875rem] leading-5 whitespace-nowrap text-muted-foreground transition-colors duration-100 hover:bg-foreground/[0.06] hover:text-foreground motion-reduce:transition-none pointer-coarse:h-11 [html.phone_&]:h-11 [html.touch_&]:h-11",
+        "group/way flex h-8 items-center gap-1.5 rounded-lg px-2 text-[0.8125rem] leading-5 whitespace-nowrap text-muted-foreground transition-colors duration-100 hover:bg-foreground/[0.06] hover:text-foreground motion-reduce:transition-none pointer-coarse:h-11 [html.phone_&]:h-11 [html.touch_&]:h-11",
         FOCUS
       )}
     >
-      <Icon aria-hidden="true" strokeWidth={LIT_STROKE} className="size-4 shrink-0" />
+      <Icon aria-hidden="true" strokeWidth={LIT_STROKE} className="size-3.5 shrink-0" />
       {label}
     </button>
   )
 }
 
 const PROMPT = "Describe the program you want to build…"
-/** What the field types by itself, the same three First Light offers under Describe it */
+/** The examples the empty field shows, the same three First Light offers under Describe it */
 const IDEAS = ["A counter anyone can increment", "A tip jar that splits what it gets", "A yes or no vote, one per wallet"]
 
-/** The field's examples, typed and wiped one after another once the page has settled. Still for anyone
- * who asked for less motion: the plain prompt stays */
-function useIdea() {
-  const [idea, setIdea] = useState("")
-  const [typing, setTyping] = useState(false)
+/** The empty field's placeholder: one example after another, swapped while nobody is in the field. A
+ * placeholder only: it was typed out with a blinking caret, which read as the field writing by itself
+ * and made it look like a field nobody could type in (design lead, 20 Nov). Still for less motion */
+function useIdea(paused: boolean) {
+  const [i, setI] = useState(-1)
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
-    let i = 0
-    let n = 0
-    let dir = 1
-    let t = window.setTimeout(function tick() {
-      setTyping(true)
-      const text = IDEAS[i]
-      n += dir
-      setIdea(text.slice(0, n))
-      let wait = dir > 0 ? 42 : 18
-      if (n === text.length) {
-        dir = -1
-        wait = 2200
-      } else if (n === 0) {
-        dir = 1
-        i = (i + 1) % IDEAS.length
-        wait = 450
-      }
-      t = window.setTimeout(tick, wait)
-    }, 2400)
-    return () => window.clearTimeout(t)
-  }, [])
-  return { idea, typing }
+    if (paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    const t = window.setInterval(() => setI((n) => (n + 1) % IDEAS.length), 3200)
+    return () => window.clearInterval(t)
+  }, [paused])
+  return i < 0 ? PROMPT : `${IDEAS[i]}…`
 }
 
-/** Start something new, as one box: say what you want to the assistant, or take one of the ready ways
- * in its foot. The field is one button: with no project open it hands the words over to New project's
- * Describe it, where they are typed */
+/** Start something new, as one box: tell the assistant what to build, or take one of the ready ways in
+ * its foot. The field takes text, as Claude's, ChatGPT's and Gemini's do (design lead, 20 Nov; replaces
+ * 4.4, the launcher that took no text): Enter makes an Anchor project and opens it with the words sent
+ * to its assistant, Shift+Enter is a new line. With the assistant off or out of messages, Enter opens
+ * New project's Describe it with the words in it, where the reason is said */
 function StartBox() {
   const { dispatch } = useStore()
-  const { idea, typing } = useIdea()
+  const env = useEnv()
+  const [text, setText] = useState("")
+  const [focused, setFocused] = useState(false)
+  const [sending, setSending] = useState(false)
+  const box = useRef<HTMLTextAreaElement>(null)
+  const placeholder = useIdea(focused || !!text)
+  const send = async () => {
+    const t = text.trim()
+    if (!t || sending) return
+    if (describeUnavailable(env)) return openFirstLight({ entry: "home-tile", source: "describe", text: t })
+    setSending(true)
+    await describeCreate(t, env)
+  }
+  // One line until the words need more, up to five, then it scrolls
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${Math.min(el.scrollHeight, 5 * 24 + 2)}px`
+  }, [text])
   return (
     <section aria-labelledby="home-start" className="flex flex-col gap-2.5">
       <h2 id="home-start" className={H2}>
         Start something new
       </h2>
       <div className="overflow-hidden rounded-panel border border-border bg-surface-raised/60 transition-colors duration-150 focus-within:border-border-strong hover:border-border-strong motion-reduce:transition-none">
-        <button
-          type="button"
-          onClick={() => openFirstLight({ entry: "home-tile", source: "describe" })}
-          aria-label="Describe the program you want to build"
-          className="flex min-h-16 w-full items-center gap-3 py-3 pr-3 pl-[1.125rem] text-left outline-none"
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            void send()
+          }}
+          onClick={() => box.current?.focus()}
+          className="flex min-h-16 w-full cursor-text items-center gap-3 py-3 pr-3 pl-[1.125rem]"
         >
-          <span aria-hidden="true" className="min-w-0 flex-1 text-[0.9375rem] leading-[1.35] text-subtle">
-            {idea || (typing ? "" : PROMPT)}
-            {typing && <span className="ml-px inline-block h-[1.1em] w-px translate-y-[0.2em] animate-pulse bg-foreground/70" />}
-          </span>
-          <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground/[0.08] text-foreground">
-            <ArrowUp strokeWidth={LIT_STROKE} className="size-4" />
-          </span>
-        </button>
+          <textarea
+            ref={box}
+            rows={1}
+            value={text}
+            disabled={sending}
+            onChange={(e) => setText(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                void send()
+              }
+            }}
+            placeholder={placeholder}
+            aria-label="Describe the program you want to build"
+            enterKeyHint="send"
+            className="min-w-0 flex-1 resize-none bg-transparent text-[1rem] leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={!text.trim() || sending}
+            aria-label="Create the project and ask the assistant"
+            className={cn(
+              "flex size-8 shrink-0 items-center justify-center self-end rounded-full transition-colors duration-100 motion-reduce:transition-none pointer-coarse:size-11",
+              FOCUS,
+              text.trim() ? "bg-foreground text-background hover:bg-foreground/85" : "bg-foreground/[0.08] text-subtle"
+            )}
+          >
+            {sending ? <Spinner className="size-4" /> : <ArrowUp strokeWidth={LIT_STROKE} className="size-4" />}
+          </button>
+        </form>
         {/* The card's grey foot, as every Oak card sets its actions. Two columns under a thumb */}
         <div className="flex flex-wrap gap-x-1 gap-y-0.5 border-t border-border bg-surface-panel px-2 py-1.5 max-sm:flex-col max-sm:flex-nowrap max-sm:px-1.5">
           <Way icon={CirclePlay} label="Run the Anchor starter" onClick={expressCreate} />
