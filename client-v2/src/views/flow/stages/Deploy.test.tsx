@@ -41,6 +41,7 @@ const mocks = vi.hoisted(() => ({
     accounts: [] as unknown[],
     currentIndex: -1,
     addFirst: vi.fn(),
+    untilLoaded: vi.fn(async () => undefined),
     // The Fund dialog's receiver when no Playground wallet is current
     create: vi.fn(() => ({ publicKey: { toBase58: () => "F1rstAccount" } })),
     switch: vi.fn(),
