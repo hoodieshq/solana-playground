@@ -14,7 +14,12 @@ import { handlerWith } from "./key-origin/frame/handler";
 import { CLI_KEY_ERROR, keyOriginSignerProvider } from "./key-origin/provider";
 import { KeypairFileError } from "./keypair-file";
 import { localSignerProviderWith, publicKeyOf } from "./signer-provider";
-import type { Wallet, WalletAccount, WalletState } from "./types";
+import type {
+  StandardWallet,
+  Wallet,
+  WalletAccount,
+  WalletState,
+} from "./types";
 import { PgWallet, readWith, refuseKeylessRecord } from "./wallet";
 import { WALLET_LOCAL_KEY, type WalletRead } from "./wallet-storage";
 
@@ -598,6 +603,36 @@ describe("utils/wallet/wallet", () => {
       const read = vi.fn(async () => stored);
       const wallet = await readWith(ORIGIN)(async () => ({} as KeyFrame))(read);
       expect(wallet).toBe(stored);
+    });
+  });
+
+  describe("refresh", () => {
+    it("keeps the standard wallets detected this page load", async () => {
+      // `refresh` assigns every state field on the class: a fresh copy of the
+      // module keeps those fields from the stubs the other tests define
+      vi.resetModules();
+      const { PgWallet: wallet } = await import("./wallet");
+      const phantom = { name: "Phantom" } as unknown as StandardWallet;
+      // Wallets announce themselves once per page load, so the detected list
+      // lives only in memory; `init` would also start the derivables, which
+      // need a connection, so the state is held as it would be after it
+      let detected = [phantom];
+      Object.defineProperty(wallet, "standardWallets", {
+        get: () => detected,
+        set: (value: StandardWallet[]) => {
+          detected = value;
+        },
+        configurable: true,
+      });
+      Object.defineProperty(wallet, "_isInitialized", {
+        value: true,
+        configurable: true,
+      });
+
+      // What `connect` and Get set up's Try again run
+      await wallet.refresh();
+
+      expect(detected).toEqual([phantom]);
     });
   });
 });

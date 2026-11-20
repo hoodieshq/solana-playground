@@ -285,8 +285,20 @@ const writeWallet = async (
 };
 
 const storage = {
-  /** Read from storage and deserialize the data. */
-  read(): Promise<WalletState> {
+  /**
+   * Read from storage and deserialize the data, keeping the standard wallets
+   * detected so far: they are never stored, and each announces itself once
+   * per page load, so a `refresh` (`connect`, Get set up's Try again) that
+   * dropped them could not connect one again until the page reloaded.
+   */
+  async read(): Promise<WalletState> {
+    // Empty on the first read, which runs before `init` defines the field
+    const detected = PgWallet.standardWallets ?? [];
+    return { ...(await storage.readFresh()), standardWallets: detected };
+  },
+
+  /** The wallet as stored, with no standard wallet detected yet */
+  readFresh(): Promise<WalletState> {
     if (!keyOrigin || !keyPage) {
       return storage.readStored(
         walletStorage().read().then(refuseKeylessRecord)
