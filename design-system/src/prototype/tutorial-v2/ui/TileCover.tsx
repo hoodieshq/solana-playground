@@ -34,11 +34,12 @@ export function TileCover({ art, sweep: [from, to], className }: { art: string[]
   const mid = (i: number) => (Math.min(...lit.map((t) => t[i])) + Math.max(...lit.map((t) => t[i]))) / 2
   const [dx, dy] = lit.length ? [0, 1].map((i) => ((N - 1) / 2 - mid(i)) * pitch) : [0, 0]
   // One optical size for every picture (Nikita, 20 Nov: in a 56px tile they ran from 33×23 to 33×36):
-  // each is scaled to 32px tall at 56, a wide one held to 40px across, so a flat coin and a tall anchor
-  // read as the same weight. VIEW units a pixel at 56: the box is VIEW units across
+  // each is scaled to 32px tall at 56, a wide one held to 34px across, so a flat coin and a tall anchor
+  // read as the same weight. At 40 across a wide one (Hello Solana's stripes, Counter PDA's +1) kept 6px
+  // from the sides of a 44 tile, against 10 above and below (Almaz, 20 Nov). VIEW units a pixel at 56
   const span = (i: number) => (lit.length ? (Math.max(...lit.map((t) => t[i])) - Math.min(...lit.map((t) => t[i]))) * pitch + tile : 1)
   const unit = VIEW / 56
-  const fit = Math.min((32 * unit) / span(1), (40 * unit) / span(0))
+  const fit = Math.min((32 * unit) / span(1), (34 * unit) / span(0))
   return (
     <span
       aria-hidden="true"

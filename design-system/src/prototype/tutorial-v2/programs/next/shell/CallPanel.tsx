@@ -15,9 +15,9 @@ import { PRIMARY_KEYS } from "../../../desktop/keys"
 import { highlight } from "../../../ui/CodeView"
 import { openExplorer } from "../../../ui/explorer"
 import { ACTION, ACTION_FILL, ACTION_SOFT, FOCUS, secs } from "../../../ui/type"
-import { WALLET_KEY, fakeKey, type Ix } from "../../data"
+import { type Ix } from "../../data"
 import { CALL_MS, ask, behind, busy, call, deploy, firstIx, ixsOf, onChain, setPane, setValue, uploadIdl, valuesFor, type Project, type Turn } from "../../store"
-import { accountRoles, idlJson } from "./GuideColumn"
+import { SOURCE_WORD, accountOf, idlJson } from "./GuideColumn"
 import { IdlGuide } from "./IdlGuide"
 import { Actions, QUIET, shortKeys } from "./parts"
 import { shortKey } from "./util"
@@ -335,8 +335,8 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
           </span>
           <div className="flex flex-col">
             {accounts.map((name) => {
-              const roles = accountRoles(name)
-              const key = roles.signer ? WALLET_KEY : fakeKey(`${p.id}:${name}`)
+              const roles = accountOf(p, ix.name, name)
+              const key = roles.key
               return (
                 <div key={name} className={ACCOUNT_ROW}>
                   <code title={name} className="truncate font-mono text-13 text-foreground">
@@ -347,7 +347,7 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
                     {roles.writable && <span className={ROLE}>writable</span>}
                   </span>
                   <span className="col-span-2 flex min-w-0 items-center gap-2 text-13 @min-[560px]/call:col-span-1">
-                    <span className="shrink-0 text-foreground">{roles.signer ? "Your wallet" : "Derived"}</span>
+                    <span className="shrink-0 text-foreground">{SOURCE_WORD[roles.source]}</span>
                     <code title={key} className="truncate font-mono text-muted-foreground">
                       {shortKey(key)}
                     </code>
@@ -371,11 +371,15 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
             <Button disabled={running} onClick={send} className={cn(ACTION, ACTION_FILL)}>
               {sending && <Spinner />}
               {sending ? "Calling" : `Call ${ix.name}`}
+              {/* The shortcut inside the button it presses: beside it, loose and grey, it read as stray glyphs
+                  (Almaz, 20 Nov). A phone has no keyboard to press it on (Nikita, 20 Nov) */}
+              {!running && (
+                <span aria-hidden="true" className="ml-1 text-13 tracking-wide text-white/60 tabular-nums pointer-coarse:hidden [html.phone_&]:hidden">
+                  {PRIMARY_KEYS}
+                </span>
+              )}
             </Button>
-            <span aria-hidden="true" className={cn("text-13 text-muted-foreground tabular-nums", !(running && !sending) && "pointer-coarse:hidden [html.phone_&]:hidden")}>
-              {/* A phone has no keyboard to press it on, even when the frame is shown on a desktop (Nikita, 20 Nov) */}
-              {running && !sending ? "Another run is going" : PRIMARY_KEYS}
-            </span>
+            {running && !sending && <span className="text-13 text-muted-foreground">Another run is going</span>}
             {changed && (
               <button
                 type="button"
@@ -607,7 +611,7 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
                         <span>Role</span>
                       </div>
                       {ix.accounts.map((name) => {
-                        const roles = accountRoles(name)
+                        const roles = accountOf(p, ix.name, name)
                         return (
                           <div key={name} className={cn(PAIR, "min-h-8 items-center")}>
                             <code title={name} className="truncate font-mono text-foreground">

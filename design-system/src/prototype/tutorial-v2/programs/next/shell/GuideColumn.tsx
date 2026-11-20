@@ -17,6 +17,7 @@ import { launch } from "../../../ui/turns/YouPill"
 import { showFailLine } from "./Talk"
 import { pinToSidebar, usePins } from "../../../desktop/navLit/pins"
 import { ask, build, busy, deleteProject, deploy, go, ixsOf, metaOf, onChain, renameProject, type Project } from "../../store"
+import { WALLET_KEY, fakeKey } from "../../data"
 import { BUILD_KEYS } from "./Stages"
 import { copyText, onFocusComposer } from "./util"
 
@@ -65,7 +66,45 @@ export function ShortcutsDialog({ open, onOpenChange, read = false }: { open: bo
 /** The IDL as the Call panel reads it, for Copy IDL */
 /** An account's roles, read by the IDL JSON and the Call panel alike, never two copies: the wallet
  * signs as the authority, a signer or an owner; every program account is written to */
-export const accountRoles = (name: string) => ({ signer: /authority|signer|owner/.test(name), writable: true })
+/** Where an account in a call comes from */
+export type AccountSource = "wallet" | "program" | "pda" | "new" | "existing"
+export type AccountInfo = { signer: boolean; writable: boolean; source: AccountSource; key: string }
+
+/** Programs a call passes by their fixed address */
+const PROGRAM_IDS: Record<string, string> = {
+  system_program: "11111111111111111111111111111111",
+  token_program: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  associated_token_program: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+  rent: "SysvarRent111111111111111111111111111111111",
+}
+
+/** An account's roles and where it comes from, read off the program's own Accounts struct: `Signer` signs,
+ * `mut` or `init` writes, `seeds` is a PDA, `init` without seeds is a new keypair that signs too, `Program` is
+ * a fixed address. Every account was "writable" and "Derived" before, the system program included (Almaz,
+ * 20 Nov). With no Anchor struct to read, the name says it */
+export function accountOf(p: Project, ixName: string, name: string): AccountInfo {
+  const code = Object.entries(p.files).filter(([f]) => f.endsWith(".rs")).map(([, c]) => c).join("\n")
+  const struct = new RegExp(`fn\\s+${ixName}\\s*\\(\\s*\\w+\\s*:\\s*Context<\\s*(\\w+)`).exec(code)?.[1]
+  const body = struct ? new RegExp(`struct\\s+${struct}\\b[^{]*\\{([\\s\\S]*?)\\n\\}`).exec(code)?.[1] : undefined
+  const field = body ? new RegExp(`((?:\\s*#\\[account\\([^\\]]*\\)\\]\\s*)*)pub\\s+${name}\\s*:\\s*([^,\\n]+)`).exec(body) : null
+  const fixed = PROGRAM_IDS[name]
+  if (field) {
+    const [, attrs, type] = field
+    if (/^\s*Program\b|^\s*Sysvar\b/.test(type) || fixed) return { signer: false, writable: false, source: "program", key: fixed ?? fakeKey(`${p.id}:${name}`) }
+    const init = /\binit\b/.test(attrs)
+    const pda = /\bseeds\b/.test(attrs)
+    const signer = /^\s*Signer\b/.test(type) || (init && !pda)
+    const writable = init || /\bmut\b/.test(attrs)
+    if (/^\s*Signer\b/.test(type)) return { signer: true, writable, source: "wallet", key: WALLET_KEY }
+    return { signer, writable, source: pda ? "pda" : init ? "new" : "existing", key: fakeKey(`${p.id}:${name}`) }
+  }
+  if (fixed) return { signer: false, writable: false, source: "program", key: fixed }
+  if (/payer|authority|signer|owner|user|player|voter|tipper|sender/.test(name)) return { signer: true, writable: true, source: "wallet", key: WALLET_KEY }
+  return { signer: false, writable: true, source: "existing", key: fakeKey(`${p.id}:${name}`) }
+}
+
+/** What fills it, in the form's words */
+export const SOURCE_WORD: Record<AccountSource, string> = { wallet: "Your wallet", program: "Program", pda: "Derived", new: "New keypair", existing: "Saved earlier" }
 
 export function idlJson(p: Project) {
   return JSON.stringify(
@@ -74,7 +113,7 @@ export function idlJson(p: Project) {
       name: (p.slug ?? p.name).replace(/-/g, "_"),
       instructions: ixsOf(p).map((ix) => ({
         name: ix.name,
-        accounts: ix.accounts.map((a) => ({ name: a, isMut: accountRoles(a).writable, isSigner: accountRoles(a).signer })),
+        accounts: ix.accounts.map((a) => ({ name: a, isMut: accountOf(p, ix.name, a).writable, isSigner: accountOf(p, ix.name, a).signer })),
         args: ix.args.map((a) => ({ name: a.name, type: a.type })),
       })),
     },
