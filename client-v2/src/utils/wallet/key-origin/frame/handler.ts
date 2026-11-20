@@ -146,7 +146,7 @@ const isLegacyOrV0TransactionMessage = (bytes: Uint8Array) => {
   if (first === undefined) return false;
   let isVersioned = false;
   if (first & VERSIONED_FLAG) {
-    // Only version 0 exists
+    // v1 has its own layout (`isV1TransactionMessage`); later versions none yet
     if (first !== VERSIONED_FLAG) return false;
     isVersioned = true;
   } else {
@@ -556,6 +556,16 @@ if (import.meta.vitest) {
         expect(bytes[0]).toBe(0x81);
         expect(isTransactionMessage(bytes)).toBe(true);
         expect(isTransactionMessage(bytes.slice(0, -1))).toBe(false);
+        // A config mask the layout does not know, or half of the fee's bits
+        for (const mask of [0b100000, 0b1]) {
+          const changed = Uint8Array.from(bytes);
+          changed[4] = (changed[4] & ~0b11) | mask;
+          expect(isTransactionMessage(changed)).toBe(false);
+        }
+        // A version after v1 has no layout to check
+        const later = Uint8Array.from(bytes);
+        later[0] = 0x82;
+        expect(isTransactionMessage(later)).toBe(false);
         expect(
           isTransactionMessage(Uint8Array.from(Array.from(bytes).concat(0)))
         ).toBe(false);

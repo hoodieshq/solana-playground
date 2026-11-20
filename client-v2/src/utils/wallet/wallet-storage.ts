@@ -504,9 +504,10 @@ export const walletStorageWith =
     const readLocal = readLocalWith(() => undefined);
 
     /**
-     * Whether `text`, the `localStorage` wallet, is one `readLocal` cannot
-     * read: not JSON, or JSON of no wallet's shape. The pre-accounts format
-     * is readable: another tab is upgrading it.
+     * Whether `text`, the `localStorage` wallet, is one `readLocal` keeps
+     * aside as unreadable: not JSON, or JSON of no wallet's shape. The
+     * pre-accounts format is neither: `readLocal` reads it as none and leaves
+     * it, since another tab is upgrading it.
      */
     const isUnreadable = (text: string) => {
       let value: unknown;
@@ -523,10 +524,11 @@ export const walletStorageWith =
     /**
      * Under the key-origin provider: hand every unreadable copy of the
      * wallet in `localStorage` (the entry itself, and the one kept aside) to
-     * the key page as it is, then drop it from the app's origin.
-     *
-     * @returns whether none is left: while one is, key bytes may stay on the
-     * app's origin, so the move is not done and the wallet does not load
+     * the key page as it is, then drop it from the app's origin. A copy
+     * rewritten meanwhile stays for the next read. A failure is reported
+     * and changes nothing: the copies stay where they were, as before the
+     * key origin, and the next read tries again, while the wallet itself
+     * still loads, since nothing in it depends on them.
      */
     const handOverUnreadable = async (keep: KeyMove["keep"]) => {
       const found: [key: string, text: string][] = [];
@@ -541,9 +543,9 @@ export const walletStorageWith =
         // Storage refused: nothing can be read from it, and `readLocal`
         // meets the same refusal and goes on to the store
         reportFailure("localStorage unavailable", error);
-        return true;
+        return;
       }
-      if (found.length === 0) return true;
+      if (found.length === 0) return;
       const reportFound = reportFailureWith({ texts: found.length });
       try {
         for (const text of new Set(found.map(([, entry]) => entry))) {
@@ -551,7 +553,7 @@ export const walletStorageWith =
         }
       } catch (error) {
         reportFound("Unreadable wallet not handed to the key page", error);
-        return false;
+        return;
       }
       try {
         for (const [key, text] of found) {
@@ -560,12 +562,11 @@ export const walletStorageWith =
         }
       } catch (error) {
         reportFound("Unreadable wallet left in localStorage", error);
-        return false;
+        return;
       }
       log.info("unreadable wallet handed to the key page", {
         context: { texts: found.length },
       });
-      return true;
     };
 
     /** Keep the first unreadable copy aside; a later one never replaces it */
@@ -713,7 +714,7 @@ export const walletStorageWith =
     };
 
     const migrate = async (move: KeyMove | undefined): Promise<WalletRead> => {
-      if (move && !(await handOverUnreadable(move.keep))) return UNAVAILABLE;
+      if (move) await handOverUnreadable(move.keep);
       const fromLocal = readLocal();
       if (isDegraded()) {
         if (isMoveBlocked(move, fromLocal)) return UNAVAILABLE;
@@ -896,13 +897,13 @@ export const walletStorageWith =
        * lock, and the copies are written without key bytes only once it
        * confirmed them all. An unreadable `localStorage` wallet, and the copy
        * kept aside, go to the key page as text first, and leave
-       * `localStorage` once it stored them. The wallet reads `unavailable`, and the next read
+       * `localStorage` once it stored them; while it does not take them they
+       * stay, and the wallet still loads. The wallet reads `unavailable`, and the next read
        * tries again, while key bytes would stay on the app's origin: a move
        * that fails, a store that cannot be read while `localStorage` holds
        * keys, a store that refuses its record without key bytes, damaged
        * accounts that cannot be set aside, or a `localStorage` copy that can
-       * be neither moved, rewritten without its keys, nor removed, or an
-       * unreadable copy the key page did not take or that stays. A
+       * be neither moved, rewritten without its keys, nor removed. A
        * `localStorage` wallet the store refuses is rewritten without key
        * bytes and loads from there.
        *

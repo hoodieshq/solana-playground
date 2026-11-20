@@ -154,13 +154,14 @@ export const keepTextWith =
 
 /**
  * Everything a read under the key-origin provider moves into the key page:
- * the keys (`moveKeysWith`) and unreadable wallet texts (`keepTextWith`)
+ * the keys (`moveKeysWith`) and unreadable wallet texts (`keepTextWith`),
+ * each over the connection once the key page answers
  *
- * @param frame the connection to the key page
+ * @param connect resolves with the connection to the key page
  */
-export const keyMoveWith = (frame: KeyFrame): KeyMove => ({
-  keys: moveKeysWith(frame),
-  keep: keepTextWith(frame),
+export const keyMoveWith = (connect: () => Promise<KeyFrame>): KeyMove => ({
+  keys: async (record, others) => moveKeysWith(await connect())(record, others),
+  keep: async (text) => keepTextWith(await connect())(text),
 });
 
 if (import.meta.vitest) {
@@ -458,7 +459,7 @@ if (import.meta.vitest) {
 
         const read = await walletStorageWith(store)(
           memoryLocal(undefined)
-        ).readMovingKeys(keyMoveWith(frame));
+        ).readMovingKeys(keyMoveWith(async () => frame));
 
         expect(read).toEqual({
           kind: "wallet",
@@ -480,7 +481,7 @@ if (import.meta.vitest) {
         );
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read).toEqual({ kind: "unavailable" });
@@ -512,7 +513,7 @@ if (import.meta.vitest) {
         const { frame, texts } = fakeKeyPage();
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read).toEqual({
@@ -541,7 +542,7 @@ if (import.meta.vitest) {
         const { frame, texts } = fakeKeyPage();
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read).toEqual({ kind: "none", setAside: 0 });
@@ -549,10 +550,11 @@ if (import.meta.vitest) {
         expect(local.items.size).toBe(0);
       });
 
-      it("keeps an unparseable wallet in place, and reads unavailable, while the key page does not take it", async () => {
+      it("keeps an unparseable wallet in place, and still loads the wallet, while the key page does not take it", async () => {
         const text = "{not json";
         const local = memoryLocal(text);
-        const store = memoryStore(walletOf(accountsOf(1)));
+        const record = walletOf(accountsOf(1));
+        const store = memoryStore(record);
         const { frame } = fakeKeyPage();
         const refusing: KeyFrame = {
           request: <T>(body: Parameters<KeyFrame["request"]>[0]) =>
@@ -563,12 +565,31 @@ if (import.meta.vitest) {
         };
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(refusing)
+          keyMoveWith(async () => refusing)
         );
 
-        expect(read).toEqual({ kind: "unavailable" });
+        expect(read).toEqual({
+          kind: "wallet",
+          wallet: keyless(record),
+          setAside: 0,
+        });
         expect(local.items.get(WALLET_LOCAL_KEY)).toBe(text);
-        expect(store.write).not.toHaveBeenCalled();
+        expect(local.items.get("wallet.unreadable")).toBe(text);
+      });
+
+      it("leaves a pre-accounts wallet, which another tab is upgrading, in place", async () => {
+        const text = JSON.stringify({ sk: realKey().kp });
+        const local = memoryLocal(text);
+        const store = memoryStore(undefined);
+        const { frame, texts } = fakeKeyPage();
+
+        await walletStorageWith(store)(local).readMovingKeys(
+          keyMoveWith(async () => frame)
+        );
+
+        expect(texts.size).toBe(0);
+        expect(local.items.get(WALLET_LOCAL_KEY)).toBe(text);
+        expect(local.items.has("wallet.unreadable")).toBe(false);
       });
 
       it("an unreachable key page leaves everything as it was", async () => {
@@ -581,7 +602,7 @@ if (import.meta.vitest) {
 
         const read = await walletStorageWith(store)(
           memoryLocal(undefined)
-        ).readMovingKeys(keyMoveWith(failing));
+        ).readMovingKeys(keyMoveWith(async () => failing));
 
         expect(read).toEqual({ kind: "unavailable" });
         expect(store.write).not.toHaveBeenCalled();
@@ -595,7 +616,7 @@ if (import.meta.vitest) {
 
         const read = await walletStorageWith(store)(
           memoryLocal(undefined)
-        ).readMovingKeys(keyMoveWith(frame));
+        ).readMovingKeys(keyMoveWith(async () => frame));
 
         expect(read).toEqual({ kind: "wallet", wallet: record, setAside: 0 });
         expect(request).not.toHaveBeenCalled();
@@ -609,8 +630,12 @@ if (import.meta.vitest) {
         const { adopts, frame } = fakeKeyPage();
 
         const [first, second] = await Promise.all([
-          walletStorageWith(store)(local).readMovingKeys(keyMoveWith(frame)),
-          walletStorageWith(store)(local).readMovingKeys(keyMoveWith(frame)),
+          walletStorageWith(store)(local).readMovingKeys(
+            keyMoveWith(async () => frame)
+          ),
+          walletStorageWith(store)(local).readMovingKeys(
+            keyMoveWith(async () => frame)
+          ),
         ]);
 
         expect(adopts).toEqual([record.accounts.map((a) => a.kp)]);
@@ -631,7 +656,7 @@ if (import.meta.vitest) {
         const { frame, kept } = fakeKeyPage();
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(Array.from(kept.keys())).toEqual([account.publicKey]);
@@ -663,7 +688,7 @@ if (import.meta.vitest) {
         const { frame } = fakeKeyPage();
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read).toEqual({ kind: "unavailable" });
@@ -681,7 +706,7 @@ if (import.meta.vitest) {
         const { frame } = fakeKeyPage();
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read).toEqual({ kind: "unavailable" });
@@ -697,7 +722,7 @@ if (import.meta.vitest) {
         const { frame, kept } = fakeKeyPage();
 
         await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(kept.size).toBe(2);
@@ -712,13 +737,17 @@ if (import.meta.vitest) {
         const { frame, kept } = fakeKeyPage();
         const storage = walletStorageWith(store)(memoryLocal(undefined));
 
-        const first = await storage.readMovingKeys(keyMoveWith(frame));
+        const first = await storage.readMovingKeys(
+          keyMoveWith(async () => frame)
+        );
 
         expect(first).toEqual({ kind: "unavailable" });
         expect(store.held()).toEqual(record);
         expect(kept.size).toBe(2);
 
-        const second = await storage.readMovingKeys(keyMoveWith(frame));
+        const second = await storage.readMovingKeys(
+          keyMoveWith(async () => frame)
+        );
 
         expect(second).toEqual({
           kind: "wallet",
@@ -736,7 +765,7 @@ if (import.meta.vitest) {
         const { frame, kept } = fakeKeyPage();
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read).toEqual({
@@ -767,7 +796,7 @@ if (import.meta.vitest) {
         const { frame, kept } = fakeKeyPage();
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read.kind).toBe("wallet");
@@ -789,7 +818,7 @@ if (import.meta.vitest) {
         });
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read).toEqual({ kind: "unavailable" });
@@ -808,7 +837,7 @@ if (import.meta.vitest) {
         const { frame } = fakeKeyPage();
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read).toEqual({ kind: "unavailable" });
@@ -823,7 +852,7 @@ if (import.meta.vitest) {
         const { frame } = fakeKeyPage();
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read).toEqual({ kind: "unavailable" });
@@ -842,14 +871,18 @@ if (import.meta.vitest) {
         const { frame } = fakeKeyPage();
         const storage = walletStorageWith(store)(local);
 
-        const first = await storage.readMovingKeys(keyMoveWith(frame));
+        const first = await storage.readMovingKeys(
+          keyMoveWith(async () => frame)
+        );
 
         expect(first).toEqual({ kind: "unavailable" });
         expect(local.items.get(WALLET_LOCAL_KEY)).toBe(text);
         expect(store.held()).toEqual(keyless(record));
 
         local.removeItem = removeItem;
-        const second = await storage.readMovingKeys(keyMoveWith(frame));
+        const second = await storage.readMovingKeys(
+          keyMoveWith(async () => frame)
+        );
 
         expect(second).toEqual({
           kind: "wallet",
@@ -874,7 +907,7 @@ if (import.meta.vitest) {
 
         const read = await walletStorageWith(store)(
           memoryLocal(undefined)
-        ).readMovingKeys(keyMoveWith(frame));
+        ).readMovingKeys(keyMoveWith(async () => frame));
 
         expect(read).toEqual({ kind: "unavailable" });
         expect(store.write).not.toHaveBeenCalled();
@@ -889,7 +922,7 @@ if (import.meta.vitest) {
         const { frame, kept } = fakeKeyPage();
 
         await walletStorageWith(store)(memoryLocal(undefined)).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(Array.from(kept.keys()).sort()).toEqual(
@@ -910,13 +943,17 @@ if (import.meta.vitest) {
         const { frame, kept } = fakeKeyPage();
         const storage = walletStorageWith(store)(memoryLocal(undefined));
 
-        const first = await storage.readMovingKeys(keyMoveWith(frame));
+        const first = await storage.readMovingKeys(
+          keyMoveWith(async () => frame)
+        );
 
         expect(first).toEqual({ kind: "unavailable" });
         expect(kept.has(damaged.publicKey)).toBe(true);
         expect(store.heldAside()).toEqual([damaged]);
 
-        const second = await storage.readMovingKeys(keyMoveWith(frame));
+        const second = await storage.readMovingKeys(
+          keyMoveWith(async () => frame)
+        );
 
         expect(second).toEqual({
           kind: "wallet",
@@ -943,7 +980,7 @@ if (import.meta.vitest) {
 
         const read = await walletStorageWith(store)(
           memoryLocal(undefined)
-        ).readMovingKeys(keyMoveWith(frame));
+        ).readMovingKeys(keyMoveWith(async () => frame));
 
         expect(kept.has(other.publicKey)).toBe(true);
         expect(read).toEqual({
@@ -964,7 +1001,7 @@ if (import.meta.vitest) {
         const { request, frame } = fakeKeyPage();
 
         const read = await walletStorageWith(store)(local).readMovingKeys(
-          keyMoveWith(frame)
+          keyMoveWith(async () => frame)
         );
 
         expect(read).toEqual({ kind: "unavailable" });

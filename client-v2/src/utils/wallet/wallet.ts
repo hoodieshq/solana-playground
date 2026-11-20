@@ -18,7 +18,7 @@ import {
   keyFrame,
   KeyFrameUnavailable,
 } from "./key-origin/client";
-import { keepTextWith, moveKeysWith } from "./key-origin/move";
+import { keyMoveWith } from "./key-origin/move";
 import { keyOriginFor } from "./key-origin/origin";
 import { keyOriginSignerProvider } from "./key-origin/provider";
 import { parseKeypairFile } from "./keypair-file";
@@ -36,7 +36,6 @@ import type {
 } from "./types";
 import {
   isSavedForGood,
-  type KeyMove,
   WALLET_LOCAL_KEY,
   type WalletRead,
   walletStorageWith,
@@ -237,27 +236,37 @@ export const readWith =
     return read();
   };
 
+/** Report a failure of the background read by its name only, as `readWith` does */
+const reportBackgroundRead = (what: string) => (error: unknown) => {
+  keyOriginLog.error(new Error(`${what}: ${toError(error).name}`), {
+    report: true,
+    context: { what },
+  });
+};
+
 /**
  * The page load's read under the key-origin provider: the key page may take
  * up to `KEY_PAGE_LOAD_TIMEOUT_MS` and more to answer, and the app's first
  * render waits for every global's init, so the wallet starts `loading` and
  * takes the read once it lands. A failure reads `unavailable`, as `readWith`
- * does for a key page it cannot reach.
+ * does for a key page it cannot reach. Every failure is reported by its name
+ * only: a storage error's message may quote wallet text.
  *
  * @param take what to do with the wallet once it is read
- * @returns for the read, the wallet to start from
+ * @returns for the read, the wallet to start from, and when it was taken
  */
-export const loadingUntil =
-  (take: (wallet: WalletState) => void) =>
-  (reading: Promise<WalletState>): WalletState => {
-    reading.then(take, (error: unknown) => {
-      keyOriginLog.error(error, {
-        report: true,
-        context: { what: "read the wallet in the background failed" },
-      });
-      take({ ...defaultState, state: "unavailable" });
-    });
-    return { ...defaultState, state: "loading" };
+export const loadingWith =
+  (take: (wallet: WalletState) => void) => (reading: Promise<WalletState>) => {
+    const taken = reading
+      .then(take, (error: unknown) => {
+        reportBackgroundRead("read the wallet in the background failed")(error);
+        take({ ...defaultState, state: "unavailable" });
+      })
+      .catch(
+        reportBackgroundRead("take the wallet read in the background failed")
+      );
+    const wallet: WalletState = { ...defaultState, state: "loading" };
+    return { wallet, taken };
   };
 
 /**
@@ -277,8 +286,11 @@ const takeLoaded = (wallet: WalletState) => {
   });
 };
 
-/** Whether the next read is the page load's, which `loadingUntil` runs */
+/** Whether the next read is the page load's, which `loadingWith` runs */
 let isPageLoadRead = true;
+
+/** Settles once the page load's read was taken (`PgWallet.untilLoaded`) */
+let pageLoadTaken: Promise<void> = Promise.resolve();
 
 /**
  * The wallet as read under the local provider: a record with an account whose
@@ -339,20 +351,18 @@ const storage = {
       );
     }
     // The keys still in the page move into the key page under the read's
-    // lock, once it answers: copy, confirm, then drop (`moveKeysWith`)
-    // An unreadable wallet goes to the key page as text (`keepTextWith`)
-    const move: KeyMove = {
-      keys: async (record, others) =>
-        moveKeysWith(await keyPage())(record, others),
-      keep: async (text) => keepTextWith(await keyPage())(text),
-    };
+    // lock, once it answers: copy, confirm, then drop (`moveKeysWith`); an
+    // unreadable wallet goes as text (`keepTextWith`)
+    const move = keyMoveWith(keyPage);
     const reading = readWith(keyOrigin)(keyPage)(() =>
       storage.readStored(walletStorage().readMovingKeys(move))
     );
     // A later read is the user's (`connect`, Try again), and waits
     if (!isPageLoadRead) return reading;
     isPageLoadRead = false;
-    return Promise.resolve(loadingUntil(takeLoaded)(reading));
+    const { wallet, taken } = loadingWith(takeLoaded)(reading);
+    pageLoadTaken = taken;
+    return Promise.resolve(wallet);
   },
 
   /**
@@ -718,17 +728,30 @@ class _PgWallet {
    * @throws what `addNew` threw, to every caller from then on
    */
   static addFirst() {
-    addingFirst ??= PgWallet.addNew().then(
-      (added) => {
-        addingFirst = undefined;
-        return added;
-      },
-      (error: unknown) => {
-        accountLog.error(error, { report: true });
-        throw error;
-      }
-    );
+    // A wallet still loading may hold accounts: wait for it, and add none then
+    addingFirst ??= PgWallet.untilLoaded()
+      .then(() => (PgWallet.accounts.length ? false : PgWallet.addNew()))
+      .then(
+        (added) => {
+          addingFirst = undefined;
+          return added;
+        },
+        (error: unknown) => {
+          accountLog.error(error, { report: true });
+          throw error;
+        }
+      );
     return addingFirst;
+  }
+
+  /**
+   * Settles once the page load's read was taken: at once unless the wallet
+   * started `loading` under the key-origin provider. Whatever needs the
+   * wallet's accounts waits on it rather than reading a loading wallet's
+   * empty list.
+   */
+  static untilLoaded(): Promise<void> {
+    return pageLoadTaken;
   }
 
   /**

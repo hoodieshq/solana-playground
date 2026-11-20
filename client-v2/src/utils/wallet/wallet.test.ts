@@ -15,12 +15,7 @@ import { CLI_KEY_ERROR, keyOriginSignerProvider } from "./key-origin/provider";
 import { KeypairFileError } from "./keypair-file";
 import { localSignerProviderWith, publicKeyOf } from "./signer-provider";
 import type { Wallet, WalletAccount, WalletState } from "./types";
-import {
-  loadingUntil,
-  PgWallet,
-  readWith,
-  refuseKeylessRecord,
-} from "./wallet";
+import { loadingWith, PgWallet, readWith, refuseKeylessRecord } from "./wallet";
 import { WALLET_LOCAL_KEY, type WalletRead } from "./wallet-storage";
 
 // The connection module reads build-time globals the unit runner does not
@@ -564,7 +559,7 @@ describe("utils/wallet/wallet", () => {
     });
   });
 
-  describe("loadingUntil, the page load's read under the key-origin provider", () => {
+  describe("loadingWith, the page load's read under the key-origin provider", () => {
     const stored: WalletState = {
       state: "pg",
       accounts: [],
@@ -581,7 +576,7 @@ describe("utils/wallet/wallet", () => {
       const take = vi.fn();
       const read = vi.fn(async () => stored);
 
-      const wallet = loadingUntil(take)(
+      const { wallet } = loadingWith(take)(
         readWith(ORIGIN)(() => new Promise<KeyFrame>(() => {}))(read)
       );
 
@@ -594,7 +589,7 @@ describe("utils/wallet/wallet", () => {
       let answer: (frame: KeyFrame) => void = () => {};
       const take = vi.fn();
 
-      loadingUntil(take)(
+      loadingWith(take)(
         readWith(ORIGIN)(
           () => new Promise<KeyFrame>((resolve) => (answer = resolve))
         )(async () => stored)
@@ -607,7 +602,7 @@ describe("utils/wallet/wallet", () => {
     it("takes an unavailable wallet when the read fails", async () => {
       const take = vi.fn();
 
-      loadingUntil(take)(Promise.reject(new Error("store gone")));
+      loadingWith(take)(Promise.reject(new Error("store gone")));
 
       await vi.waitFor(() =>
         expect(take).toHaveBeenCalledWith(

@@ -11,7 +11,8 @@ The built-in wallet's state, including every account's secret key, SHALL be
 persisted in IndexedDB, in a database used only by the wallet. While
 IndexedDB works, no `localStorage` key SHALL hold a wallet secret key, with
 three exceptions this spec describes: the fallback when IndexedDB fails, an
-unreadable copy set aside, which nothing removes, and a save still waiting
+unreadable copy set aside, which nothing removes but the move to the key
+origin, and a save still waiting
 for the cross-tab lock when the page is hidden, until it lands or the next
 load moves it.
 
@@ -333,6 +334,16 @@ run under the wallet's cross-tab lock.
 - **WHEN** two tabs load under the key-origin provider for the first time
 - **THEN** the keys move once, and both tabs load the same accounts
 
+#### Scenario: An unreadable wallet moves to the key origin
+
+- **WHEN** `localStorage['wallet']` cannot be read, or
+  `localStorage['wallet.unreadable']` holds a copy, under the key-origin
+  provider
+- **THEN** each text is sent to the key page as it is and stored there, beside
+  the keys, and only then removed from `localStorage`
+- **AND** while the key page does not take them they stay where they were, and
+  the wallet still loads
+
 ### Requirement: An unreachable key origin reads as unavailable
 
 If the key page does not answer the handshake within the time limit, or its
@@ -344,6 +355,14 @@ Setup, and SHALL write nothing to the page's record.
 - **WHEN** the key page never loads
 - **THEN** the wallet is `unavailable`, its "Try again" asks the key page
   again, and the page's record is unchanged
+
+#### Scenario: A slow key origin does not hold the first render
+
+- **WHEN** the key page has not answered yet on the page's first load
+- **THEN** the app renders, and the wallet is `loading`: it is never saved,
+  adds no account, and `connect`, Run and the first account wait for the read
+- **AND** once the key page answers the wallet takes what it read, or
+  `unavailable` when it cannot be reached
 
 #### Scenario: The page's record names a key the key page lacks
 

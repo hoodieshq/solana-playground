@@ -316,7 +316,7 @@ const keptTexts = (frame: Frame) =>
   frame.evaluate(
     () =>
       new Promise<string[]>((resolve, reject) => {
-        const open = indexedDB.open("pg-wallet-keys");
+        const open = indexedDB.open("pg-wallet-keys-unreadable");
         open.onerror = () => reject(open.error);
         open.onsuccess = () => {
           const db = open.result;

@@ -20,14 +20,18 @@ export interface KeyStore {
 }
 
 const STORE_NAME = "keys";
-/** Unreadable wallet texts, each under itself as its key */
+/** Unreadable wallet texts, each under its SHA-256 */
 const KEPT_STORE_NAME = "unreadable";
-/** 2 added `KEPT_STORE_NAME` */
-const DB_VERSION = 2;
 const LOCK_NAME = "pg-wallet-keys";
 
 /** The key origin's database of keys */
 export const KEY_DB_NAME = "pg-wallet-keys";
+
+/**
+ * The database of kept texts beside a key database: its own, so the key
+ * database keeps version 1 and a key page of an earlier build still opens it
+ */
+const keptDbNameOf = (name: string) => `${name}-unreadable`;
 
 /** Resolves on commit, so a write the browser aborts is a failure */
 const settled = (tx: IDBTransaction) =>
@@ -38,22 +42,19 @@ const settled = (tx: IDBTransaction) =>
   });
 
 /**
- * A key store over the key origin's own IndexedDB database. Every write runs
- * under the `pg-wallet-keys` Web Lock where the browser has one, so two key
- * page instances cannot interleave.
+ * Opens a version 1 database of one object store, once, and again after the
+ * browser closed it
  *
- * @param name database name
+ * @param store the object store's name
+ * @returns for the database name, a function that opens it
  */
-export const indexedDbKeyStore = (name: string): KeyStore => {
+const openerFor = (store: string) => (name: string) => {
   let opened: Promise<IDBDatabase> | undefined;
-  const open = () => {
+  return () => {
     opened ??= new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(name, DB_VERSION);
+      const request = indexedDB.open(name, 1);
       request.onupgradeneeded = () => {
-        const db = request.result;
-        for (const store of [STORE_NAME, KEPT_STORE_NAME]) {
-          if (!db.objectStoreNames.contains(store)) db.createObjectStore(store);
-        }
+        request.result.createObjectStore(store);
       };
       request.onsuccess = () => {
         const db = request.result;
@@ -70,6 +71,28 @@ export const indexedDbKeyStore = (name: string): KeyStore => {
     opened.catch(() => (opened = undefined));
     return opened;
   };
+};
+
+/** The SHA-256 of a text, in hex: a short key for any length of text */
+const sha256Of = async (text: string) =>
+  Array.from(
+    new Uint8Array(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
+    ),
+    (byte) => byte.toString(16).padStart(2, "0")
+  ).join("");
+
+/**
+ * A key store over the key origin's own IndexedDB database, with the kept
+ * texts in a second one beside it (`keptDbNameOf`). Every write runs under
+ * the `pg-wallet-keys` Web Lock where the browser has one, so two key page
+ * instances cannot interleave.
+ *
+ * @param name database name
+ */
+export const indexedDbKeyStore = (name: string): KeyStore => {
+  const open = openerFor(STORE_NAME)(name);
+  const openKept = openerFor(KEPT_STORE_NAME)(keptDbNameOf(name));
 
   const exclusive = <T>(task: () => Promise<T>): Promise<T> =>
     typeof navigator !== "undefined" && navigator.locks
@@ -114,14 +137,15 @@ export const indexedDbKeyStore = (name: string): KeyStore => {
     },
     keep(text) {
       return exclusive(async () => {
-        const db = await open();
+        const key = await sha256Of(text);
+        const db = await openKept();
         const tx = db.transaction(KEPT_STORE_NAME, "readwrite");
-        tx.objectStore(KEPT_STORE_NAME).put(text, text);
+        tx.objectStore(KEPT_STORE_NAME).put(text, key);
         await settled(tx);
       });
     },
     async kept() {
-      const db = await open();
+      const db = await openKept();
       const tx = db.transaction(KEPT_STORE_NAME, "readonly");
       const values = tx.objectStore(KEPT_STORE_NAME).getAll();
       await settled(tx);
@@ -215,7 +239,7 @@ if (import.meta.vitest) {
       expect(Array.from((await store.all()).keys())).toEqual(["a"]);
     });
 
-    it("opens a database made before kept texts, keeping its keys", async () => {
+    it("keeps texts beside a key database of an earlier build, which stays version 1", async () => {
       await new Promise<void>((resolve, reject) => {
         const request = indexedDB.open("old", 1);
         request.onupgradeneeded = () => {
@@ -235,6 +259,15 @@ if (import.meta.vitest) {
 
       expect((await store.all()).get("a")).toEqual(secret(1));
       expect(await store.kept()).toEqual(["{not json"]);
+      const version = await new Promise<number>((resolve, reject) => {
+        const request = indexedDB.open("old");
+        request.onsuccess = () => {
+          resolve(request.result.version);
+          request.result.close();
+        };
+        request.onerror = () => reject(request.error);
+      });
+      expect(version).toBe(1);
     });
 
     it("asks the browser to keep the storage, where it can be asked", async () => {
