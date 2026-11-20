@@ -154,5 +154,5 @@ export function DeployDetails({ log, took, upgrade = false, built = false, phone
   const what = upgrade ? "The upgrade" : built ? "The build and deploy" : "The deploy"
   const where = upgrade ? `Your program at ${id} now runs the new code.` : `Your program now lives on devnet at ${id}.`
   const time = took ? ` took ${took} and` : " took"
-  return <PlainDetails text={`${where} ${what}${time} ${cost} test SOL from your wallet.`} copy={{ label: "Copy id", value: PROGRAM_ID }} log={log} phone={phone} />
+  return <PlainDetails text={`${where} ${what}${time} ${cost} devnet SOL from your wallet.`} copy={{ label: "Copy id", value: PROGRAM_ID }} log={log} phone={phone} />
 }

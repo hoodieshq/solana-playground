@@ -167,7 +167,7 @@ function Confirmed({ turn, phone }: { turn: ResultTurn; phone: boolean }) {
         <PlainDetails
           quiet
           bar={false}
-          text={`The call used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} test SOL from your wallet.`}
+          text={`The call used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} devnet SOL from your wallet.`}
           copy={{ label: "Copy signature", value: tx.signature }}
           log={programLog(tx)}
           phone={phone}

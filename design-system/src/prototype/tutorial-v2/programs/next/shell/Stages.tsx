@@ -142,28 +142,31 @@ export function stageHint(p: Project): string | null {
 
 /** One segment a stage, the tutorial's 4px bar: done ones lit in one sweep of the brand's gradient, a
  * failed one red, one the code moved past amber */
-/** The stages as one ring before the words, an arc a stage, drawn as the nav's lesson ring is (ProgressRing):
- * a bar under the words lifted them off the line the project's name sits on (Almaz, 20 Nov) */
+/** The stages as one ring before the words: a whole grey track, and an arc over it as long as the share of
+ * stages done. One continuous ring, not an arc a stage: four pieces read as four things (Almaz, 20 Nov).
+ * The arc takes the colour of what stands: red after a failure, amber when the code changed after a build */
 function StageRing({ list }: { list: Stage[] }) {
   const r = 8
   const c = 2 * Math.PI * r
-  const seg = c / list.length
-  const gap = 2.6
+  const done = list.filter((s) => s.state === "done").length
+  const tone = list.some((s) => s.state === "failed") ? "stroke-error" : list.some((s) => s.state === "stale") ? "stroke-warning" : "stroke-muted-foreground"
+  const running = list.some((s) => s.state === "running")
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" width={16} height={16} className="shrink-0 -rotate-90">
-      {list.map((s, i) => (
+      <circle cx="10" cy="10" r={r} fill="none" strokeWidth={LIT_STROKE} className="stroke-border-strong" />
+      {done > 0 && (
         <circle
-          key={s.id}
           cx="10"
           cy="10"
           r={r}
           fill="none"
           strokeWidth={LIT_STROKE}
-          strokeDasharray={`${seg - gap} ${c - seg + gap}`}
-          strokeDashoffset={-(i * seg + gap / 2)}
-          className={s.state === "failed" ? "stroke-error" : s.state === "stale" ? "stroke-warning" : s.state === "running" ? "animate-pulse stroke-foreground" : s.state === "done" ? "stroke-muted-foreground" : "stroke-border-strong"}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - done / list.length)}
+          className={cn(tone, running && "animate-pulse", "transition-[stroke-dashoffset] duration-500 ease-out motion-reduce:transition-none")}
         />
-      ))}
+      )}
     </svg>
   )
 }

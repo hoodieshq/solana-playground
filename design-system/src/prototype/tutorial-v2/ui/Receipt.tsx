@@ -53,10 +53,10 @@ function groups(tx: Tx): Row[][] {
         label: "Fee",
         value: (
           <>
-            {TX_FEE} {muted("· test SOL")}
+            {TX_FEE} {muted("· devnet SOL")}
           </>
         ),
-        text: `${TX_FEE}, test SOL`,
+        text: `${TX_FEE}, devnet SOL`,
       },
       { label: "Compute", value: units, text: units },
       { label: "Confirmed", value: TX_CONFIRMED, text: TX_CONFIRMED },

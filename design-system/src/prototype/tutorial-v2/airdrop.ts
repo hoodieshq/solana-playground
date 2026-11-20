@@ -78,4 +78,4 @@ export const WEB_FAUCET_LINE = `The web faucet is the reliable way: your address
 
 /** The assistant's word in the chat after a refused or short airdrop */
 export const assistantFaucetNote = (got: number) =>
-  `${got > 0 ? `Devnet's faucet only sent ${got} SOL.` : "Devnet's faucet is busy right now."} This happens a lot. The web faucet is the sure way to get test SOL: open it from the card, your address and ${AIRDROP_SOL} SOL are already filled in. Then press Try again.`
+  `${got > 0 ? `Devnet's faucet only sent ${got} SOL.` : "Devnet's faucet is busy right now."} This happens a lot. The web faucet is the sure way to get devnet SOL: open it from the card, your address and ${AIRDROP_SOL} SOL are already filled in. Then press Try again.`

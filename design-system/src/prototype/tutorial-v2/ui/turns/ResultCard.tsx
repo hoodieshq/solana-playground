@@ -188,7 +188,7 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
             <PlainDetails
               // The head already says what was called. Under the accounts, which are the answer, the cost
               // is a footnote, set as the Call panel sets it (Almaz, 10 Nov)
-              text={`${tx.error ? "Nothing moved: the accounts are as they were. " : ""}The call used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} test SOL from your wallet.${tx.error ? " A failed transaction still pays its fee." : ""}`}
+              text={`${tx.error ? "Nothing moved: the accounts are as they were. " : ""}The call used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} devnet SOL from your wallet.${tx.error ? " A failed transaction still pays its fee." : ""}`}
               copy={{ label: "Copy signature", value: tx.signature }}
               log={programLog(tx)}
               phone={phone}
@@ -364,7 +364,7 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
         }
         details={
           <PlainDetails
-            text={`${turn.from === "client" ? "client.ts" : "The Call panel"} called \`${ixName(tx)}\`. It used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} test SOL from your wallet.`}
+            text={`${turn.from === "client" ? "client.ts" : "The Call panel"} called \`${ixName(tx)}\`. It used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} devnet SOL from your wallet.`}
             copy={{ label: "Copy signature", value: tx.signature }}
             log={programLog(tx)}
             phone={phone}

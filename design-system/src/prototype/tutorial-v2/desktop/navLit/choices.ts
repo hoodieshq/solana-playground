@@ -56,7 +56,7 @@ export type Network = { id?: string; name: string; hint: string; warn?: boolean;
 /** Free networks first, so a thumb and Tab land on them. `local` ones run on your machine, so they only
  * show on the desktop: on a phone or tablet localhost is the device */
 export const NETWORKS: Network[] = [
-  { name: "Devnet", hint: "Free test SOL. Where lessons run" },
+  { name: "Devnet", hint: "Free devnet SOL. Where lessons run" },
   { name: "Testnet", hint: "Where validators try new releases. Free SOL too" },
   { name: "Localnet", hint: "A validator on your machine, at localhost:8899", local: true },
   { name: "Surfpool", hint: "Surfnet on your machine, at localhost:8899", local: true },

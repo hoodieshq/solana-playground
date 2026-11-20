@@ -154,22 +154,9 @@ function Way({ icon: Icon, label, onClick }: { icon: ComponentType<{ className?:
   )
 }
 
+/** The field's hint, one line that stays: examples swapped every few seconds still read as the field
+ * writing by itself (design lead, 20 Nov) */
 const PROMPT = "Describe the program you want to build…"
-/** The examples the empty field shows, the same three First Light offers under Describe it */
-const IDEAS = ["A counter anyone can increment", "A tip jar that splits what it gets", "A yes or no vote, one per wallet"]
-
-/** The empty field's placeholder: one example after another, swapped while nobody is in the field. A
- * placeholder only: it was typed out with a blinking caret, which read as the field writing by itself
- * and made it look like a field nobody could type in (design lead, 20 Nov). Still for less motion */
-function useIdea(paused: boolean) {
-  const [i, setI] = useState(-1)
-  useEffect(() => {
-    if (paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
-    const t = window.setInterval(() => setI((n) => (n + 1) % IDEAS.length), 3200)
-    return () => window.clearInterval(t)
-  }, [paused])
-  return i < 0 ? PROMPT : `${IDEAS[i]}…`
-}
 
 /** Build your own, as one box: tell the assistant what to build, or take one of the ready ways in
  * its foot. The field takes text, as Claude's, ChatGPT's and Gemini's do (design lead, 20 Nov; replaces
@@ -180,10 +167,8 @@ function StartBox() {
   const { dispatch } = useStore()
   const env = useEnv()
   const [text, setText] = useState("")
-  const [focused, setFocused] = useState(false)
   const [sending, setSending] = useState(false)
   const box = useRef<HTMLTextAreaElement>(null)
-  const placeholder = useIdea(focused || !!text)
   const send = async () => {
     const t = text.trim()
     if (!t || sending) return
@@ -219,15 +204,13 @@ function StartBox() {
             value={text}
             disabled={sending}
             onChange={(e) => setText(e.target.value)}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault()
                 void send()
               }
             }}
-            placeholder={placeholder}
+            placeholder={PROMPT}
             aria-label="Describe the program you want to build"
             enterKeyHint="send"
             className="min-w-0 flex-1 resize-none bg-transparent text-16 leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
@@ -296,11 +279,12 @@ function PathCard({ slug }: { slug: string }) {
   )
 }
 
-/** The rest of the catalog, as the row's last card where the hero's lesson stepped out */
+/** The rest of the catalog, as the row's last card where the hero's lesson stepped out: its words alone,
+ * on the neighbours' fill (Almaz, 20 Nov: three covers in a heap looked worse than none) */
 function AllCard() {
   const { dispatch } = useStore()
   return (
-    <li className="group/card relative flex min-w-0 flex-col justify-end gap-3 rounded-panel border border-border p-4 transition-colors duration-100 hover:bg-surface-panel motion-reduce:transition-none max-sm:flex-row max-sm:items-center max-sm:justify-start">
+    <li className="group/card relative flex min-w-0 flex-col justify-end gap-3 rounded-panel border border-border bg-surface-panel p-4 transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none max-sm:flex-row max-sm:items-center max-sm:justify-start">
       <h3 className="font-heading text-16 leading-5 font-headline tracking-[-0.01em] text-foreground">
         <button type="button" onClick={() => dispatch({ type: "open", screen: "gallery" })} className={cn("flex items-center gap-1 rounded-sm after:absolute after:inset-0 after:rounded-panel after:content-['']", FOCUS)}>
           {`All ${CATALOG.length} tutorials`}
@@ -325,7 +309,7 @@ function Path() {
     <section aria-labelledby="home-path" className="flex flex-col gap-4">
       <div className="flex min-h-6 items-center justify-between gap-3">
         <h2 id="home-path" className={H2}>
-          Learn by building
+          Tutorials
         </h2>
         {!short && <button
           type="button"
