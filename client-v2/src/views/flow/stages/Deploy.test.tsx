@@ -418,6 +418,7 @@ describe("Deploy stage", () => {
       wallet.state = "sol";
       wallet.accounts = [{}];
       setTimeout(becomeCurrent);
+      return undefined;
     });
     try {
       render(<Deploy onChangeNetwork={() => {}} />);
