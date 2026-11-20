@@ -30,8 +30,12 @@ import { baseName, changedFiles, failLive, onReveal, shortKey, statusOf } from "
 
 /** The workspace docks the tree beside the editor from this width (ui-design.md, --tree-dock-min) */
 const TREE_DOCK_MIN = 900
-/** Under this the assistant lies over the code's right edge: the files and the editor keep their room */
-const ASK_DOCK_MIN = 1160
+/** Under this the assistant lies over the code's left edge. From here it docks and the code keeps 640 or
+ * more: on the left an overlay would hide the line numbers and the start of every line, so it docks on
+ * the 1152 tablet too (20 Nov) */
+const ASK_DOCK_MIN = 1000
+/** The assistant's docked width, taken from the room the files and the code share */
+const ASK_W = 360
 
 /** Whether the assistant's panel is out: yours once you toggle it, open at first where there's room */
 const ASK_KEY = "oak.programs.ask"
@@ -161,9 +165,9 @@ export function errorIn(p: Project, file: string) {
 }
 
 /** The project page: one bar (back, the name, the stages, the program chip, the panels' toggles), then
- * every file in a tree beside the editor, the console under it and the assistant at the right, closed
- * or open (the client, 17 Nov: the whole program at once, as an IDE shows it, and the assistant only
- * for questions) */
+ * the assistant at the left, closed or open, then every file in a tree beside the editor and the console
+ * under it. The assistant sits where the lesson's does, so it keeps its side when a tutorial hands over to
+ * its program (Nikita's option B, 20 Nov: files stay next to the code, as every IDE has them) */
 export function Workspace({ p }: { p: Project }) {
   const id = p.id
   const box = useRef<HTMLElement>(null)
@@ -204,7 +208,10 @@ export function Workspace({ p }: { p: Project }) {
     seen.current = asked
   }, [asked])
 
-  const wide = width >= TREE_DOCK_MIN
+  // The tree docks only while the code keeps its room beside it: on a 1280 screen with the assistant out it
+  // comes over the code from the Files button instead
+  const askDocked = asking && width >= ASK_DOCK_MIN
+  const wide = width - (askDocked ? ASK_W : 0) >= TREE_DOCK_MIN
   const toggleFiles = () => (wide ? setDocked((d) => !d) : setPop((o) => !o))
   const filesShown = wide ? docked : pop
 
@@ -349,6 +356,7 @@ export function Workspace({ p }: { p: Project }) {
         </span>
       </div>
       <div className="relative flex min-h-0 flex-1">
+        {asking && <AskPanel p={p} onClose={() => setAsk(false)} className={cn("flex w-[360px] shrink-0 flex-col border-r border-border bg-surface-base", !askDocked && "absolute inset-y-0 left-0 z-10 max-w-full shadow-panel")} />}
         {wide && docked && !p.opening && (
           <nav aria-label="Files" className="flex w-[220px] shrink-0 flex-col border-r border-border bg-surface-base">
             {/* A head as the editor's tabs and the assistant have, level with them: the name and Hide */}
@@ -467,7 +475,6 @@ export function Workspace({ p }: { p: Project }) {
             </ConsoleDrawerContent>
           </ConsoleDrawer>
         </div>
-        {asking && <AskPanel p={p} onClose={() => setAsk(false)} className={cn("flex w-[360px] shrink-0 flex-col border-l border-border bg-surface-base", width < ASK_DOCK_MIN && "absolute inset-y-0 right-0 z-10 max-w-full shadow-panel")} />}
       </div>
       <ShortcutsDialog open={keys} onOpenChange={setKeys} read={p.read} />
     </section>
