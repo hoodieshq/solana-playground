@@ -88,7 +88,7 @@ function DisplayMore() {
               {SAMPLES.slice(0, 4).map((name) => (
                 <CarouselItem key={name}>
                   <AspectRatio ratio={4 / 3} className="grid place-items-center rounded-panel border border-border bg-surface">
-                    <span className="text-control font-act text-foreground">{name}</span>
+                    <span className="text-16 leading-5 font-act text-foreground">{name}</span>
                   </AspectRatio>
                 </CarouselItem>
               ))}
@@ -119,7 +119,7 @@ function NavigationMore() {
                   ].map(([t, d]) => (
                     <li key={t}>
                       <NavigationMenuLink href="#c-navigation-menu" className="flex-col items-start gap-0.5">
-                        <span className="text-control font-act text-foreground">{t}</span>
+                        <span className="text-16 leading-5 font-act text-foreground">{t}</span>
                         <span className="text-caption font-read text-muted-foreground">{d}</span>
                       </NavigationMenuLink>
                     </li>

@@ -7,6 +7,9 @@ import { Kbd } from "@/components/ui/kbd"
 import { cn } from "@/lib/utils"
 
 import type { ProjectRow } from "../../navStates"
+import { useInProject } from "../../programs"
+import { stagesOf } from "../../programs/next/shell/Stages"
+import { onChain, setPane, usePrograms } from "../../programs/store"
 import { openSettings, openShortcuts, sectionFor, SETTINGS_KEYWORDS } from "../../settings/open"
 import { HELP_LINKS } from "../../settings/links"
 import { CATALOG, shownName } from "../../ui/catalog"
@@ -58,6 +61,9 @@ const HEADING =
 export function SearchDialog({ open, onOpenChange, lessons, projects, onTutorial, onPlace, onNewProject }: Props) {
   const [query, setQuery] = useState("")
   const empty = query.trim() === ""
+  // In a project its steps are actions too: "deploy" found nothing, ⌘K only went places (Nikita, 20 Nov)
+  const inProject = useInProject()
+  const project = usePrograms((s) => (s.route.at === "project" ? s.projects[s.route.id] : undefined))
 
   const close = () => onOpenChange(false)
   const pick = (then: () => void) => () => {
@@ -106,6 +112,19 @@ export function SearchDialog({ open, onOpenChange, lessons, projects, onTutorial
       onSelect={pick(() => openSettings({ section: sectionFor(query) }))}
     />,
   ]
+  const here = inProject && project && !project.draft && !project.opening ? project : null
+  const projectActionRows = here
+    ? stagesOf(here)
+        .filter((st) => (st.id === "build" || st.id === "deploy" || st.id === "call") && !st.disabled)
+        .map((st) => {
+          const label =
+            st.id === "build" ? `Build ${here.name}` : st.id === "deploy" ? (onChain(here) ? `Upgrade ${here.name} on devnet` : `Deploy ${here.name} to devnet`) : st.label === "Run" ? "Run client.ts" : "Call an instruction"
+          // Interact opens the form: from search a call shouldn't go out before you've seen its values
+          const run = st.id === "call" && st.label !== "Run" ? () => setPane(here.id, "call") : st.run
+          return <Row key={`x:${st.id}`} value={`action ${label}`} icon={st.id === "build" ? "build" : st.id === "deploy" ? "deploy" : "call"} label={label} meta={st.keys} words={[st.id, st.label, "interact", "run"]} onSelect={pick(run)} />
+        })
+    : []
+
   // Typed only: the empty list stays short, and each of these is one word away. Shortcuts need a keyboard
   const helpRows = [
     ...(view === "desktop" || view === "tablet" ? [<Row key="h:keys" value="action Keyboard shortcuts" icon="keyboard" label="Keyboard shortcuts" meta="?" onSelect={pick(openShortcuts)} />] : []),
@@ -118,6 +137,7 @@ export function SearchDialog({ open, onOpenChange, lessons, projects, onTutorial
   const recent = [...lessons.filter((l) => !l.done), ...lessons.filter((l) => l.done)]
   const groups: { heading: string; rows: ReactNode[] }[] = empty
     ? [
+          ...(here ? [{ heading: here.name, rows: projectActionRows }] : []),
           { heading: "Recent", rows: [...lessonRows(recent), ...projectRows(projects)].slice(0, 6) },
           { heading: "Actions", rows: actionRows },
         ]
@@ -126,7 +146,7 @@ export function SearchDialog({ open, onOpenChange, lessons, projects, onTutorial
         { heading: "Projects", rows: projectRows(projects) },
         { heading: "Tutorials", rows: tutorialRows },
         { heading: "Programs", rows: programRows },
-        { heading: "Actions", rows: [...actionRows, ...helpRows] },
+        { heading: "Actions", rows: [...projectActionRows, ...actionRows, ...helpRows] },
       ]
 
   return (

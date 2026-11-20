@@ -69,7 +69,7 @@ export function IntroCard({ phone = false }: { phone?: boolean }) {
       <p className={cn(READ, !phone && "mt-6")}>{LESSON.intro}</p>
       {/* The end, as the log will print it, so the promise is a thing you'll see, not a claim. One
           tone: the code face is difference enough */}
-      <p aria-label="What your program prints at the end" className="mt-[9px] rounded-lg bg-foreground/[0.05] px-3 py-2.5 font-mono text-13 leading-[1.5] text-foreground/90">
+      <p aria-label="What your program prints at the end" className="mt-[9px] rounded-lg bg-foreground/[0.05] px-3 py-2.5 font-mono text-13 leading-5 text-foreground/90">
         {LESSON.proof}
       </p>
 

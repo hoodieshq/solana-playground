@@ -65,7 +65,7 @@ export function SetupSteps({ setup }: { setup: SetupView }) {
               <div className="flex min-h-10 items-center gap-2.5 px-2 py-1.5">
                 <Mark i={i} state="done" />
                 {/* The name whole, what it's set to in the room that's left */}
-                <span className="shrink-0 text-13 leading-[1.125rem] font-act text-muted-foreground">{step.label}</span>
+                <span className="shrink-0 text-13 leading-5 font-act text-muted-foreground">{step.label}</span>
                 <span className="min-w-0 flex-1 truncate text-right text-13 leading-4 font-label text-muted-foreground">{step.value}</span>
               </div>
             )
@@ -73,7 +73,7 @@ export function SetupSteps({ setup }: { setup: SetupView }) {
             <>
               <Mark i={i} state={step.state} />
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="text-13 leading-[1.125rem] font-act text-foreground">{step.label}</span>
+                <span className="text-13 leading-5 font-act text-foreground">{step.label}</span>
                 <span className={cn("text-13 leading-4 font-label", step.state === "warn" ? "text-warning-ink" : "text-muted-foreground")}>{step.state === "todo" ? step.hint : step.value}</span>
               </span>
             </>

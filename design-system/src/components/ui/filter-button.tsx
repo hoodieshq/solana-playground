@@ -95,13 +95,13 @@ function FilterButton({
       {/* A small card on the field's own fill: rows of the button's height,
           the heading in the rows' size but grey, so it never reads as one more choice */}
       <DropdownMenuContent align={align} sideOffset={6} className="w-44 rounded-xl bg-surface p-1.5 shadow-panel">
-        <DropdownMenuLabel className="flex h-7 items-center px-2.5 py-0 text-[0.875rem] font-normal text-muted-foreground/80">{label}</DropdownMenuLabel>
+        <DropdownMenuLabel className="flex h-7 items-center px-2.5 py-0 text-13 font-normal text-muted-foreground/80">{label}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
           {options.map((o) => (
             <DropdownMenuRadioItem
               key={o.value}
               value={o.value}
-              className="h-7 py-0 pr-9 pl-2.5 text-[0.875rem] text-foreground pointer-coarse:h-10 [&_[data-slot=dropdown-menu-radio-item-indicator]]:right-2 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-brand-purple"
+              className="h-7 py-0 pr-9 pl-2.5 text-13 text-foreground pointer-coarse:h-10 [&_[data-slot=dropdown-menu-radio-item-indicator]]:right-2 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-brand-purple"
             >
               {o.label}
             </DropdownMenuRadioItem>

@@ -73,7 +73,7 @@ export function FinishHeadline({
   return (
     <Tag
       className={cn(
-        "text-center font-heading text-28 leading-[1.15] font-act tracking-tight text-foreground max-[30rem]:text-28",
+        "text-center font-heading text-28 leading-8 font-act tracking-tight text-foreground max-[30rem]:text-28",
         className,
       )}
     >
@@ -101,7 +101,7 @@ export function AnswerCard({ className }: { className?: string }) {
                 : "hello() returned"
               : `${tx.instruction}() returned`}
           </p>
-          <p className="mt-1 font-mono text-20 leading-tight font-act break-words text-foreground max-[30rem]:text-20">
+          <p className="mt-1 font-mono text-20 leading-6 font-act break-words text-foreground max-[30rem]:text-20">
             {tx.said}
           </p>
           <div className="mt-3.5 flex items-start justify-between gap-4 border-t border-border pt-3 text-caption">

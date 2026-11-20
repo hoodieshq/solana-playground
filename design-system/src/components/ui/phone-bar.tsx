@@ -32,7 +32,7 @@ function PhoneBarTitle({ className, ...props }: React.ComponentProps<"h1">) {
   return (
     <h1
       data-slot="phone-bar-title"
-      className={cn("min-w-0 flex-1 truncate font-heading text-title text-foreground", className)}
+      className={cn("min-w-0 flex-1 truncate font-heading text-16 leading-5 text-foreground", className)}
       {...props}
     />
   )

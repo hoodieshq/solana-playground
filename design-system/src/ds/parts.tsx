@@ -42,7 +42,7 @@ function Block({
 }) {
   return (
     <section data-ds-block data-source={source} id={`c-${id}`} className="scroll-mt-20 border-t border-border py-10">
-      <h4 className="font-heading text-2xl font-headline tracking-tight text-foreground">{title}</h4>
+      <h4 className="font-heading text-28 leading-8 font-headline tracking-tight text-foreground">{title}</h4>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
         <span
           className={cn(
@@ -74,7 +74,7 @@ function InstallLine({ name }: { name: string }) {
   const cmd = install(name)
   return (
     <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-      <code className="truncate font-mono text-[12px] text-muted-foreground">{cmd}</code>
+      <code className="truncate font-mono text-13 text-muted-foreground">{cmd}</code>
       <button
         type="button"
         aria-label={copied ? "Copied" : "Copy the install command"}
@@ -118,7 +118,7 @@ function Group({
 }) {
   return (
     <section data-ds-group={title} id={id} className="scroll-mt-20 pt-14">
-      <h3 className="font-heading text-3xl font-headline tracking-tight text-foreground">{title}</h3>
+      <h3 className="font-heading text-28 leading-8 font-headline tracking-tight text-foreground">{title}</h3>
       {note && <p className="mt-2 max-w-2xl text-body font-read text-muted-foreground">{note}</p>}
       <div className="mt-4">{children}</div>
     </section>
@@ -139,7 +139,7 @@ function Section({
 }) {
   return (
     <section id={id} data-ds-section={title} className="scroll-mt-20 border-t border-border py-10">
-      <h4 className="font-heading text-2xl font-headline tracking-tight text-foreground">{title}</h4>
+      <h4 className="font-heading text-28 leading-8 font-headline tracking-tight text-foreground">{title}</h4>
       <p className="mt-2 max-w-2xl text-body font-read text-muted-foreground">{note}</p>
       <div className="mt-6">{children}</div>
     </section>
@@ -169,7 +169,7 @@ function Swatch({ token, label }: { token: string; label?: string }) {
       />
       <div className="min-w-0">
         <div className="truncate text-caption font-act text-foreground">{label ?? token.slice(2)}</div>
-        <div className="truncate font-mono text-[11px] text-subtle">
+        <div className="truncate font-mono text-11 text-subtle">
           {token}
           {value ? ` · ${value}` : ""}
         </div>
@@ -181,7 +181,7 @@ function Swatch({ token, label }: { token: string; label?: string }) {
 function SwatchGrid({ title, tokens }: { title: string; tokens: Array<[string, string?]> }) {
   return (
     <div className="mb-8">
-      <div className="mb-3 text-control font-act text-foreground">{title}</div>
+      <div className="mb-3 text-16 leading-5 font-act text-foreground">{title}</div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
         {tokens.map(([t, l]) => (
           <Swatch key={t} token={t} label={l} />

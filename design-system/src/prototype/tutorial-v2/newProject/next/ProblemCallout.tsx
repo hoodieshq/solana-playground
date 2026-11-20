@@ -74,7 +74,7 @@ export function ProblemCallout({
             </span>
             {title}
           </div>
-          {cause && <p className="pl-[22px] text-13 leading-[1.1875rem] font-read text-muted-foreground">{cause}</p>}
+          {cause && <p className="pl-[22px] text-13 leading-5 font-read text-muted-foreground">{cause}</p>}
         </div>
         {actions && <div className={inline ? "" : "pl-[22px]"}>{actions}</div>}
       </div>
@@ -92,7 +92,7 @@ export function ProblemCallout({
         </Drawer>
       )}
       {details && open && !phone && (
-        <div className="relative mt-2 max-h-24 overflow-auto rounded-lg bg-(--np-peek) py-2 pr-10 pl-3 font-mono text-13 leading-[1.125rem] text-muted-foreground">
+        <div className="relative mt-2 max-h-24 overflow-auto rounded-lg bg-(--np-peek) py-2 pr-10 pl-3 font-mono text-13 leading-5 text-muted-foreground">
           {details}
           <CopyButton value={details} className="absolute top-1 right-1" />
         </div>

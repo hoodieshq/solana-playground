@@ -65,7 +65,7 @@ function StatusRows({ rows, note, view, onChange, onClose }: { rows: StatusRow[]
           </span>
           <Tip label={r.hint} side="top">
             <div className="flex min-w-0 flex-1 cursor-default flex-col">
-              <span className="text-13 leading-[1.125rem] font-act text-foreground">{r.name}</span>
+              <span className="text-13 leading-5 font-act text-foreground">{r.name}</span>
               <span className={cn("truncate text-13 leading-4 font-label", r.dot === "warning" ? "text-warning-ink" : "text-muted-foreground")}>{r.value}</span>
             </div>
           </Tip>
@@ -128,7 +128,7 @@ export function Choose({ view, onBack, bare, onClose }: { view: "Network" | "Ass
         >
           <ChevronLeft className="size-4" strokeWidth={2} />
         </button>
-        <p className="text-13 leading-[1.125rem] font-act text-foreground">{view === "Network" ? "Network" : "Assistant model"}</p>
+        <p className="text-13 leading-5 font-act text-foreground">{view === "Network" ? "Network" : "Assistant model"}</p>
       </div>
       <div role="radiogroup" aria-label={view} className="flex flex-col gap-0.5">
         {options.map((o, i) => (
@@ -142,7 +142,7 @@ export function Choose({ view, onBack, bare, onClose }: { view: "Network" | "Ass
             className={cn("flex min-h-12 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-surface-raised", FOCUS)}
           >
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="text-13 leading-[1.125rem] font-act text-foreground">{o.name}</span>
+              <span className="text-13 leading-5 font-act text-foreground">{o.name}</span>
               <span className={cn("text-13 leading-4 font-label", "warn" in o && o.warn ? "text-warning-ink" : "text-muted-foreground")}>{o.hint}</span>
             </span>
             {idOf(o) === current && <Check aria-hidden="true" className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
@@ -228,7 +228,7 @@ export function StatusChip({ health: given, rows, note }: { health: Health; rows
             <button type="button" aria-label={`Status: ${health.word}. ${health.tip}`} className={cn("group/chip flex items-center rounded-full", FOCUS, tablet ? "h-11" : "h-7")}>
               <span
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full px-2 text-13 font-act tracking-[0.01em] whitespace-nowrap group-hover/chip:bg-(--nav-hover) group-data-[state=open]/chip:bg-(--nav-hover)",
+                  "flex items-center gap-1.5 rounded-full px-2 text-13 font-act tracking-normal whitespace-nowrap group-hover/chip:bg-(--nav-hover) group-data-[state=open]/chip:bg-(--nav-hover)",
                   HOVER,
                   tablet ? "h-7" : "h-5",
                   health.tone === "attention" ? "text-warning-ink" : "text-(color:--text-quiet)"

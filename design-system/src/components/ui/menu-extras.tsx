@@ -14,12 +14,12 @@ function MenuItemText({ className, ...props }: React.ComponentProps<"span">) {
 }
 
 function MenuItemDescription({ className, ...props }: React.ComponentProps<"span">) {
-  return <span data-slot="menu-item-description" className={cn("line-clamp-2 text-xs font-read text-muted-foreground", className)} {...props} />
+  return <span data-slot="menu-item-description" className={cn("line-clamp-2 text-13 leading-4 font-read text-muted-foreground", className)} {...props} />
 }
 
 /* A line of help at the foot of a menu. Not focusable, not an item */
 function MenuNote({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="menu-note" role="note" className={cn("px-2 py-1.5 text-xs font-read text-muted-foreground", className)} {...props} />
+  return <div data-slot="menu-note" role="note" className={cn("px-2 py-1.5 text-13 leading-4 font-read text-muted-foreground", className)} {...props} />
 }
 
 function MenuFold({ className, ...props }: React.ComponentProps<typeof CollapsiblePrimitive.Root>) {

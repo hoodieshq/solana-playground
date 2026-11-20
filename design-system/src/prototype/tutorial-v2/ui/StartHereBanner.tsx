@@ -85,7 +85,7 @@ const BEAM_CSS = `
   .start-beam:hover:not(:disabled):not(:active)::before { opacity: 1; }
 }`
 
-const GO = "start-beam h-10 font-heading text-16 font-act tracking-[-0.005em] pointer-coarse:h-11"
+const GO = "start-beam h-10 font-heading text-16 font-act tracking-normal pointer-coarse:h-11"
 
 /** The banner's width, in px, from which the sculpture stands beside the words */
 const WIDE_MIN = 640
@@ -140,10 +140,10 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
             {/* Fresh, no "Start here": the button says it (Almaz, 20 Nov) */}
             <span className="tabular-nums">{b.fresh ? `${b.steps} steps · ${b.lesson.minutes} min` : b.label}</span>
           </p>
-          <h2 id={titleId} className="mt-1.5 font-heading text-20 leading-6 font-normal tracking-[-0.015em] text-foreground">
+          <h2 id={titleId} className="mt-1.5 font-heading text-20 leading-6 font-normal tracking-tight text-foreground">
             {b.lesson.card.name}
           </h2>
-          <p className="mt-2 max-w-[44ch] text-16 leading-[1.35] text-balance text-foreground/78">{b.line}</p>
+          <p className="mt-2 max-w-[44ch] text-16 leading-5 text-balance text-foreground/78">{b.line}</p>
           {b.started ? (
             <div className="mt-3 flex max-w-xs items-center gap-3">
               <span aria-hidden="true" className="h-[3px] flex-1 overflow-hidden rounded-[2px] bg-border">

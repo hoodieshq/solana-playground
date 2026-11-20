@@ -52,7 +52,7 @@ function IdlView({ json, name, count, phone }: { json: string; name: string; cou
         <div
           tabIndex={0}
           aria-label="IDL JSON, read only"
-          className="min-h-0 flex-1 overflow-auto overscroll-contain bg-surface-well py-2.5 font-mono text-13 leading-[1.6] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+          className="min-h-0 flex-1 overflow-auto overscroll-contain bg-surface-well py-2.5 font-mono text-13 leading-5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
         >
           {json.split("\n").map((line, i) => (
             // On a phone a line wraps instead of scrolling sideways: the program's address was cut at the edge
@@ -271,7 +271,7 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
   const FIELD = phone ? "flex flex-col gap-2" : "flex items-center gap-4"
   const FIELD_NAME = phone ? "flex items-baseline gap-2" : "flex w-36 min-w-0 shrink-0 items-baseline gap-2"
   const heading = (
-    <h3 className={cn("font-mono font-act break-words", phone ? "text-13 leading-5" : "text-16 leading-[1.35]")}>
+    <h3 className={cn("font-mono font-act break-words", phone ? "text-13 leading-5" : "text-16 leading-4")}>
       <span className="font-normal text-muted-foreground">{LESSON.program}.</span>
       {/* No syntax colour on the phone: a green name at the top competed with the result's green check */}
       <span className={phone ? "text-foreground" : "text-syntax-function"}>{ix.name}</span>

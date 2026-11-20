@@ -3,7 +3,7 @@ import { toast } from "sonner"
 
 import { LESSON, openLesson, TUTORIALS } from "./data"
 import { LESSONS, playable } from "./lessons"
-import { progressOf, savedProgress, Store, useStore, type Progress, type Screen } from "./store"
+import { progressOf, savedProgress, storageKey, Store, useStore, type Progress, type Screen } from "./store"
 import { DECK } from "./view"
 
 // Which lesson is open. Each lesson has a store of its own, keyed by its slug, so switching lessons
@@ -125,7 +125,22 @@ export const LADDER = ["hello-anchor", "lumberjack", "zero-copy"]
 export function useFeatured() {
   const { s } = useStore()
   const done = (slug: string) => (slug === LESSON.card.slug ? s.finishedAt !== null : savedProgress(slug, 0).finished)
-  return LADDER.find((slug) => !done(slug)) ?? LADDER[LADDER.length - 1]
+  // A lesson under way comes first: the open one, else the one started last. A returning person with five
+  // lessons started was offered Hello Anchor from the top of the path (Nikita, 20 Nov)
+  if (s.startedAt !== null && s.finishedAt === null) return LESSON.card.slug
+  const going = Object.keys(LESSONS)
+    .filter((slug) => slug !== LESSON.card.slug && savedProgress(slug, 0).started && !done(slug))
+    .sort((a, b) => startedAtOf(b) - startedAtOf(a))
+  return going[0] ?? LADDER.find((slug) => !done(slug)) ?? LADDER[LADDER.length - 1]
+}
+
+/** When a saved lesson was started, for "the one started last" */
+function startedAtOf(slug: string) {
+  try {
+    return Number((JSON.parse(localStorage.getItem(storageKey(slug)) ?? "null") as { startedAt?: number } | null)?.startedAt ?? 0)
+  } catch {
+    return 0
+  }
 }
 
 export const cardOf = (slug: string) => TUTORIALS.find((t) => t.slug === slug)!

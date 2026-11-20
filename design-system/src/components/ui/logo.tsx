@@ -7,7 +7,7 @@ function Logo({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="logo"
       className={cn(
-        "inline-flex items-center gap-2 font-heading text-[1.0625rem] leading-none text-foreground",
+        "inline-flex items-center gap-2 font-heading text-16 leading-none text-foreground",
         className
       )}
       {...props}

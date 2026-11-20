@@ -54,7 +54,7 @@ function ExampleRow({
         <span className="flex items-center gap-2">
           {/* A tone under the name as well as a size: in the same grey the two lines read as one (Almaz, 10 Nov).
               The quiet grey still holds 4.5:1 on the dialog */}
-          <span className="min-w-0 flex-1 truncate text-13 leading-[1.125rem] font-read text-(color:--text-quiet)">{line}</span>
+          <span className="min-w-0 flex-1 truncate text-13 leading-5 font-read text-(color:--text-quiet)">{line}</span>
         </span>
       </span>
     </div>
@@ -121,7 +121,7 @@ export function ExamplePanel({
     ]
     return (
       <div className="flex flex-col gap-4">
-        <p className="font-mono text-13 leading-[1.125rem] text-foreground">{picked}</p>
+        <p className="font-mono text-13 leading-5 text-foreground">{picked}</p>
         <ImportSteps steps={steps} />
       </div>
     )

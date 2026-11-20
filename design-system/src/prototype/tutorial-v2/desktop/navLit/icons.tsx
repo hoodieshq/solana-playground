@@ -1,4 +1,4 @@
-import { BookOpen, Bug, Check, ChevronDown, Keyboard, PanelLeft, Settings, X } from "lucide-react"
+import { BookOpen, Bug, Check, ChevronDown, CloudUpload, Hammer, Keyboard, PanelLeft, Play, Settings, X } from "lucide-react"
 import type { ComponentType } from "react"
 
 import { SmallIcon, type SmallIconName } from "../../ui/smallGlyphs"
@@ -30,6 +30,9 @@ export const LIT_ICONS = {
   keyboard: Keyboard,
   book: BookOpen,
   bug: Bug,
+  build: Hammer,
+  deploy: CloudUpload,
+  call: Play,
 } satisfies Record<string, Icon>
 
 /** Heavier than Lucide's 2 (Almaz, 11/06), nearer the weight of the labels beside them */

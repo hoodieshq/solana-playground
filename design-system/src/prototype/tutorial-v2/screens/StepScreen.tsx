@@ -15,7 +15,7 @@ import { ChatComposer } from "../ui/ChatComposer"
 import { CodeView } from "../ui/CodeView"
 import { Conversation, type Jump } from "../ui/Conversation"
 import { StartOverDialog } from "../ui/StartOverDialog"
-import { StepTrack } from "../ui/StepBar"
+import { StepRing } from "../ui/StepRing"
 import { ACTION, ACTION_FILL, ACTION_SOFT, PHONE_CTA } from "../ui/type"
 import { view } from "../view"
 
@@ -167,7 +167,7 @@ export function StepScreen() {
       <header
         className={cn(
           "relative flex shrink-0 items-center gap-1 pr-4 pl-1 [html.portrait_&]:pr-8 [html.portrait_&]:pl-[22px]",
-          s.started ? "h-[4.75rem] pb-4" : "h-16"
+          "h-16"
         )}
       >
         <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Back to tutorials" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
@@ -183,7 +183,10 @@ export function StepScreen() {
           {/* Whole pixel lines, 20 and 18 as Practicum sets its progress line: the caption's own 1.45
               left the line's foot at 49.2 and the gap to the segments a fraction */}
           <span className="max-w-full truncate font-heading text-16 leading-5 font-act text-foreground">{LESSON.card.name}</span>
-          <span className="max-w-full truncate text-caption leading-[1.125rem] text-muted-foreground">{where}</span>
+          <span className="flex max-w-full min-w-0 items-center gap-1.5 text-caption leading-5 text-muted-foreground">
+            {s.started && <StepRing done={finished ? STEPS.length : s.passed.filter(Boolean).length} of={STEPS.length} className="size-3.5" />}
+            <span className="truncate">{where}</span>
+          </span>
         </button>
         {/* The one way across besides the swipe: it names the space it takes you to. Drawn as the desktop's
             workspace tools, 36 tall, so it sits clear of the progress edge and under the title in weight;
@@ -201,9 +204,9 @@ export function StepScreen() {
           {onCode ? "Chat" : "Code"}
           {dot && <span aria-hidden="true" className="absolute top-1.5 right-1.5 size-1.5 animate-pulse-dot rounded-full bg-brand-purple [animation-iteration-count:2]" />}
         </Button>
-        {/* The tutorial's progress, drawn once as the header's bottom edge, in the desktop bar's colours.
-            It stands in for the header's rule, so nothing else repeats it */}
-        <StepTrack done={finished} />
+        {/* The progress is the ring by "Step 2 of 4", as on the desktop and in a project: the header keeps
+            its plain rule (Nikita, 20 Nov: bars here and a ring in Programs were two patterns) */}
+        <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-border" />
       </header>
 
       <div ref={area} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} className="relative flex min-h-0 flex-1 overflow-clip">

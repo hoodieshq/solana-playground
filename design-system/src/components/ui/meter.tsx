@@ -141,7 +141,7 @@ function MeterValue({ className, children, ...props }: React.ComponentProps<"spa
     <span
       data-slot="meter-value"
       className={cn(
-        "shrink-0 font-mono text-[0.75rem] whitespace-nowrap text-foreground tabular-nums group-data-[status=empty]/meter:text-error group-data-[status=over]/meter:text-error",
+        "shrink-0 font-mono text-13 whitespace-nowrap text-foreground tabular-nums group-data-[status=empty]/meter:text-error group-data-[status=over]/meter:text-error",
         className
       )}
       {...props}

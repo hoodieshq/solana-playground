@@ -39,7 +39,7 @@ function ObjectiveMeter({ className, value, ...props }: React.ComponentProps<"di
 }
 
 function ObjectiveText({ className, ...props }: React.ComponentProps<"p">) {
-  return <p data-slot="objective-text" className={cn("min-w-0 flex-1 truncate font-heading text-sm text-foreground", className)} {...props} />
+  return <p data-slot="objective-text" className={cn("min-w-0 flex-1 truncate font-heading text-13 leading-5 text-foreground", className)} {...props} />
 }
 
 /* Back and on, a step at a time */

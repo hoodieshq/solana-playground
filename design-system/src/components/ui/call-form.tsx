@@ -167,7 +167,7 @@ function CallFormSignature({
   return (
     <h3
       data-slot="call-form-signature"
-      className={cn("font-mono text-[0.9375rem] leading-[1.35] font-medium break-words @max-[30rem]/call-form:text-[0.875rem] @max-[30rem]/call-form:leading-5", className)}
+      className={cn("font-mono text-16 leading-5 font-act break-words @max-[30rem]/call-form:text-13 @max-[30rem]/call-form:leading-5", className)}
       {...props}
     >
       {program && <span className="font-normal text-muted-foreground">{program}.</span>}
@@ -209,7 +209,7 @@ function CallFormField({
         data-form-type="other"
         readOnly={disabled}
         className={cn(
-          "h-10 w-full max-w-[360px] min-w-0 font-mono text-[0.8125rem] md:text-[0.8125rem] focus-visible:border-foreground/35 focus-visible:ring-0 read-only:text-muted-foreground pointer-coarse:h-12 pointer-coarse:max-w-none pointer-coarse:text-base",
+          "h-10 w-full max-w-[360px] min-w-0 font-mono text-13 md:text-13 focus-visible:border-foreground/35 focus-visible:ring-0 read-only:text-muted-foreground pointer-coarse:h-12 pointer-coarse:max-w-none pointer-coarse:text-16",
           className
         )}
         {...props}
@@ -243,7 +243,7 @@ function CallFormResponse({
     return (
       <div data-slot="call-form-response" data-status="sending" className={cn("flex items-center gap-2", className)} {...props}>
         <Spinner className="size-4 text-muted-foreground" aria-hidden="true" />
-        <span className="font-heading text-control font-medium text-foreground">{say.sending}</span>
+        <span className="font-heading text-16 leading-5 font-act text-foreground">{say.sending}</span>
       </div>
     )
   return (
@@ -251,7 +251,7 @@ function CallFormResponse({
       {/* The status row of the lesson's cards: 16/24 at 500 */}
       <div {...row(0)} className={cn(row(0).className, "flex items-center gap-2")}>
         {failed ? <CircleX className="size-4 shrink-0 text-error" aria-hidden="true" /> : <Check className="size-4 shrink-0 text-success" aria-hidden="true" />}
-        <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{failed ? say.failed : say.confirmed}</span>
+        <span className="font-heading text-16 leading-6 font-act text-foreground">{failed ? say.failed : say.confirmed}</span>
       </div>
       {(result.log || result.children) && (
         <div {...row(1)} className={cn(row(1).className, "flex flex-col gap-1")}>
@@ -291,7 +291,7 @@ function CallFormIdl({
         <div
           tabIndex={0}
           aria-label="IDL JSON, read only"
-          className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-control border border-border bg-surface-well py-2 pr-10 font-mono text-[0.75rem] leading-[1.6] outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-control border border-border bg-surface-well py-2 pr-10 font-mono text-13 leading-5 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           {json.split("\n").map((line, i) => (
             <div key={i} className={cn("px-3 text-foreground/80", wrap ? "break-all whitespace-pre-wrap" : "whitespace-pre")}>
@@ -373,7 +373,7 @@ function CallForm({
       <div data-slot="call-form" data-state="empty" className={cn("flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center", className)} {...props}>
         {empty ?? (
           <div className="flex max-w-sm flex-col items-center gap-2">
-            <p className="font-heading text-control font-medium text-foreground">{say.emptyTitle}</p>
+            <p className="font-heading text-16 leading-5 font-act text-foreground">{say.emptyTitle}</p>
             <p className="text-caption text-muted-foreground">{say.emptyDescription}</p>
           </div>
         )}
@@ -457,10 +457,10 @@ function CallForm({
               <div className="mb-2 flex flex-col gap-1 @max-[30rem]/call-form:mb-0 @max-[30rem]/call-form:gap-2 @max-[30rem]/call-form:rounded-[12px] @max-[30rem]/call-form:bg-foreground/[0.04] @max-[30rem]/call-form:p-3">
                 <CallFormSignature program={program ?? idl.metadata?.name} name={ix.name} args={ix.args} />
                 {line && (
-                  <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-caption text-muted-foreground @max-[30rem]/call-form:flex-col @max-[30rem]/call-form:border-t @max-[30rem]/call-form:border-border @max-[30rem]/call-form:pt-2 @max-[30rem]/call-form:text-[0.75rem] @max-[30rem]/call-form:leading-4">
+                  <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-caption text-muted-foreground @max-[30rem]/call-form:flex-col @max-[30rem]/call-form:border-t @max-[30rem]/call-form:border-border @max-[30rem]/call-form:pt-2 @max-[30rem]/call-form:text-13 @max-[30rem]/call-form:leading-4">
                     {say.inCode}
                     {/* It breaks after a dot, never inside a name: ".rpc(" and ")" ended on two lines */}
-                    <code className="min-w-0 font-mono text-code break-words text-foreground/80 @max-[30rem]/call-form:text-[0.8125rem] @max-[30rem]/call-form:leading-5 @max-[30rem]/call-form:text-foreground/60">
+                    <code className="min-w-0 font-mono text-code break-words text-foreground/80 @max-[30rem]/call-form:text-13 @max-[30rem]/call-form:leading-5 @max-[30rem]/call-form:text-foreground/60">
                       {line.split(".").map((part, i) => (
                         <React.Fragment key={i}>
                           {i > 0 && "."}

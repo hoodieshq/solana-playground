@@ -23,7 +23,7 @@ function CodeQuoteHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="code-quote-header"
-      className={cn("flex h-7 items-center gap-2 border-b border-border px-3 text-[0.75rem] pointer-coarse:h-11 pointer-coarse:pr-1", className)}
+      className={cn("flex h-7 items-center gap-2 border-b border-border px-3 text-13 pointer-coarse:h-11 pointer-coarse:pr-1", className)}
       {...props}
     />
   )
@@ -61,7 +61,7 @@ function CodeQuoteLine({ className, ...props }: React.ComponentProps<"code">) {
     <code
       data-slot="code-quote-line"
       className={cn(
-        "block border-l-2 border-border-strong bg-card-ground px-3 py-1.5 font-mono text-[12px] leading-5 break-words whitespace-pre-wrap text-foreground",
+        "block border-l-2 border-border-strong bg-card-ground px-3 py-1.5 font-mono text-13 leading-5 break-words whitespace-pre-wrap text-foreground",
         "group-data-[tone=error]/code-quote:border-error group-data-[tone=error]/code-quote:bg-error/10 group-data-[tone=resolved]/code-quote:bg-transparent",
         className
       )}

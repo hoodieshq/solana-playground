@@ -10,7 +10,7 @@ export const usePhone = () => useContext(PhoneCtx)
 
 /** A group's title: Editor, Assistant, Network, Advanced, Account. The page's second tier, as Home's
  * and Tutorials' section heads are: the small grey caption left the page with no shape (Almaz, 10 Nov) */
-export const GROUP_TITLE = "font-heading text-20 leading-[1.5rem] font-headline text-foreground"
+export const GROUP_TITLE = "font-heading text-20 leading-6 font-headline text-foreground"
 
 /** A group's rows sit on one panel, as Your projects' rows do: the page's grey card on the lit ground */
 export const GROUP_PANEL = "rounded-panel border border-border bg-surface-panel px-4 py-1.5"

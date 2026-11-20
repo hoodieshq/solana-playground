@@ -116,7 +116,7 @@ function StepTrackIndicator({
       data-viewing={viewing || undefined}
       aria-hidden="true"
       className={cn(
-        "relative grid size-5 shrink-0 place-items-center rounded-full bg-foreground/10 text-[0.6875rem] leading-none font-act text-muted-foreground tabular-nums lining-nums",
+        "relative grid size-5 shrink-0 place-items-center rounded-full bg-foreground/10 text-11 leading-none font-act text-muted-foreground tabular-nums lining-nums",
         "data-[status=current]:bg-foreground/20 data-[status=current]:text-foreground data-[status=upcoming]:text-subtle",
         "data-viewing:outline-[1.5px] data-viewing:outline-offset-2 data-viewing:outline-foreground/45 data-viewing:outline-solid",
         className
@@ -161,7 +161,7 @@ function StepTrack({
         <DropdownMenuTrigger
           data-slot="step-track-line"
           disabled={!started}
-          className="group/step-track-line -mx-1.5 flex h-[1.125rem] max-w-[calc(100%+0.75rem)] items-center gap-1.5 rounded-md px-1.5 text-[0.875rem] leading-[1.125rem] font-label outline-none hover:bg-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:hover:bg-transparent data-[state=open]:bg-surface-hover"
+          className="group/step-track-line -mx-1.5 flex h-[1.125rem] max-w-[calc(100%+0.75rem)] items-center gap-1.5 rounded-md px-1.5 text-13 leading-5 font-label outline-none hover:bg-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:hover:bg-transparent data-[state=open]:bg-surface-hover"
         >
           <span className="shrink-0 text-muted-foreground tabular-nums">
             {!started ? say.steps(count) : finished ? say.finished(count) : say.step(where + 1, count)}
@@ -171,7 +171,7 @@ function StepTrack({
               <span aria-hidden="true" className="text-subtle">
                 ·
               </span>
-              <span className="truncate font-medium text-foreground">{steps[where].label}</span>
+              <span className="truncate font-act text-foreground">{steps[where].label}</span>
             </>
           )}
           {started && (

@@ -93,7 +93,7 @@ function Segmented({
 }
 
 const segmentedItemVariants = cva(
-  "relative z-10 inline-flex shrink-0 items-center justify-center gap-1.5 text-[0.8125rem] font-act whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5",
+  "relative z-10 inline-flex shrink-0 items-center justify-center gap-1.5 text-13 font-act whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5",
   {
     variants: {
       variant: {
@@ -143,7 +143,7 @@ function SegmentedCount({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="segmented-count"
-      className={cn("rounded-full bg-surface-base px-1.5 text-[0.6875rem] text-muted-foreground tabular-nums", className)}
+      className={cn("rounded-full bg-surface-base px-1.5 text-11 text-muted-foreground tabular-nums", className)}
       {...props}
     />
   )

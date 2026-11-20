@@ -19,7 +19,7 @@ function HelpTip({
           data-slot="help-tip"
           aria-label={label}
           className={cn(
-            "relative inline-grid size-4 place-items-center rounded-full border border-border-strong text-[10px] leading-none font-act text-muted-foreground outline-none after:absolute after:-inset-3 hover:border-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+            "relative inline-grid size-4 place-items-center rounded-full border border-border-strong text-11 leading-none font-act text-muted-foreground outline-none after:absolute after:-inset-3 hover:border-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
             className
           )}
           {...props}

@@ -22,7 +22,7 @@ import { Block, More } from "../parts"
 function Panel({ children }: { children: React.ReactNode }) {
   return (
     <div className="w-full max-w-[440px] rounded-panel border border-border bg-background px-5 py-6 max-sm:px-4">
-      <p className="text-[1rem] leading-6 text-foreground/80">Your program compiles. Build it, and it is ready to deploy.</p>
+      <p className="text-16 leading-6 text-foreground/80">Your program compiles. Build it, and it is ready to deploy.</p>
       <div className="mt-10">{children}</div>
     </div>
   )

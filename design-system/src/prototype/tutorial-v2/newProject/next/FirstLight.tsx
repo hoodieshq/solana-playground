@@ -119,9 +119,9 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
         }}
       >
         <ModalHeader className="pb-3.5">
-          <ModalTitle className="leading-[1.625rem] font-normal">New project</ModalTitle>
+          <ModalTitle className="leading-7 font-normal">New project</ModalTitle>
           {hasStorageLine(env) && (
-            <ModalDescription className="truncate text-13 leading-[1.125rem]">
+            <ModalDescription className="truncate text-13 leading-5">
               <StorageLine />
             </ModalDescription>
           )}

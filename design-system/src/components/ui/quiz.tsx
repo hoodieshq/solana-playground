@@ -173,7 +173,7 @@ function QuizTitle({ className, ...props }: React.ComponentProps<"h3">) {
     <h3
       data-slot="quiz-title"
       id={ctx?.titleId}
-      className={cn("mb-3 font-heading text-[1.125rem] leading-[1.625rem] font-medium tracking-normal text-foreground", className)}
+      className={cn("mb-3 font-heading text-20 leading-7 font-act tracking-normal text-foreground", className)}
       {...props}
     />
   )
@@ -307,8 +307,8 @@ function QuizOption({
             hints. Its second line starts on the option's own edge, and a long line breaks before a `.` */}
         <span
           className={cn(
-            "block min-w-0 flex-1 font-read text-[1rem] leading-6 text-foreground",
-            "group-data-code/quiz-option:font-mono group-data-code/quiz-option:font-normal group-data-code/quiz-option:text-[0.875rem] group-data-code/quiz-option:break-words group-data-code/quiz-option:whitespace-pre-wrap group-data-code/quiz-option:text-wrap",
+            "block min-w-0 flex-1 font-read text-16 leading-6 text-foreground",
+            "group-data-code/quiz-option:font-mono group-data-code/quiz-option:font-normal group-data-code/quiz-option:text-13 group-data-code/quiz-option:break-words group-data-code/quiz-option:whitespace-pre-wrap group-data-code/quiz-option:text-wrap",
             "group-data-[status=wrong]/quiz-option:text-muted-foreground"
           )}
         >
@@ -338,7 +338,7 @@ function QuizOptionReason({ className, children, ...props }: React.ComponentProp
       aria-hidden="true"
       className={cn(
         // 13 on a 20 line. In a record it sits 4 under its option, so it reads as the option's, not a block of its own
-        "mt-2 block animate-in font-sans text-caption leading-5 font-normal text-wrap whitespace-normal text-foreground/80 duration-150 fade-in slide-in-from-top-1 max-sm:mt-2.5 motion-reduce:animate-none in-data-[slot=quiz-record-option]:mt-1 in-data-[slot=quiz-record-option]:text-muted-foreground [&_strong]:font-medium [&_strong]:text-foreground",
+        "mt-2 block animate-in font-sans text-caption leading-5 font-normal text-wrap whitespace-normal text-foreground/80 duration-150 fade-in slide-in-from-top-1 max-sm:mt-2.5 motion-reduce:animate-none in-data-[slot=quiz-record-option]:mt-1 in-data-[slot=quiz-record-option]:text-muted-foreground [&_strong]:font-act [&_strong]:text-foreground",
         className
       )}
       {...props}
@@ -400,7 +400,7 @@ function RecordAnswer({ code, children }: { code: boolean; children: React.React
       data-slot="quiz-record-answer"
       className={cn(
         "flex h-6 min-w-0 shrink flex-wrap items-center overflow-hidden text-foreground",
-        code ? "font-mono text-[0.875rem] leading-6" : "gap-x-[0.25em] text-[1rem] leading-6"
+        code ? "font-mono text-13 leading-6" : "gap-x-[0.25em] text-16 leading-6"
       )}
     >
       {pieces}
@@ -435,7 +435,7 @@ function QuizRecordTrigger({
       )}
       {...props}
     >
-      {label && <span className="shrink-0 text-xs font-label text-subtle tabular-nums">{label}</span>}
+      {label && <span className="shrink-0 text-13 leading-4 font-label text-subtle tabular-nums">{label}</span>}
       <Check
         strokeWidth={2.5}
         aria-hidden="true"
@@ -491,12 +491,12 @@ function QuizRecordOption({
     >
       {/* The badge in a slot one line of the option tall, so it centres on the first line */}
       <span className="grid h-6 shrink-0 place-items-center">
-        <span className="grid size-6 place-items-center rounded-sm bg-muted text-xs font-act text-muted-foreground tabular-nums">{index}</span>
+        <span className="grid size-6 place-items-center rounded-sm bg-muted text-13 leading-4 font-act text-muted-foreground tabular-nums">{index}</span>
       </span>
       <span
         className={cn(
-          "min-w-0 flex-1 text-[1rem] leading-6 text-foreground",
-          "group-data-code/quiz-record-option:font-mono group-data-code/quiz-record-option:text-[0.875rem] group-data-code/quiz-record-option:break-words group-data-code/quiz-record-option:whitespace-pre-wrap",
+          "min-w-0 flex-1 text-16 leading-6 text-foreground",
+          "group-data-code/quiz-record-option:font-mono group-data-code/quiz-record-option:text-13 group-data-code/quiz-record-option:break-words group-data-code/quiz-record-option:whitespace-pre-wrap",
           "group-data-[status=wrong]/quiz-record-option:text-muted-foreground"
         )}
       >

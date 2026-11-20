@@ -59,7 +59,7 @@ function DropZoneIcon({ className, ...props }: React.ComponentProps<"span">) {
 }
 
 function DropZoneTitle({ className, ...props }: React.ComponentProps<"span">) {
-  return <span data-slot="drop-zone-title" className={cn("text-control font-act text-foreground", className)} {...props} />
+  return <span data-slot="drop-zone-title" className={cn("text-16 leading-5 font-act text-foreground", className)} {...props} />
 }
 
 function DropZoneDescription({ className, ...props }: React.ComponentProps<"span">) {

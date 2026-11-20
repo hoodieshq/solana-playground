@@ -56,7 +56,7 @@ function Card({ t }: { t: Entry }) {
       <div className="min-w-0">
         {/* The framework alone: the author and the progress beside it made the line a list of facts */}
         <p className="text-13 leading-4 text-muted-foreground">{t.framework}</p>
-        <h3 className="mt-1 line-clamp-2 font-heading text-16 leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
+        <h3 className="mt-1 line-clamp-2 font-heading text-16 leading-5 font-normal tracking-tight text-foreground">
           {name}
           {/* How far a lesson under way is, beside its name, a tier under it */}
           {started && done > 0 && (
@@ -92,7 +92,7 @@ function Card({ t }: { t: Entry }) {
           6 under the name. Lines fill to the edge, plain wrapping: balanced, a line broke in half at the
           card's width, and pretty pulled a second word down to keep "framework." company, leaving the first
           line short with room beside it */}
-      <p className="col-span-2 col-start-2 mt-1.5 line-clamp-2 text-13 leading-[1.4] text-foreground/78">{t.description}</p>
+      <p className="col-span-2 col-start-2 mt-1.5 line-clamp-2 text-13 leading-5 text-foreground/78">{t.description}</p>
     </div>
   )
 }
@@ -113,7 +113,7 @@ export function TutorialLevels({ list }: { list: Entry[] }) {
             <div className="mb-2.5 flex min-h-9 items-center gap-2">
               {/* A step under the banner's lesson name and over the cards': page 28, banner 24, section 20,
                   card 18. At 24 and 500 it stood as tall as the banner and nearly as the page's title */}
-              <h2 id={id} className="font-heading text-20 leading-[1.5rem] font-headline text-foreground">
+              <h2 id={id} className="font-heading text-20 leading-6 font-headline text-foreground">
                 {g.level}
               </h2>
               {/* The count on a grey chip, as the first Oak had it: as plain grey text beside the heading it

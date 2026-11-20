@@ -51,7 +51,7 @@ function FileTreeMore() {
           <FileTreeDock open={docked} onUndock={() => setDocked(false)} className="border-r">
             <Files open={open} onOpen={setOpen} className="w-full" />
           </FileTreeDock>
-          <div className="flex flex-1 items-start bg-code-ground p-3 font-mono text-xs text-muted-foreground">
+          <div className="flex flex-1 items-start bg-code-ground p-3 font-mono text-13 leading-4 text-muted-foreground">
             {docked ? (
               open
             ) : (

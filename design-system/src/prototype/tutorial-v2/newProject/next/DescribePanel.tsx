@@ -107,7 +107,7 @@ export function DescribePanel({
           "mt-3 flex flex-wrap items-center gap-2 [html.phone_&]:-mx-4 [html.phone_&]:flex-nowrap [html.phone_&]:overflow-x-auto [html.phone_&]:px-4 [html.phone_&]:[scrollbar-width:none]",
         )}
       >
-        <span className="mr-1 shrink-0 text-13 leading-[1.125rem] text-(color:--text-quiet)">Try</span>
+        <span className="mr-1 shrink-0 text-13 leading-5 text-(color:--text-quiet)">Try</span>
         {DESCRIBE_CHIPS.map((c) => (
           <button
             key={c.label}

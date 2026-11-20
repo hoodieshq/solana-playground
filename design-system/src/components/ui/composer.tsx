@@ -95,7 +95,7 @@ function ComposerBanner({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="composer-banner"
-      className={cn("flex items-center gap-2 rounded-t-[15px] border-b border-border bg-white/[0.03] px-3.5 py-2 text-xs text-muted-foreground", className)}
+      className={cn("flex items-center gap-2 rounded-t-[15px] border-b border-border bg-white/[0.03] px-3.5 py-2 text-13 leading-4 text-muted-foreground", className)}
       {...props}
     />
   )
@@ -110,7 +110,7 @@ function ComposerChip({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="composer-chip"
-      className={cn("inline-flex h-6 items-center gap-1.5 rounded-md border border-border bg-surface-raised px-2 font-mono text-xs text-muted-foreground [&_svg]:size-3.5", className)}
+      className={cn("inline-flex h-6 items-center gap-1.5 rounded-md border border-border bg-surface-raised px-2 font-mono text-13 leading-4 text-muted-foreground [&_svg]:size-3.5", className)}
       {...props}
     />
   )
@@ -158,7 +158,7 @@ function ComposerInput({ className, onKeyDown, onInput, ref, ...props }: React.C
         }
       }}
       className={cn(
-        "max-h-[200px] min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[0.9375rem] font-[350] text-foreground outline-none placeholder:text-muted-foreground group-data-collapsed/composer:min-h-10 group-data-collapsed/composer:pt-2.5 group-data-collapsed/composer:pb-2.5",
+        "max-h-[200px] min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-16 font-[350] text-foreground outline-none placeholder:text-muted-foreground group-data-collapsed/composer:min-h-10 group-data-collapsed/composer:pt-2.5 group-data-collapsed/composer:pb-2.5",
         className
       )}
       {...props}
@@ -201,7 +201,7 @@ function ComposerModel({ className, ...props }: React.ComponentProps<"button">) 
       type="button"
       data-slot="composer-model"
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-act text-muted-foreground transition-colors outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5",
+        "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-13 leading-4 font-act text-muted-foreground transition-colors outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5",
         className
       )}
       {...props}
@@ -226,7 +226,7 @@ function ComposerEffort({
       data-slot="composer-effort"
       aria-label={`${label}: ${value} of ${max}`}
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-act text-muted-foreground transition-colors outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-13 leading-4 font-act text-muted-foreground transition-colors outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
         className
       )}
       {...props}
@@ -301,7 +301,7 @@ type SuggestionsContextValue = { out: Set<string>; select: (value: string, from?
 const SuggestionsContext = React.createContext<SuggestionsContextValue>({ out: new Set(), select: () => {} })
 
 const suggestionChip =
-  "inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-border-strong px-2.5 text-xs whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-11 pointer-coarse:px-4"
+  "inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-border-strong px-2.5 text-13 leading-4 whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-11 pointer-coarse:px-4"
 
 function ComposerSuggestions({
   className,
@@ -372,7 +372,7 @@ function ComposerSuggestions({
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="start" className="min-w-52">
               {hidden.map((c) => (
-                <DropdownMenuItem key={c.props.value} onSelect={() => select(c.props.value)} className="text-[0.8125rem]">
+                <DropdownMenuItem key={c.props.value} onSelect={() => select(c.props.value)} className="text-13">
                   {c.props.children ?? c.props.value}
                 </DropdownMenuItem>
               ))}

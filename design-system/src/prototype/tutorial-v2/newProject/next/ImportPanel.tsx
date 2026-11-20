@@ -73,7 +73,7 @@ function FolderDrop() {
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="text-13 leading-5 font-act text-foreground">Import a folder</span>
-        <span className="text-13 leading-[1.125rem] font-read text-muted-foreground">{touch ? "Choose one from your device." : "Drop it here, or choose one from your computer."}</span>
+        <span className="text-13 leading-5 font-read text-muted-foreground">{touch ? "Choose one from your device." : "Drop it here, or choose one from your computer."}</span>
       </span>
       <Button variant="outline" size="sm" onClick={soon} className="shrink-0 [html.touch_&]:h-11">
         Choose folder
@@ -222,7 +222,7 @@ export function ImportPanel({
 
       {i.state === "choose" && (
         <div className="mt-4 flex flex-col">
-          <p className="text-13 leading-[1.125rem] font-act text-foreground">{`${i.programs.length} programs found. Pick one to import.`}</p>
+          <p className="text-13 leading-5 font-act text-foreground">{`${i.programs.length} programs found. Pick one to import.`}</p>
           <RadioGroup.Root aria-label="Program" value={i.picked ?? ""} onValueChange={onPick} onKeyDown={onEnterKey} className="mt-3 flex flex-col gap-1">
             {i.programs.map((p) => {
               const picked = i.picked === p.name

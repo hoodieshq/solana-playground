@@ -6,7 +6,7 @@ import { Slot } from "radix-ui"
 /* A tinted label that sorts a thing: its level, its framework, its language.
    Badge says a state; a tag says a kind. */
 const tagVariants = cva(
-  "inline-flex h-5 w-fit shrink-0 items-center gap-1 rounded-md px-1.5 text-[0.6875rem] font-act tracking-[0.06em] whitespace-nowrap uppercase [&>svg]:size-3 [&>img]:size-3.5 [&>img]:rounded-sm",
+  "inline-flex h-5 w-fit shrink-0 items-center gap-1 rounded-md px-1.5 text-11 font-act tracking-wider whitespace-nowrap uppercase [&>svg]:size-3 [&>img]:size-3.5 [&>img]:rounded-sm",
   {
     variants: {
       variant: {

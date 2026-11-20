@@ -74,7 +74,7 @@ function ModalTitle({ className, ...props }: React.ComponentProps<typeof DialogP
   return (
     <DialogPrimitive.Title
       data-slot="modal-title"
-      className={cn("font-heading text-[1.1875rem] leading-snug font-headline text-foreground", className)}
+      className={cn("font-heading text-20 leading-7 font-headline text-foreground", className)}
       {...props}
     />
   )

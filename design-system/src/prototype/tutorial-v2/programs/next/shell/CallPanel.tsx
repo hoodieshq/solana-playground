@@ -202,7 +202,7 @@ export function CallPanel({ p }: { p: Project }) {
           ) : (
             <section aria-label="IDL JSON" className={CARD}>
               <div className="flex h-10 items-center px-4 font-mono text-13 text-muted-foreground">{`${programOf(p)}.json`}</div>
-              <div tabIndex={0} aria-label="IDL JSON, read only" className={cn("max-h-[calc(100dvh-16rem)] overflow-auto border-t border-border bg-surface-well py-2 font-mono text-13 leading-[1.6] outline-none", FOCUS)}>
+              <div tabIndex={0} aria-label="IDL JSON, read only" className={cn("max-h-[calc(100dvh-16rem)] overflow-auto border-t border-border bg-surface-well py-2 font-mono text-13 leading-5 outline-none", FOCUS)}>
                 {json.split("\n").map((line, i) => (
                   <div key={i} className="flex">
                     <span className="w-10 shrink-0 pr-3 text-right text-syntax-comment select-none">{i + 1}</span>
@@ -259,7 +259,7 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
       }}
     >
       <div className={HEAD}>
-        <h3 className="font-mono text-16 leading-[1.35] font-act break-words">
+        <h3 className="font-mono text-16 leading-5 font-act break-words">
           <span className="font-normal text-muted-foreground">{programOf(p)}.</span>
           <span className="text-syntax-function">{ix.name}</span>
         </h3>
@@ -641,7 +641,7 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
 
 function IxTitle({ p, ix }: { p: Project; ix: Ix }) {
   return (
-    <h3 className="min-w-0 truncate font-mono text-16 leading-[1.35] font-act">
+    <h3 className="min-w-0 truncate font-mono text-16 leading-5 font-act">
       <span className="font-normal text-muted-foreground">{programOf(p)}.</span>
       <span className="text-syntax-function">{ix.name}</span>
     </h3>

@@ -115,7 +115,7 @@ function FeatureBannerEyebrow({
       data-slot="feature-banner-eyebrow"
       data-status={done ? "done" : tone}
       className={cn(
-        "flex items-center gap-1.5 text-[0.8125rem] leading-5",
+        "flex items-center gap-1.5 text-13 leading-5",
         tone === "fresh" ? "text-brand-violet dark:text-brand-periwinkle" : "text-muted-foreground",
         className
       )}
@@ -137,7 +137,7 @@ function FeatureBannerTitle({ className, ...props }: React.ComponentProps<"h2">)
     <h2
       id={titleId}
       data-slot="feature-banner-title"
-      className={cn("mt-1.5 font-heading text-[1.5rem] leading-tight font-normal tracking-[-0.015em] text-foreground", className)}
+      className={cn("mt-1.5 font-heading text-28 leading-9 font-normal tracking-tight text-foreground", className)}
       {...props}
     />
   )
@@ -147,7 +147,7 @@ function FeatureBannerDescription({ className, ...props }: React.ComponentProps<
   return (
     <p
       data-slot="feature-banner-description"
-      className={cn("mt-2 max-w-[44ch] text-[0.9375rem] leading-[1.35] text-balance text-foreground/78", className)}
+      className={cn("mt-2 max-w-[44ch] text-16 leading-5 text-balance text-foreground/78", className)}
       {...props}
     />
   )
@@ -172,7 +172,7 @@ function FeatureBannerProgress({
           style={{ width: `${share * 100}%` }}
         />
       </span>
-      <span className="text-[0.75rem] leading-4 font-[380] text-muted-foreground tabular-nums">
+      <span className="text-13 leading-4 font-[380] text-muted-foreground tabular-nums">
         {children ?? `${value} of ${max}`}
       </span>
     </div>
@@ -184,7 +184,7 @@ function FeatureBannerMeta({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="feature-banner-meta"
-      className={cn("mt-3 text-[0.75rem] leading-4 font-[380] text-muted-foreground tabular-nums", className)}
+      className={cn("mt-3 text-13 leading-4 font-[380] text-muted-foreground tabular-nums", className)}
       {...props}
     />
   )
@@ -199,9 +199,9 @@ function FeatureBannerActions({ className, ...props }: React.ComponentProps<"div
       data-slot="feature-banner-actions"
       className={cn(
         "mt-6 flex flex-wrap items-center gap-x-4 gap-y-2",
-        "[&>[data-slot=brand-button]]:px-5 [&>[data-slot=brand-button]]:font-medium [&>[data-slot=brand-button]]:tracking-[-0.005em] pointer-coarse:[&>[data-slot=brand-button]]:h-11",
+        "[&>[data-slot=brand-button]]:px-5 [&>[data-slot=brand-button]]:font-act [&>[data-slot=brand-button]]:tracking-normal pointer-coarse:[&>[data-slot=brand-button]]:h-11",
         "@max-md/feature-banner:[&>[data-slot=brand-button]:first-child]:h-12 @max-md/feature-banner:[&>[data-slot=brand-button]:first-child]:w-full",
-        "[&>[data-variant=quiet]]:h-10 [&>[data-variant=quiet]]:text-[0.8125rem] [&>[data-variant=quiet]]:font-normal pointer-coarse:[&>[data-variant=quiet]]:h-11",
+        "[&>[data-variant=quiet]]:h-10 [&>[data-variant=quiet]]:text-13 [&>[data-variant=quiet]]:font-normal pointer-coarse:[&>[data-variant=quiet]]:h-11",
         className
       )}
       {...props}
@@ -396,10 +396,10 @@ function FeatureBannerCode({
       aria-hidden="true"
       style={{ "--column": `calc(1rem + ${column + 0.5}ch)`, "--rows": n, ...style } as React.CSSProperties}
       className={cn(
-        "pointer-events-none grid font-mono text-[0.75rem] select-none [--lh:1.25rem]",
+        "pointer-events-none grid font-mono text-13 select-none [--lh:1.25rem]",
         compact
           ? // top pad, the source line, the trip, the log line, bottom pad
-            "grid-rows-[0.875rem_var(--lh)_1.75rem_var(--lh)_0.875rem] text-[0.6875rem]"
+            "grid-rows-[0.875rem_var(--lh)_1.75rem_var(--lh)_0.875rem] text-11"
           : // the file's tab, pad, the lines, pad, the trip, then the log strip with its pads
             "grid-rows-[2rem_0.5rem_repeat(var(--rows),var(--lh))_0.75rem_2.25rem_0.5rem_var(--lh)_0.5rem]",
         className

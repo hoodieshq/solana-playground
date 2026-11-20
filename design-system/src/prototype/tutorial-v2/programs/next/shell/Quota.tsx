@@ -27,7 +27,7 @@ export function FullNotice({ p, phone = false }: { p: Project; phone?: boolean }
     <div
       role="status"
       className={cn(
-        "flex items-start gap-2 text-13 leading-[1.125rem] text-foreground/80 animate-in fade-in-0 duration-[120ms]",
+        "flex items-start gap-2 text-13 leading-5 text-foreground/80 animate-in fade-in-0 duration-[120ms]",
         phone ? "min-h-11 border-b border-border bg-surface-raised py-2.5 pr-2 pl-4 [html.portrait_&]:pl-8" : "max-w-[360px] rounded-[10px] border border-border-strong bg-surface-raised py-2 pr-1.5 pl-3 shadow-md"
       )}
     >

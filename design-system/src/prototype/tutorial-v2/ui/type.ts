@@ -5,14 +5,14 @@ import { CHIP } from "./Prose"
  * too large in the chat column, and 16 on a 26 line set two short lines apart as two sentences. Letter
  * spacing is left at normal. Contrast comes from size and weight: headings at 400, text at 320, the text a step under the headings' white, so a long read doesn't glare. Grey is
  * kept for side notes. text-body alone would leave the text at 400 (to raise in DES-129) */
-export const HEADING = "font-heading text-20 leading-[1.5rem] font-headline tracking-normal text-foreground"
+export const HEADING = "font-heading text-20 leading-6 font-headline tracking-normal text-foreground"
 export const TITLE = "font-heading text-28 leading-8 font-headline tracking-normal text-foreground"
 // At 80% the text is 7.45:1 on the page (AAA), the headings 11.1:1: far enough apart that a heading reads
 // as one at a glance, close enough that a long read isn't grey; the side notes' 6.4:1 stays a step under
-export const READ = "text-16 leading-[1.5rem] font-read tracking-normal text-foreground/80"
+export const READ = "text-16 leading-6 font-read tracking-normal text-foreground/80"
 /** Code written out in a card, as Practicum's listing sets it on a desktop: 14/24. Its phone 15 leaves
  * console.log("Hello, World!") a few pixels to spare in a quiz option on a 375px phone, 14 keeps a margin */
-export const LISTING = "font-mono text-13 leading-[1.5rem]"
+export const LISTING = "font-mono text-13 leading-6"
 /** Code in ticks takes the text's colour, so a word doesn't outshine the headings, on the same dark
  * ringed chip as everywhere: a 9% white fill was the text's own grey again and the code didn't stand out */
 export const READ_CODE = { chip: CHIP, ink: "text-current" }

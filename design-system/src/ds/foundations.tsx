@@ -107,12 +107,12 @@ function Type() {
       <div className="rounded-card border border-border px-6">
         <TokenRow
           name="text-40"
-          sample={<div className="font-heading text-40 leading-[1.1] font-headline tracking-[-0.02em]">Build your first program</div>}
+          sample={<div className="font-heading text-40 leading-11 font-headline tracking-tight">Build your first program</div>}
           detail="40 px · 400 · the home hero, once a screen"
         />
         <TokenRow
           name="text-28"
-          sample={<div className="font-heading text-28 leading-[1.15] font-headline tracking-[-0.02em]">Where should we begin?</div>}
+          sample={<div className="font-heading text-28 leading-8 font-headline tracking-tight">Where should we begin?</div>}
           detail="28 px · 400 · a page's title"
         />
         <TokenRow
@@ -142,7 +142,7 @@ function Type() {
         />
         <TokenRow
           name="text-11"
-          sample={<span className="rounded-full border border-current px-1.5 font-heading text-11 leading-[0.875rem] font-act tracking-[0.06em] text-muted-foreground">BETA</span>}
+          sample={<span className="rounded-full border border-current px-1.5 font-heading text-11 leading-4 font-act tracking-wider text-muted-foreground">BETA</span>}
           detail="11 px · 440 · tags and key caps only, never running text"
         />
       </div>
@@ -175,7 +175,7 @@ function Shape() {
             ].map(([cls, n]) => (
               <div key={cls} className="flex flex-col items-center gap-2">
                 <div className={`size-14 border border-border-strong bg-surface-raised ${cls}`} />
-                <code className="font-mono text-[11px] text-subtle">{cls.replace("rounded-", "")} · {n}</code>
+                <code className="font-mono text-11 text-subtle">{cls.replace("rounded-", "")} · {n}</code>
               </div>
             ))}
           </div>
@@ -210,8 +210,8 @@ function Shape() {
             ].map(([cls, what]) => (
               <div key={cls} className="flex flex-col items-center gap-2">
                 <div className={`size-14 rounded-panel bg-surface-raised ${cls}`} />
-                <code className="font-mono text-[11px] text-subtle">{cls.replace("shadow-", "")}</code>
-                <span className="text-[11px] text-subtle">{what}</span>
+                <code className="font-mono text-11 text-subtle">{cls.replace("shadow-", "")}</code>
+                <span className="text-11 text-subtle">{what}</span>
               </div>
             ))}
           </div>
@@ -244,7 +244,7 @@ function Motion() {
                 <div
                   className={`absolute top-1 left-1 size-6 rounded-full bg-primary transition-transform duration-700 ${cls} group-hover:translate-x-64`}
                 />
-                <code className="absolute right-3 top-1.5 font-mono text-[11px] text-subtle">{curve}</code>
+                <code className="absolute right-3 top-1.5 font-mono text-11 text-subtle">{curve}</code>
               </div>
             }
             detail={what}

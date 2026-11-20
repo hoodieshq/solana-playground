@@ -45,8 +45,8 @@ function errorMeta(t: ResultTurn) {
  * 13, centred, the two read nearly one size and their baselines missed each other. The row centres the
  * icon on the title's 24px line. Plain strings: cn would drop the sizes next to a colour */
 const STATUS_PAIR = "flex min-w-0 flex-1 items-baseline gap-2"
-const STATUS_TITLE = "shrink-0 font-heading text-16 leading-[1.5rem] font-act text-foreground"
-const STATUS_META = "min-w-0 truncate text-13 leading-[1.125rem] text-muted-foreground"
+const STATUS_TITLE = "shrink-0 font-heading text-16 leading-6 font-act text-foreground"
+const STATUS_META = "min-w-0 truncate text-13 leading-5 text-muted-foreground"
 
 /** An instruction as the learner wrote it, without its arguments: `hello(name)` is hello */
 const ixName = (tx: Tx) => tx.instruction.replace(/\(.*$/, "")
@@ -255,7 +255,7 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
                 letter lines up with the message under it instead of sitting a box further in. Phone only:
                 on desktop the console beside the chat opens on the same error */}
             {phone && (
-              <div className="border-l-2 border-error/40 pl-3 font-mono text-13 leading-[1.6]">
+              <div className="border-l-2 border-error/40 pl-3 font-mono text-13 leading-5">
                 <p className="break-words text-foreground/90">{turn.log.find((l) => /^error/i.test(l)) ?? f.reason}</p>
                 {pointer && (
                   <button

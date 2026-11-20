@@ -45,7 +45,7 @@ function OptionText({ ask, i, ruled = false }: { ask: Ask; i: number; ruled?: bo
     </code>
   ) : (
     // A plain string: cn would drop the size token next to a text colour. Set as the text is, 16/24
-    <span className={ruled ? "text-16 leading-[1.5rem] text-muted-foreground" : "text-16 leading-[1.5rem] text-foreground"}>
+    <span className={ruled ? "text-16 leading-6 text-muted-foreground" : "text-16 leading-6 text-foreground"}>
       <Prose text={ask.options[i]} {...READ_CODE} />
     </span>
   )
@@ -77,7 +77,7 @@ function Clipped({ ask }: { ask: Ask }) {
     <span
       className={cn(
         "flex min-w-0 shrink flex-wrap items-center overflow-hidden",
-        ask.code ? "h-6 font-mono text-13 leading-6 text-foreground" : "h-6 gap-x-[0.25em] text-16 leading-[1.5rem] text-foreground"
+        ask.code ? "h-6 font-mono text-13 leading-6 text-foreground" : "h-6 gap-x-[0.25em] text-16 leading-6 text-foreground"
       )}
     >
       {/* Code keeps its spaces at the ends of its pieces and also breaks before a `.`, as the options
@@ -125,7 +125,7 @@ function Settled({ ask, t }: { ask: Ask; t: AskTurn }) {
               <span className="grid size-6 place-items-center rounded-sm bg-muted text-13 font-act text-muted-foreground tabular-nums">{i + 1}</span>
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block leading-[1.5rem]">
+              <span className="block leading-6">
                 <OptionText ask={ask} i={i} ruled={wrong} />
               </span>
               {/* 4 under the option, on a 20px line: the ink gap comes to about the reason's own line gap, so
@@ -133,7 +133,7 @@ function Settled({ ask, t }: { ask: Ask; t: AskTurn }) {
                   from reading as the option's second line. A plain string: cn would drop text-caption next to
                   the colour */}
               {why && (
-                <span className="mt-1 block text-caption leading-[1.25rem] text-muted-foreground">
+                <span className="mt-1 block text-caption leading-5 text-muted-foreground">
                   <Prose text={why} {...READ_CODE} small />
                 </span>
               )}
@@ -284,7 +284,7 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
     >
       {/* Practicum's quiz question, 18/26, a step over the 16px text before it: the question is what you
           answer, so it reads as the card's own title, not one more line of the explanation */}
-      <h3 id={titleId} className={cn(HEADING, "mb-3 text-20 leading-[1.625rem]")}>
+      <h3 id={titleId} className={cn(HEADING, "mb-3 text-20 leading-7")}>
         <Prose text={ask.question} {...READ_CODE} large />
       </h3>
       <div role="group" aria-labelledby={titleId} className={cn("flex flex-col gap-2", busy && "pointer-events-none opacity-50")}>
@@ -346,7 +346,7 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
                 {/* The words' line height on the block as well, or its own taller strut sets the lines apart.
                     Words fill the line to the edge: balanced, "An import of Hello" broke early with room to spare.
                     Words in the lesson's own weight, 320: at 400 the options read denser than the text around them */}
-                <span className={cn("block leading-[1.5rem]", !ask.code && "font-read")}>
+                <span className={cn("block leading-6", !ask.code && "font-read")}>
                   <OptionText ask={ask} i={i} ruled={wrong} />
                 </span>
                 {wrong && ask.why[i] && (

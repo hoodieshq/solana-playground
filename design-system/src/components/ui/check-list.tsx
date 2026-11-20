@@ -16,7 +16,7 @@ function CheckListItem({ className, children, ...props }: React.ComponentProps<"
     <li
       data-slot="check-list-item"
       className={cn(
-        "flex items-start gap-2.5 text-[1rem] leading-[1.5rem] font-read tracking-normal text-foreground/80",
+        "flex items-start gap-2.5 text-16 leading-6 font-read tracking-normal text-foreground/80",
         className
       )}
       {...props}

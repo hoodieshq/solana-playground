@@ -29,7 +29,7 @@ function StageEmptyTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return (
     <h2
       data-slot="stage-empty-title"
-      className={cn("font-heading text-[clamp(1.75rem,2.4vw,2.5rem)] leading-[1.1] font-headline tracking-tight text-foreground", className)}
+      className={cn("font-heading text-28 leading-8 font-headline tracking-tight text-foreground", className)}
       {...props}
     />
   )
@@ -37,7 +37,7 @@ function StageEmptyTitle({ className, ...props }: React.ComponentProps<"h2">) {
 
 /* The facts that set it up, in the code face: a program, a network, a size */
 function StageEmptyMeta({ className, ...props }: React.ComponentProps<"p">) {
-  return <p data-slot="stage-empty-meta" className={cn("font-mono text-xs text-muted-foreground", className)} {...props} />
+  return <p data-slot="stage-empty-meta" className={cn("font-mono text-13 leading-4 text-muted-foreground", className)} {...props} />
 }
 
 function StageEmptyDescription({ className, ...props }: React.ComponentProps<"p">) {

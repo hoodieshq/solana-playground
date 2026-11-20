@@ -62,7 +62,7 @@ export function WinCard({ turn, phone = false }: { turn: WinTurn; phone?: boolea
           line read as one group top down. A heading carries no full stop, whatever the lesson wrote */}
       {/* 28/32 at the headings' 500: in the display size's own regular weight and 1.15 line (32.2) it was
           the one heading of another weight, on a part pixel line */}
-      <h3 className="mt-4 font-heading text-28 leading-8 font-act tracking-[-0.02em] text-foreground">{fill(win.headline)}</h3>
+      <h3 className="mt-4 font-heading text-28 leading-8 font-act tracking-tight text-foreground">{fill(win.headline)}</h3>
       {/* 9 under the headline, as under any heading, so the line reads as its own; the actions 24 under
           it, the beat the intro card and the build failure keep before theirs */}
       <p className={`mt-[9px] ${READ}`}>

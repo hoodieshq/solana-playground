@@ -69,7 +69,7 @@ function LessonIntroTitle({ className, id, ...props }: React.ComponentProps<"h2"
     <h2
       data-slot="lesson-intro-title"
       id={id ?? titleId}
-      className={cn("truncate font-heading text-[1.5rem] leading-[1.75rem] font-medium tracking-normal text-foreground", className)}
+      className={cn("truncate font-heading text-28 leading-7 font-act tracking-normal text-foreground", className)}
       {...props}
     />
   )
@@ -99,7 +99,7 @@ function LessonIntroDescription({ className, ...props }: React.ComponentProps<"p
   return (
     <p
       data-slot="lesson-intro-description"
-      className={cn("mt-6 text-[1rem] leading-[1.5rem] font-read tracking-normal text-foreground/80 first:mt-0", className)}
+      className={cn("mt-6 text-16 leading-6 font-read tracking-normal text-foreground/80 first:mt-0", className)}
       {...props}
     />
   )
@@ -111,7 +111,7 @@ function LessonIntroProof({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="lesson-intro-proof"
-      className={cn("mt-[9px] rounded-lg bg-foreground/[0.05] px-3 py-2.5 font-mono text-[0.8125rem] leading-[1.5] break-words text-foreground/90", className)}
+      className={cn("mt-[9px] rounded-lg bg-foreground/[0.05] px-3 py-2.5 font-mono text-13 leading-5 break-words text-foreground/90", className)}
       {...props}
     />
   )
@@ -120,7 +120,7 @@ function LessonIntroProof({ className, ...props }: React.ComponentProps<"p">) {
 /* A heading inside the card, "How it goes", 20/24: 30 above and 9 under,
    so it belongs to the list it heads */
 function LessonIntroHeading({ className, ...props }: React.ComponentProps<"h3">) {
-  return <h3 data-slot="lesson-intro-heading" className={cn("mt-[30px] font-heading text-[1.25rem] leading-[1.5rem] font-medium tracking-normal text-foreground", className)} {...props} />
+  return <h3 data-slot="lesson-intro-heading" className={cn("mt-[30px] font-heading text-20 leading-6 font-act tracking-normal text-foreground", className)} {...props} />
 }
 
 /* How a lesson goes, one beat a line 6 apart, numbered by the list itself */
@@ -133,7 +133,7 @@ function LessonIntroStep({ className, ...props }: React.ComponentProps<"li">) {
     <li
       data-slot="lesson-intro-step"
       className={cn(
-        "flex items-baseline gap-2.5 text-[1rem] leading-[1.5rem] font-read tracking-normal text-foreground/80 [counter-increment:beat] before:w-3 before:shrink-0 before:text-caption before:text-muted-foreground before:tabular-nums before:content-[counter(beat)]",
+        "flex items-baseline gap-2.5 text-16 leading-6 font-read tracking-normal text-foreground/80 [counter-increment:beat] before:w-3 before:shrink-0 before:text-caption before:text-muted-foreground before:tabular-nums before:content-[counter(beat)]",
         className
       )}
       {...props}

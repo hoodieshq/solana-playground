@@ -17,8 +17,8 @@ const brandButtonVariants = cva(
         accent: "rounded-lg bg-primary font-act hover:brightness-[1.12]",
       },
       size: {
-        default: "h-10 pr-4 pl-5 font-heading text-[0.9375rem] [&_svg:not([class*='size-'])]:size-[1.15em]",
-        sm: "h-[1.625rem] px-3 text-xs [&_svg:not([class*='size-'])]:size-3.5",
+        default: "h-10 pr-4 pl-5 font-heading text-16 [&_svg:not([class*='size-'])]:size-[1.15em]",
+        sm: "h-[1.625rem] px-3 text-13 leading-4 [&_svg:not([class*='size-'])]:size-3.5",
         icon: "size-8 [&_svg:not([class*='size-'])]:size-4",
       },
       hover: {
@@ -26,7 +26,7 @@ const brandButtonVariants = cva(
         beam: "brand-beam",
       },
     },
-    compoundVariants: [{ variant: "accent", size: "default", className: "rounded-lg px-4 font-sans text-sm" }],
+    compoundVariants: [{ variant: "accent", size: "default", className: "rounded-lg px-4 font-sans text-13 leading-5" }],
     defaultVariants: {
       variant: "ring",
       size: "default",

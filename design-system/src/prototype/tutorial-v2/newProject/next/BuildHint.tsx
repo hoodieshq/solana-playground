@@ -141,7 +141,7 @@ export function BuildHint() {
         className="absolute -top-[3.5px] size-1.5 rotate-45 border-t border-l border-border-strong bg-surface-raised"
       />
       <StatusDot variant="target" />
-      <span className="text-13 leading-[1.125rem] font-[380] whitespace-nowrap text-foreground">{LINES[kind]}</span>
+      <span className="text-13 leading-5 font-[380] whitespace-nowrap text-foreground">{LINES[kind]}</span>
       <button
         type="button"
         aria-label="Hide this tip"

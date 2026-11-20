@@ -43,7 +43,7 @@ export function YouPill({ text, code = false }: { text: string; code?: boolean }
       ref={ref}
       className={cn(
         "ml-auto w-fit max-w-[85%] origin-top-left rounded-panel bg-surface-raised px-3 py-2",
-        code ? "font-mono text-13 leading-6 break-words" : "text-16 leading-[1.5rem]"
+        code ? "font-mono text-13 leading-6 break-words" : "text-16 leading-6"
       )}
     >
       {/* Code you typed or picked stays one colour: syntax colour is kept for the assistant's code, and

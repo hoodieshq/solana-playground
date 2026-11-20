@@ -74,7 +74,7 @@ function ActionCardContent({ className, ...props }: React.ComponentProps<"div">)
 }
 
 function ActionCardEyebrow({ className, ...props }: React.ComponentProps<"span">) {
-  return <span data-slot="action-card-eyebrow" className={cn("text-xs text-subtle", className)} {...props} />
+  return <span data-slot="action-card-eyebrow" className={cn("text-13 leading-4 text-subtle", className)} {...props} />
 }
 
 function ActionCardTitle({ className, ...props }: React.ComponentProps<"h3">) {
@@ -82,7 +82,7 @@ function ActionCardTitle({ className, ...props }: React.ComponentProps<"h3">) {
     <h3
       data-slot="action-card-title"
       className={cn(
-        "line-clamp-1 text-control font-act text-foreground group-data-[variant=fill]/action-card:leading-5 group-data-[variant=fill]/action-card:font-medium",
+        "line-clamp-1 text-16 font-act text-foreground group-data-[variant=fill]/action-card:leading-5 group-data-[variant=fill]/action-card:font-act",
         className
       )}
       {...props}
@@ -95,7 +95,7 @@ function ActionCardDescription({ className, ...props }: React.ComponentProps<"p"
     <p
       data-slot="action-card-description"
       className={cn(
-        "line-clamp-2 text-caption font-read text-muted-foreground group-data-[variant=fill]/action-card:leading-[1.125rem] group-data-[variant=fill]/action-card:font-[350]",
+        "line-clamp-2 text-caption font-read text-muted-foreground group-data-[variant=fill]/action-card:leading-5 group-data-[variant=fill]/action-card:font-[350]",
         className
       )}
       {...props}
@@ -108,7 +108,7 @@ function ActionCardMeta({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="action-card-meta"
-      className={cn("mt-1.5 text-xs leading-4 font-label text-muted-foreground/80 tabular-nums", className)}
+      className={cn("mt-1.5 text-13 leading-4 font-label text-muted-foreground/80 tabular-nums", className)}
       {...props}
     />
   )

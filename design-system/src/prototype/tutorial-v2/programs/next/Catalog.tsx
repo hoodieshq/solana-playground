@@ -38,7 +38,7 @@ export function Catalog({ phone = false }: { phone?: boolean }) {
     <>
       {/* No search (Almaz, 6 Nov): eleven programs in three sections read at a glance. On the phone the
           heading sits under the menu button as the Tutorials page's does */}
-      <h1 className={cn("font-heading font-normal tracking-[-0.015em] text-foreground", phone ? "mb-1 flex h-11 items-center text-28" : "mt-6 mb-6 text-28 leading-8")}>Programs</h1>
+      <h1 className={cn("font-heading font-normal tracking-tight text-foreground", phone ? "mb-1 flex h-11 items-center text-28" : "mt-6 mb-6 text-28 leading-8")}>Programs</h1>
 
         {loading ? (
           <div aria-busy="true" className="grid grid-cols-1 gap-3 min-[720px]:grid-cols-2">
@@ -77,7 +77,7 @@ function Sections({ list }: { list: ProgramMeta[] }) {
   const runnable = (p: ProgramMeta) => native || p.kind === "anchor"
   return (
     <section aria-labelledby="programs-examples" className="flex flex-col gap-6">
-      <h2 id="programs-examples" className="font-heading text-20 leading-[1.5rem] font-headline text-foreground">
+      <h2 id="programs-examples" className="font-heading text-20 leading-6 font-headline text-foreground">
         Solana examples
       </h2>
       {TOPICS.map((topic) => {
@@ -127,14 +127,14 @@ function ProgramCard({ p }: { p: ProgramMeta }) {
       <div className="grid flex-1 grid-cols-[auto_minmax(0,1fr)_auto] content-start items-start gap-x-3.5 p-4">
         <ProgramCover p={p} className="pointer-events-none row-span-3 size-[4.5rem] rounded-[14px]" />
         {/* No eyebrow (it said "SPL", as the name does) and no arrow square: the whole card is the button */}
-        <h4 title={p.name} className="pointer-events-none line-clamp-1 min-w-0 font-heading text-16 leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
+        <h4 title={p.name} className="pointer-events-none line-clamp-1 min-w-0 font-heading text-16 leading-5 font-normal tracking-tight text-foreground">
           {p.name}
         </h4>
-        <p className="pointer-events-none col-span-2 col-start-2 mt-1 line-clamp-2 text-13 leading-[1.4] text-foreground/78">{p.description}</p>
+        <p className="pointer-events-none col-span-2 col-start-2 mt-1 line-clamp-2 text-13 leading-5 text-foreground/78">{p.description}</p>
         {/* The state leads; a card's column is too narrow for it and the facts on one row, so it takes its own */}
-        {st && !readOnly && <StandingWord s={st} className="pointer-events-none col-span-2 col-start-2 mt-2 text-13 leading-[1.125rem]" />}
+        {st && !readOnly && <StandingWord s={st} className="pointer-events-none col-span-2 col-start-2 mt-2 text-13 leading-5" />}
         {readOnly && (
-          <span className="pointer-events-none col-span-2 col-start-2 mt-2 inline-flex items-center gap-1.5 text-13 leading-[1.125rem] text-muted-foreground">
+          <span className="pointer-events-none col-span-2 col-start-2 mt-2 inline-flex items-center gap-1.5 text-13 leading-5 text-muted-foreground">
             <BookOpen aria-hidden="true" className="size-3.5" />
             {callable ? "Read only · call on devnet" : "Read only"}
             {/* One you opened says so on the same line: read only has no stage to stand at */}

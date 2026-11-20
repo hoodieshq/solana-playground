@@ -58,7 +58,7 @@ function FeatureBannerBlock() {
           <FeatureBanner surface="tint" art={({ wide }) => <FeatureBannerDither field={wide ? "side" : "corner"} />}>
             <FeatureBannerContent>
               <FeatureBannerEyebrow>Start here</FeatureBannerEyebrow>
-              <FeatureBannerTitle className="text-[2rem] leading-[1.1] tracking-[-0.02em]">Hello Anchor</FeatureBannerTitle>
+              <FeatureBannerTitle className="text-28 leading-8 tracking-tight">Hello Anchor</FeatureBannerTitle>
               <FeatureBannerDescription>Write, deploy and call your first Solana program</FeatureBannerDescription>
               <FeatureBannerMeta>10 min · 4 steps · Beginner · Anchor</FeatureBannerMeta>
               <FeatureBannerActions>
@@ -71,7 +71,7 @@ function FeatureBannerBlock() {
           </FeatureBanner>
           <div className="max-w-[24rem] overflow-hidden rounded-card border border-brand-purple/20 bg-surface-panel">
             <div className="relative border-b border-brand-purple/15">
-              <div className="absolute inset-y-0 right-0 left-[calc(1rem+29ch)] font-mono text-[0.6875rem]">
+              <div className="absolute inset-y-0 right-0 left-[calc(1rem+29ch)] font-mono text-11">
                 <FeatureBannerDither field="strip" />
               </div>
               <FeatureBannerCode compact lines={CODE} source={10} log="Hello, World!" done />

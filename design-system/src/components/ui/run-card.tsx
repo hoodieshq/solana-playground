@@ -107,7 +107,7 @@ function RunCardTitle({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="run-card-title"
-      className={cn("font-heading text-[1rem] leading-6 font-medium tracking-normal text-foreground", className)}
+      className={cn("font-heading text-16 leading-6 font-act tracking-normal text-foreground", className)}
       {...props}
     />
   )
@@ -122,7 +122,7 @@ function RunCardDescription({ className, ...props }: React.ComponentProps<"span"
     <span
       data-slot="run-card-description"
       role={state === "running" ? "status" : undefined}
-      className={cn("text-[0.875rem] leading-5 text-muted-foreground group-data-[state=interrupted]/run-card:text-warning-ink", className)}
+      className={cn("text-13 leading-5 text-muted-foreground group-data-[state=interrupted]/run-card:text-warning-ink", className)}
       {...props}
     />
   )
@@ -154,7 +154,7 @@ function RunCardAction({
       aria-busy={busy || undefined}
       className={cn(
         // The coarse pointer height is named again on a phone, or the 44 for a finger wins over its 48
-        "relative h-10 shrink-0 gap-2 px-4 font-heading text-[0.9375rem] font-medium pointer-coarse:h-11 sm:group-data-[orientation=horizontal]/run-card:grow max-sm:h-12 max-sm:pointer-coarse:h-12",
+        "relative h-10 shrink-0 gap-2 px-4 font-heading text-16 font-act pointer-coarse:h-11 sm:group-data-[orientation=horizontal]/run-card:grow max-sm:h-12 max-sm:pointer-coarse:h-12",
         className
       )}
       {...props}

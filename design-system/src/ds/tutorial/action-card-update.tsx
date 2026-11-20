@@ -32,7 +32,7 @@ function ActionCardUpdateBlock() {
         <ActionCardContent>
           <ActionCardTitle>
             Hello, Anchor
-            <span className="ml-2 align-middle text-xs font-normal text-muted-foreground tabular-nums">2 of 4</span>
+            <span className="ml-2 align-middle text-13 leading-4 font-normal text-muted-foreground tabular-nums">2 of 4</span>
           </ActionCardTitle>
           <ActionCardDescription>Write a program that says hello, deploy it, and call it.</ActionCardDescription>
           <ActionCardMeta>Anchor · by Solana Foundation</ActionCardMeta>

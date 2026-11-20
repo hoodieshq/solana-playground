@@ -1,5 +1,4 @@
 import { ChevronDown } from "lucide-react"
-import { useEffect, useRef, type CSSProperties } from "react"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
@@ -7,83 +6,33 @@ import { cn } from "@/lib/utils"
 import { STEPS } from "../data"
 import { useStore } from "../store"
 import { StepGlyph } from "./StepGlyph"
+import { StepRing } from "./StepRing"
 import { FOCUS } from "./type"
-
-/** One column a step: Hello Anchor and Lumberjack have four, Zero Copy three. Read at render, since
- * STEPS is the open lesson's */
-const columns = (): CSSProperties => ({ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` })
-
-/** The brand's progress fill, the one the gallery banner draws: it starts purple and lands on green */
-const PROGRESS_GRADIENT = "linear-gradient(90deg, #9945ff, #14f195)"
-
-/** One gradient laid across all the segments: each shows its own share, so the gaps break a single
- * bar instead of a colour a step. Percent positions move the image by (box minus image) times p, which
- * for an image n boxes wide is one box per n minus 1 */
-const quarter = (i: number): CSSProperties => ({
-  backgroundImage: PROGRESS_GRADIENT,
-  backgroundSize: `${STEPS.length * 100}% 100%`,
-  backgroundPosition: `${(i / (STEPS.length - 1)) * 100}% 0`,
-})
-
-/** The newly lit segments sweep in one after another, after the check has popped */
-const SWEEP_AFTER = 140
-const SWEEP_STAGGER = 180
-
-/** A segment as Practicum draws its lesson progress: a 4px rounded bar on a 12% white track, its fill
- * revealed left to right by its clip, so the gradient stays put while it shows. `delay` holds it while
- * the check pops */
-function Segment({ i, lit, delay }: { i: number; lit: boolean; delay: number }) {
-  return (
-    <span aria-hidden="true" className="relative block h-1 w-full overflow-hidden rounded-[4px] bg-foreground/[0.12]">
-      <span
-        style={{ ...quarter(i), clipPath: lit ? "inset(0 0 0 0)" : "inset(0 100% 0 0)", transitionDelay: lit ? `${delay}ms` : "0ms" }}
-        className="absolute inset-0 transition-[clip-path] duration-(--duration-slow) ease-out motion-reduce:transition-none"
-      />
-    </span>
-  )
-}
-
-/** Remembers how many segments were lit last time, so only the ones lit since sweep, in order */
-function useSweep(lit: number) {
-  const before = useRef(lit)
-  const from = before.current
-  useEffect(() => {
-    before.current = lit
-  }, [lit])
-  return (i: number) => (i >= from ? SWEEP_AFTER + (i - from) * SWEEP_STAGGER : 0)
-}
-
-/** How many segments are lit: a step is lit whole as you enter it, a segment filling by beats read as
- * nothing happening */
-const litCount = (started: boolean, step: number, finished: boolean) => (!started ? 0 : finished ? STEPS.length : step + 1)
 
 type BarProps = { viewing: number | null; onPick: (step: number) => void }
 
-/** The tutorial's steps across the top of the chat, the desktop twin of the phone header's track. As in
- * Practicum's lesson, one line of text says where you are, 14/18, and the segments sit 12px under it,
- * each a 12px tall target round a 4px bar, 4px apart. The line opens the steps as the phone's drawer
- * lists them; a reached segment takes you to its step too. A label over each segment split one
- * sentence into three. The line sits 12 under the head's rule, the same 12 as down to the segments,
- * so the line belongs to neither edge: at 8 it hung off the head and the bar read as two pieces */
+/** The tutorial's steps across the top of the chat: the ring and "Step 2 of 4 · Build" on one line, as a
+ * project's bar has them (Nikita, 20 Nov: four bars here and a line there were two patterns for one thing).
+ * The line opens the steps as the phone's drawer lists them, and a reached step is picked there. It sits 12
+ * under the head's rule and 12 over the chat */
 export function StepBar({ viewing, onPick }: BarProps) {
   const { s } = useStore()
   const finished = s.passed.every(Boolean)
-  const lit = litCount(s.started, s.step, finished)
-  const delayFor = useSweep(lit)
   const where = !s.started ? `${STEPS.length} steps` : finished ? "Done" : `Step ${s.step + 1} of ${STEPS.length}`
   const name = s.started && !finished ? STEPS[s.step].short : null
 
   return (
-    <nav aria-label="Tutorial steps" className="shrink-0 px-5 pt-3 pb-1">
+    <nav aria-label="Tutorial steps" className="shrink-0 px-5 py-3">
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={!s.started}
           className={cn(
-            "group -mx-1.5 flex h-[1.125rem] items-center gap-1.5 rounded-md px-1.5 text-13 leading-[1.125rem] font-label outline-none hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
+            "group -mx-1.5 flex h-6 items-center gap-1.5 rounded-md px-1.5 text-13 leading-5 font-label outline-none hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
             FOCUS
           )}
         >
-          <span className="text-muted-foreground tabular-nums">{where}</span>
+          <StepRing done={finished ? STEPS.length : s.passed.filter(Boolean).length} of={STEPS.length} />
+          <span className="ml-0.5 text-muted-foreground tabular-nums">{where}</span>
           {name && (
             <>
               <span aria-hidden="true" className="text-subtle">
@@ -126,40 +75,6 @@ export function StepBar({ viewing, onPick }: BarProps) {
           })}
         </DropdownMenuContent>
       </DropdownMenu>
-      <span className="mt-2 grid gap-1" style={columns()}>
-        {STEPS.map((step, i) => {
-          const reached = s.started && (s.passed[i] || i <= s.step)
-          return (
-            <button
-              key={step.id}
-              type="button"
-              disabled={!reached}
-              onClick={() => onPick(i)}
-              aria-label={`Step ${i + 1} of ${STEPS.length}, ${step.title}`}
-              className={cn("flex h-3 items-center disabled:cursor-default", FOCUS)}
-            >
-              <Segment i={i} lit={i < lit} delay={delayFor(i)} />
-            </button>
-          )
-        })}
-      </span>
     </nav>
-  )
-}
-
-/** The phone header's progress: the same 4px segments, 4px apart, inset 16px as Practicum's bar is,
- * under the header's "Step 1 of 3" line. Before Start nothing is under way, and empty segments read as
- * a broken rule: one hairline instead */
-export function StepTrack({ done }: { done: boolean }) {
-  const { s } = useStore()
-  const lit = litCount(s.started, s.step, done)
-  const delayFor = useSweep(lit)
-  if (!s.started) return <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-border" />
-  return (
-    <span aria-hidden="true" className="absolute inset-x-4 bottom-2 grid gap-1 [html.portrait_&]:inset-x-8" style={columns()}>
-      {STEPS.map((step, i) => (
-        <Segment key={step.id} i={i} lit={i < lit} delay={delayFor(i)} />
-      ))}
-    </span>
   )
 }

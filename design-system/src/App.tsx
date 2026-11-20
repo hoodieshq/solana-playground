@@ -144,12 +144,12 @@ function App() {
               <LogoMark />
               <LogoText>Playground</LogoText>
             </Logo>
-            <span className="hidden text-control font-read text-muted-foreground sm:inline">Design system</span>
+            <span className="hidden text-16 leading-5 font-read text-muted-foreground sm:inline">Design system</span>
             <Badge variant="outline" className="font-label">v0</Badge>
             <div className="ml-auto flex items-center gap-1">
               <a
                 href="/#app"
-                className="hidden h-9 items-center gap-1 rounded-control px-3 text-control font-act text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground md:inline-flex"
+                className="hidden h-9 items-center gap-1 rounded-control px-3 text-16 leading-5 font-act text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground md:inline-flex"
               >
                 Product, with Studio
                 <ArrowUpRight className="size-4" />
@@ -174,7 +174,7 @@ function App() {
 
           <main className="min-w-0 flex-1 pb-32">
             <section className="pt-14 pb-4">
-              <h1 className="font-heading text-4xl font-headline tracking-tight text-foreground md:text-5xl">
+              <h1 className="font-heading text-40 leading-11 font-headline tracking-tight text-foreground">
                 Playground design system
               </h1>
               <p className="mt-4 max-w-2xl text-body font-read text-muted-foreground">
@@ -191,7 +191,7 @@ function App() {
                 onToggle={(e) => setMenuOpen((e.target as HTMLDetailsElement).open)}
                 className="mt-8 rounded-card border border-border lg:hidden"
               >
-                <summary className="cursor-pointer px-4 py-3 text-control font-act text-foreground">Contents</summary>
+                <summary className="cursor-pointer px-4 py-3 text-16 leading-5 font-act text-foreground">Contents</summary>
                 <div className="border-t border-border p-4">
                   <Nav groups={groups} current={current} onPick={() => setMenuOpen(false)} />
                 </div>

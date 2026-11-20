@@ -109,7 +109,9 @@ export function AccountMenu({ account, setup, notSynced, wallet, side, onSetup, 
       {setup && (
         <Item onSelect={onSetup}>
           <ProgressRing done={setup.done} of={setup.total} size={16} />
-          {setup.label}
+          {/* Always the list's own name here: with one step left it took that step's words, "Connect a wallet",
+              right over the menu's own Connect wallet, and the two read as one thing twice (Nikita, 20 Nov) */}
+          Get set up
           <span className="ml-auto mr-1 text-13 text-muted-foreground tabular-nums">{`${setup.done} of ${setup.total}`}</span>
         </Item>
       )}

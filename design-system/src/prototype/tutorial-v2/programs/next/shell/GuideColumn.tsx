@@ -46,7 +46,7 @@ export function ShortcutsDialog({ open, onOpenChange, read = false }: { open: bo
               <dl className="flex flex-col">
                 {SHORTCUTS.filter((k) => k.group === group && !(read && k.what === "Build")).map((k) => (
                   <div key={k.what} className="flex h-8 items-center justify-between gap-4">
-                    <dt className="text-13 leading-[1.125rem] text-foreground/80">{k.what}</dt>
+                    <dt className="text-13 leading-5 text-foreground/80">{k.what}</dt>
                     <dd className="flex gap-1">
                       {k.keys.split(" ").map((key) => (
                         <Kbd key={key}>{key}</Kbd>
@@ -317,7 +317,7 @@ export function Ask({ p, phone = false, chips = [] }: { p: Project; phone?: bool
           placeholder={p.read ? "Ask about this program" : p.draft ? "Reply, or say what to build" : `Ask about ${p.name}`}
           aria-label={p.read ? "Ask about this program" : p.draft ? "Reply to the assistant" : `Ask about ${p.name}`}
           enterKeyHint="send"
-          className={cn("leading-[22px] placeholder:text-muted-foreground/80!", !tall && "min-h-10 pt-2.5 pb-2.5", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
+          className={cn("leading-6 placeholder:text-muted-foreground/80!", !tall && "min-h-10 pt-2.5 pb-2.5", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
         />
         <ComposerToolbar className={cn(!tall && "py-1 pr-1")}>
           <ComposerSend className="pointer-coarse:size-11 disabled:bg-surface-hover disabled:text-subtle disabled:opacity-100">

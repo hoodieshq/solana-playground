@@ -169,7 +169,7 @@ export function Mine({ lessons, projects, upNext, onStartFirst, onPick }: Props)
                     glyph={ring(0, upNext.of, tablet)}
                     label={upNext.name}
                     name={`Up next: ${upNext.name}, ${upNext.of} steps`}
-                    meta={<span className="text-13 font-act tracking-[0.01em] text-(color:--text-quiet)">Up next</span>}
+                    meta={<span className="text-13 font-act tracking-normal text-(color:--text-quiet)">Up next</span>}
                     tip={`${upNext.of} steps`}
                     onClick={upNext.onOpen}
                   />,

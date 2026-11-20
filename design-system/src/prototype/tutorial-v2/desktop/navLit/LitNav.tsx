@@ -395,7 +395,7 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
               {/* Beta until the full release (Grigory, 19 Nov), as the brand file has it: an outlined tag on the
                   line of "Playground", whose status it is (on the line of "Solana" it read as Solana Beta). Set as
                   text beside the lockup, not drawn into it: at 28 high the drawn one's letters came out 4px */}
-              <span className="ml-2 translate-y-[6px] rounded-full border border-current px-1.5 font-heading text-11 leading-[0.875rem] font-act tracking-[0.06em] text-muted-foreground">
+              <span className="ml-2 translate-y-[6px] rounded-full border border-current px-1.5 font-heading text-11 leading-4 font-act tracking-wider text-muted-foreground">
                 BETA
               </span>
             </button>
@@ -413,7 +413,7 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
               kind="destination"
               glyph={<LitIcon name="search" />}
               label="Search"
-              meta={sheet ? undefined : <span className="text-13 font-act tracking-[0.01em] text-(color:--text-quiet)">⌘K</span>}
+              meta={sheet ? undefined : <span className="text-13 font-act tracking-normal text-(color:--text-quiet)">⌘K</span>}
               tip={stateId === "many-projects" ? "Search projects, lessons and actions" : undefined}
               // In a sheet the menu stays under the search, so closing search goes back to it
               onClick={sheet ? () => setSearchOpen(true) : go(() => setSearchOpen(true))}

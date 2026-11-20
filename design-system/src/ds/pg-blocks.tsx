@@ -327,7 +327,7 @@ function MergeLines({ rows, side, start = 1 }: { rows: MergeRow[]; side: "left" 
   const lines = (row: MergeRow) => ("fold" in row ? row.fold : "bar" in row ? 0 : row[side] ? 1 : 0)
   const numbers = rows.map((_, i) => start + rows.slice(0, i).reduce((n, row) => n + lines(row), 0))
   return (
-    <div className="min-w-0 flex-1 py-1 font-mono text-[0.8125rem] leading-5">
+    <div className="min-w-0 flex-1 py-1 font-mono text-13 leading-5">
       {rows.map((row, i) => {
         if ("fold" in row) return <MergeFold key={i} count={row.fold} />
         if ("bar" in row) return side === "result" ? <div key={i}>{HUNK_BAR}</div> : null
@@ -337,7 +337,7 @@ function MergeLines({ rows, side, start = 1 }: { rows: MergeRow[]; side: "left" 
         const number = numbers[i]
         return (
           <div key={i} className={cn("relative flex h-5 items-center", cell.state && mergeHunkVariants({ state: cell.state }))}>
-            <span className="flex w-10 shrink-0 items-center justify-end pr-3 text-xs text-subtle tabular-nums select-none">{number}</span>
+            <span className="flex w-10 shrink-0 items-center justify-end pr-3 text-13 leading-4 text-subtle tabular-nums select-none">{number}</span>
             <code className="min-w-0 flex-1 overflow-hidden whitespace-pre text-foreground">{highlight(cell.text, SYNTAX_BOTH)}</code>
           </div>
         )
@@ -1019,7 +1019,7 @@ function PlaygroundBlocks() {
 
       <Block id="block-deploy-result" title="Deploy result" source="block" note="After a deploy: the program id to copy, where to see it and when it closes. One accent action, the rest quiet.">
         <div role="status" className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-border bg-surface-panel p-4">
-          <div className="flex items-center gap-2 text-control font-act text-foreground">
+          <div className="flex items-center gap-2 text-16 leading-5 font-act text-foreground">
             <StatusDot variant="success" size="lg" />
             Deployed to devnet
           </div>
@@ -1065,7 +1065,7 @@ function PlaygroundBlocks() {
           <div className="flex items-center gap-3">
             <span className="grid size-10 place-items-center rounded-[10px] bg-surface-raised text-muted-foreground"><Plus className="size-5" /></span>
             <div>
-              <div className="text-control font-act text-foreground">Start from scratch</div>
+              <div className="text-16 leading-5 font-act text-foreground">Start from scratch</div>
               <div className="text-caption font-read text-muted-foreground">An empty program, ready to build.</div>
             </div>
           </div>
@@ -1113,16 +1113,16 @@ function PlaygroundBlocks() {
 
       <Block id="block-session" title="Session footer" source="block" note="The foot of the sidebar: which cluster, and who you are. Two rows, each a button that opens its menu." className="block">
         <div className="flex w-60 flex-col gap-0.5 rounded-xl border border-border bg-surface-panel p-1.5">
-          <button type="button" className="flex h-8 items-center gap-2 rounded-md px-2 text-[0.8125rem] text-muted-foreground hover:bg-surface-hover hover:text-foreground">
+          <button type="button" className="flex h-8 items-center gap-2 rounded-md px-2 text-13 text-muted-foreground hover:bg-surface-hover hover:text-foreground">
             <StatusDot variant="success" size="lg" />
             Devnet
-            <span className="ml-auto text-xs text-subtle">Kora</span>
+            <span className="ml-auto text-13 leading-4 text-subtle">Kora</span>
           </button>
           <button type="button" className="flex items-center gap-2 rounded-md p-2 text-left hover:bg-surface-hover">
-            <Avatar className="size-6"><AvatarFallback className="text-[10px]">NT</AvatarFallback></Avatar>
+            <Avatar className="size-6"><AvatarFallback className="text-11">NT</AvatarFallback></Avatar>
             <span className="flex min-w-0 flex-col">
-              <span className="truncate text-[0.8125rem] font-act text-foreground">nikita</span>
-              <span className="truncate font-mono text-xs text-muted-foreground">7Hq5…Xk2P · 2.4 SOL</span>
+              <span className="truncate text-13 font-act text-foreground">nikita</span>
+              <span className="truncate font-mono text-13 leading-4 text-muted-foreground">7Hq5…Xk2P · 2.4 SOL</span>
             </span>
           </button>
         </div>
@@ -1138,8 +1138,8 @@ function PlaygroundBlocks() {
             <button key={row.label} type="button" className="flex h-16 items-center gap-3 rounded-xl px-2 text-left hover:bg-surface-panel">
               <span className={`grid size-10 place-items-center rounded-xl ${row.tint}`}>{row.icon}</span>
               <span className="flex min-w-0 flex-col">
-                <span className="text-[15px] font-act text-foreground">{row.label}</span>
-                <span className="text-[13px] font-read text-muted-foreground">{row.note}</span>
+                <span className="text-16 font-act text-foreground">{row.label}</span>
+                <span className="text-13 font-read text-muted-foreground">{row.note}</span>
               </span>
             </button>
           ))}

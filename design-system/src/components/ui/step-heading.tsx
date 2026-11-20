@@ -33,7 +33,7 @@ function StepHeadingTitle({ className, asChild = false, ...props }: React.Compon
   return (
     <Comp
       data-slot="step-heading-title"
-      className={cn("font-heading text-[1.5rem] leading-[1.75rem] font-medium tracking-normal text-foreground", className)}
+      className={cn("font-heading text-28 leading-7 font-act tracking-normal text-foreground", className)}
       {...props}
     />
   )

@@ -23,7 +23,7 @@ function Terminal({
       role="log"
       aria-live="polite"
       className={cn(
-        "group/terminal flex w-full flex-col gap-0.5 overflow-auto rounded-xl border border-border bg-surface-well p-3 font-mono text-[0.8125rem] leading-relaxed text-muted-foreground",
+        "group/terminal flex w-full flex-col gap-0.5 overflow-auto rounded-xl border border-border bg-surface-well p-3 font-mono text-13 leading-5 text-muted-foreground",
         className
       )}
       {...props}

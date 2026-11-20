@@ -55,7 +55,7 @@ function StepRailTitle({ className, ...props }: React.ComponentProps<"span">) {
     <span
       data-slot="step-rail-title"
       className={cn(
-        "min-w-0 truncate text-[0.8125rem] leading-5 text-muted-foreground group-data-[status=current]/step-rail-item:font-act group-data-[status=current]/step-rail-item:text-foreground",
+        "min-w-0 truncate text-13 leading-5 text-muted-foreground group-data-[status=current]/step-rail-item:font-act group-data-[status=current]/step-rail-item:text-foreground",
         className
       )}
       {...props}
@@ -64,7 +64,7 @@ function StepRailTitle({ className, ...props }: React.ComponentProps<"span">) {
 }
 
 function StepRailMeta({ className, ...props }: React.ComponentProps<"span">) {
-  return <span data-slot="step-rail-meta" className={cn("col-start-2 text-xs text-subtle", className)} {...props} />
+  return <span data-slot="step-rail-meta" className={cn("col-start-2 text-13 leading-4 text-subtle", className)} {...props} />
 }
 
 export { StepRail, StepRailIndicator, StepRailItem, StepRailMeta, StepRailTitle }

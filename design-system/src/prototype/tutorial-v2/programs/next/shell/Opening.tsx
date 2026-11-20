@@ -45,7 +45,7 @@ export function OpeningCard({ p }: { p: Project }) {
             <CircleAlert aria-hidden="true" className="size-4 shrink-0 text-error" />
             <h3 className="font-heading text-16 leading-6 font-act text-foreground">{`Couldn't open ${p.name}`}</h3>
           </div>
-          <p className="text-16 leading-[1.375rem] text-foreground/80">
+          <p className="text-16 leading-6 text-foreground/80">
             {FAIL_LINE[o.kind](meta.path)} <span className="text-muted-foreground">Nothing was created.</span>
           </p>
         </div>
@@ -105,7 +105,7 @@ function Pick({ p, options }: { p: Project; options: string[] }) {
       <div className="flex flex-col gap-3 px-4 py-3">
         <div className="flex flex-col gap-1">
           <h3 className="font-heading text-16 leading-6 font-act text-foreground">{`This folder has ${options.length} programs`}</h3>
-          <p className="text-16 leading-[1.375rem] text-foreground/80">Pick the one to open. You can open the other one from Programs later.</p>
+          <p className="text-16 leading-6 text-foreground/80">Pick the one to open. You can open the other one from Programs later.</p>
         </div>
         <Segmented variant="gradient" aria-label="Program to open" value={picked} onValueChange={(v) => v && setPicked(v)}>
           {options.map((name) => (

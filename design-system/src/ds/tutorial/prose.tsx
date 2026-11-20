@@ -3,9 +3,9 @@ import { InlineCode, Prose } from "@/components/ui/prose"
 import { Block, More } from "../parts"
 
 // The tutorial's reading scale: 16/24 at weight 320, a step under the headings' white
-const READ = "max-w-md text-[16px] leading-6 font-read text-foreground/80"
+const READ = "max-w-md text-16 leading-6 font-read text-foreground/80"
 // A side note: 13 on a 20 line, where the small chip fits without pushing the lines apart
-const NOTE = "max-w-md text-[13px] leading-5 text-muted-foreground"
+const NOTE = "max-w-md text-13 leading-5 text-muted-foreground"
 
 function ProseBlock() {
   return (

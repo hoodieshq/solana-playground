@@ -29,7 +29,7 @@ const TITLES: Record<Sub, string> = { example: "Example program", import: "Impor
 
 // The phone's column, and the upright tablet's 640 (CONSENSUS.md, 6.3), with its 16 px sides
 const COLUMN = "mx-auto w-full max-w-[30rem] [html.portrait_&]:max-w-[42rem]"
-const LABEL = "mt-6 first:mt-0 mb-2 text-13 leading-[1.125rem] font-[380] text-(color:--text-quiet)"
+const LABEL = "mt-6 first:mt-0 mb-2 text-13 leading-5 font-[380] text-(color:--text-quiet)"
 const ROW = "flex w-full items-center gap-3 rounded-xl px-2 text-left outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) active:bg-(--np-current)"
 const SLIDE = "absolute inset-0 flex flex-col bg-surface-base transition-transform duration-(--duration-sheet) ease-standard motion-reduce:transition-none"
 
@@ -154,7 +154,7 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                   <div className={cn(COLUMN, "px-4 pt-4 pb-6")}>
                     {hasStorageLine(env) && (
-                      <p id="np-page-storage" className="text-13 leading-[1.125rem] font-read text-muted-foreground">
+                      <p id="np-page-storage" className="text-13 leading-5 font-read text-muted-foreground">
                         <StorageLine />
                       </p>
                     )}

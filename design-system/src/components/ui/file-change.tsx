@@ -54,7 +54,7 @@ function FileChangeHeader({ className, children, ...props }: React.ComponentProp
         "flex items-center gap-2 px-3 [&>[data-slot=tag]]:ml-auto",
         variant === "wrote" && "h-8",
         variant === "created" && "h-9 pointer-coarse:h-11",
-        variant === "proposal" && "h-7 border-b border-border font-mono text-[0.75rem] text-muted-foreground",
+        variant === "proposal" && "h-7 border-b border-border font-mono text-13 text-muted-foreground",
         className
       )}
       {...props}
@@ -70,7 +70,7 @@ function FileChangeTitle({ className, ...props }: React.ComponentProps<"span">) 
   return (
     <span
       data-slot="file-change-title"
-      className={cn("min-w-0 truncate font-mono text-[0.75rem] text-foreground group-data-[variant=proposal]/file-change:text-muted-foreground", className)}
+      className={cn("min-w-0 truncate font-mono text-13 text-foreground group-data-[variant=proposal]/file-change:text-muted-foreground", className)}
       {...props}
     />
   )
@@ -84,7 +84,7 @@ function FileChangeLabel({ className, ...props }: React.ComponentProps<"span">) 
 /* A word on how it was written, under the head: "I put it at the end:
    your own lines are kept." */
 function FileChangeNote({ className, ...props }: React.ComponentProps<"p">) {
-  return <p data-slot="file-change-note" className={cn("border-t border-border px-3 py-1.5 text-[0.75rem] text-warning-ink", className)} {...props} />
+  return <p data-slot="file-change-note" className={cn("border-t border-border px-3 py-1.5 text-13 text-warning-ink", className)} {...props} />
 }
 
 /* The first lines written, on the card's own ground, as CodeBlockLines.
@@ -115,7 +115,7 @@ function FileChangeExcerpt({
     <CodeBlockContent
       data-slot="file-change-excerpt"
       style={{ counterReset: `line ${start - 1}`, ...style }}
-      className={cn("p-0 pb-2 text-[12px] leading-5 text-foreground", EXCERPT_LINE, className)}
+      className={cn("p-0 pb-2 text-13 leading-5 text-foreground", EXCERPT_LINE, className)}
       {...props}
     >
       {/* As wide as the longest line, so each line is too and its number has room to stay put */}
@@ -133,7 +133,7 @@ function FileChangeMore({ className, children, ...props }: React.ComponentProps<
   return (
     <span
       data-slot="file-change-more"
-      className={cn("sticky left-0 mt-1 flex w-fit text-[12px] leading-5 text-subtle", className)}
+      className={cn("sticky left-0 mt-1 flex w-fit text-13 leading-5 text-subtle", className)}
       {...props}
     >
       <span aria-hidden="true" className="w-[26px] shrink-0 pl-3 font-mono select-none">
@@ -148,7 +148,7 @@ function FileChangeDiff({ className, ...props }: React.ComponentProps<typeof Dif
   return (
     <DiffContent
       data-slot="file-change-diff"
-      className={cn("bg-surface-well py-1.5 text-[0.75rem] leading-[1.6] break-words whitespace-pre-wrap", className)}
+      className={cn("bg-surface-well py-1.5 text-13 leading-5 break-words whitespace-pre-wrap", className)}
       {...props}
     />
   )

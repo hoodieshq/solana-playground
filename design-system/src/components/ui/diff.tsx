@@ -24,7 +24,7 @@ function DiffHeader({ className, ...props }: React.ComponentProps<"div">) {
 
 function DiffTitle({ className, ...props }: React.ComponentProps<"span">) {
   return (
-    <span data-slot="diff-title" className={cn("min-w-0 truncate font-mono text-xs text-muted-foreground", className)} {...props} />
+    <span data-slot="diff-title" className={cn("min-w-0 truncate font-mono text-13 leading-4 text-muted-foreground", className)} {...props} />
   )
 }
 
@@ -36,7 +36,7 @@ function DiffStat({
   ...props
 }: React.ComponentProps<"span"> & { added?: number; removed?: number }) {
   return (
-    <span data-slot="diff-stat" className={cn("ml-auto flex gap-2 text-xs tabular-nums", className)} {...props}>
+    <span data-slot="diff-stat" className={cn("ml-auto flex gap-2 text-13 leading-4 tabular-nums", className)} {...props}>
       <span className="text-success">+{added}</span>
       <span className="text-error">−{removed}</span>
     </span>
@@ -47,7 +47,7 @@ function DiffContent({ className, ...props }: React.ComponentProps<"pre">) {
   return (
     <pre
       data-slot="diff-content"
-      className={cn("overflow-x-auto py-2 font-mono text-[0.8125rem] leading-relaxed", className)}
+      className={cn("overflow-x-auto py-2 font-mono text-13 leading-5", className)}
       {...props}
     />
   )
@@ -174,7 +174,7 @@ function DiffGap({ className, children, ...props }: React.ComponentProps<"span">
     <span
       data-slot="diff-gap"
       aria-hidden={children ? undefined : true}
-      className={cn("block min-h-3 pl-14 font-sans text-xs text-subtle", className)}
+      className={cn("block min-h-3 pl-14 font-sans text-13 leading-4 text-subtle", className)}
       {...props}
     >
       {children}

@@ -131,7 +131,7 @@ function ResultCardTitle({ className, ...props }: React.ComponentProps<"span">) 
   return (
     <span
       data-slot="result-card-title"
-      className={cn("shrink-0 font-heading text-[1rem] leading-[1.5rem] font-medium text-foreground", className)}
+      className={cn("shrink-0 font-heading text-16 leading-6 font-act text-foreground", className)}
       {...props}
     />
   )
@@ -145,7 +145,7 @@ function ResultCardMeta({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="result-card-meta"
-      className={cn("min-w-0 truncate text-[0.875rem] leading-[1.125rem] text-muted-foreground [&_code]:font-mono [&_code]:text-[13px]", className)}
+      className={cn("min-w-0 truncate text-13 leading-5 text-muted-foreground [&_code]:font-mono [&_code]:text-13", className)}
       {...props}
     />
   )

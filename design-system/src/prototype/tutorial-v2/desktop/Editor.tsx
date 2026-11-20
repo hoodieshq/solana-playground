@@ -172,7 +172,7 @@ export function Editor({
         onMouseMove={onMouseMove}
         onMouseLeave={() => point(null)}
         className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain py-2 font-mono outline-none focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:ring-inset text-code leading-[1.6] transition-opacity duration-150 has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-ring/50 has-[textarea:focus-visible]:ring-inset",
+          "flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain py-2 font-mono outline-none focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:ring-inset text-code leading-5 transition-opacity duration-150 has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-ring/50 has-[textarea:focus-visible]:ring-inset",
           busy && "opacity-60"
         )}
       >
@@ -186,7 +186,7 @@ export function Editor({
             ))}
           </div>
           <div className="relative">
-            <pre ref={pre} aria-hidden="true" className={cn("m-0 font-mono text-code leading-[1.6] text-syntax-plain", wrap ? "whitespace-pre-wrap [overflow-wrap:anywhere]" : "whitespace-pre")}>
+            <pre ref={pre} aria-hidden="true" className={cn("m-0 font-mono text-code leading-5 text-syntax-plain", wrap ? "whitespace-pre-wrap [overflow-wrap:anywhere]" : "whitespace-pre")}>
               {rows.map((line, i) => {
                 const n = i + 1
                 const k = order(n)
@@ -221,7 +221,7 @@ export function Editor({
                 key={`${error.line}:${from}:${token}`}
                 aria-hidden="true"
                 style={{ top: `calc(${error.line - 1} * 1lh)`, left: `${from}ch` }}
-                className="pg-squiggle pointer-events-none absolute font-mono text-code leading-[1.6] whitespace-pre text-transparent underline decoration-error decoration-wavy decoration-1 underline-offset-[3px] [text-decoration-skip-ink:none]"
+                className="pg-squiggle pointer-events-none absolute font-mono text-code leading-5 whitespace-pre text-transparent underline decoration-error decoration-wavy decoration-1 underline-offset-[3px] [text-decoration-skip-ink:none]"
               >
                 {token}
               </span>
@@ -241,7 +241,7 @@ export function Editor({
               wrap={wrap ? "soft" : "off"}
               style={{ height: wrap ? "100%" : `calc(${rows.length} * 1lh)` }}
               className={cn(
-                "absolute inset-x-0 top-0 m-0 min-h-full w-full resize-none overflow-hidden bg-transparent p-0 font-mono text-code leading-[1.6] text-transparent caret-foreground outline-none selection:bg-primary/30 placeholder:font-sans placeholder:text-caption placeholder:text-subtle read-only:cursor-default",
+                "absolute inset-x-0 top-0 m-0 min-h-full w-full resize-none overflow-hidden bg-transparent p-0 font-mono text-code leading-5 text-transparent caret-foreground outline-none selection:bg-primary/30 placeholder:font-sans placeholder:text-caption placeholder:text-subtle read-only:cursor-default",
                 // The pre's lines keep 32 clear at their right: wrapped, the textarea breaks at the same place
                 wrap ? "pr-8 whitespace-pre-wrap [overflow-wrap:anywhere]" : "whitespace-pre"
               )}

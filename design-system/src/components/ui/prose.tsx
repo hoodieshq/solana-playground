@@ -32,9 +32,9 @@ const LINK = /\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s`]*[^\s`.,;:!?)])|(?<!#)
    4 at the sides (3 on small), so a short word doesn't read as a button.
    Weight 350 matches the text's 320 in colour */
 const inlineCodeVariants = {
-  default: "px-1 pt-[3px] pb-[3px] text-[14px] leading-4",
-  large: "px-1 pt-[5px] pb-[2px] text-[14px] leading-4",
-  small: "px-[3px] pt-px pb-[2px] text-[12px] leading-4",
+  default: "px-1 pt-[3px] pb-[3px] text-13 leading-4",
+  large: "px-1 pt-[5px] pb-[2px] text-13 leading-4",
+  small: "px-[3px] pt-px pb-[2px] text-13 leading-4",
 }
 
 type InlineCodeSize = keyof typeof inlineCodeVariants

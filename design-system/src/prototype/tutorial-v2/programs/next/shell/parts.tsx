@@ -14,14 +14,14 @@ import { FOCUS } from "../../../ui/type"
 
 /** The details' quiet controls: caption size, muted, brighter on hover */
 export const QUIET = cn(
-  "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-13 leading-[1.125rem] text-muted-foreground transition-colors duration-150 ease-standard hover:text-foreground motion-reduce:transition-none",
+  "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-13 leading-5 text-muted-foreground transition-colors duration-150 ease-standard hover:text-foreground motion-reduce:transition-none",
   FOCUS
 )
 
 /** A status row's words: the title 16/24 at 500, the meta 14/18 in grey, on one baseline */
 export const STATUS_PAIR = "flex min-w-0 flex-1 items-baseline gap-2"
-export const STATUS_TITLE = "shrink-0 font-heading text-16 leading-[1.5rem] font-act text-foreground"
-export const STATUS_META = "min-w-0 truncate text-13 leading-[1.125rem] text-muted-foreground"
+export const STATUS_TITLE = "shrink-0 font-heading text-16 leading-6 font-act text-foreground"
+export const STATUS_META = "min-w-0 truncate text-13 leading-5 text-muted-foreground"
 
 /** Copy with "Copied" in its place for a moment */
 export function CopyQuiet({ value, label }: { value: string; label: string }) {
@@ -89,7 +89,7 @@ export function Well({ lines, className }: { lines: string[]; className?: string
 
 /** A compiler's or a program's words, quoted on a red rule. Red stays on the rule, the words in foreground */
 export function Quote({ children }: { children: ReactNode }) {
-  return <div className="border-l-2 border-error/40 pl-3 font-mono text-13 leading-[1.6] break-words text-foreground/90">{children}</div>
+  return <div className="border-l-2 border-error/40 pl-3 font-mono text-13 leading-5 break-words text-foreground/90">{children}</div>
 }
 
 /** A live card's foot: its button, and the fields it sends, on the panel's grey under a hairline, out to

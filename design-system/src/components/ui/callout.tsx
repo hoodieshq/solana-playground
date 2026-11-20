@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 /* A note inside a page or a form: a tint and a hairline, calm enough to read
    past. Alert is for the page as a whole; a callout is for the place it sits. */
 const calloutVariants = cva(
-  "group/callout relative grid w-full gap-0.5 rounded-xl border px-3.5 py-3 text-left text-sm has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2.5 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg:not([class*='size-'])]:size-4",
+  "group/callout relative grid w-full gap-0.5 rounded-xl border px-3.5 py-3 text-left text-13 leading-5 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2.5 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

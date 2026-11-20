@@ -47,7 +47,7 @@ function Actions({ onHint, onSkip }: { onHint?: () => void; onSkip?: () => void 
 function Panel({ children }: { children: React.ReactNode }) {
   return (
     <div className="w-full max-w-[440px] rounded-panel border border-border bg-background px-5 py-6 max-sm:px-4">
-      <p className="text-[1rem] leading-6 text-foreground/80">
+      <p className="text-16 leading-6 text-foreground/80">
         <Prose text="The account pays rent to exist, and someone signs for it. Check what you read:" />
       </p>
       <div className="mt-10">{children}</div>

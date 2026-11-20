@@ -83,7 +83,7 @@ function Rows({ rows }: { rows: Row[] }) {
       </div>
       {rows.map((r) => (
         <div key={r.now} className="grid gap-1 px-5 py-3.5 md:grid-cols-[1fr_1.2fr_1.6fr_7rem] md:gap-6">
-          <span className="text-control font-act text-foreground">{r.now}</span>
+          <span className="text-16 leading-5 font-act text-foreground">{r.now}</span>
           <span className="text-caption font-read text-foreground">{r.next}</span>
           <span className="text-caption font-read text-muted-foreground">{r.keep}</span>
           <span
@@ -115,7 +115,7 @@ function Steps() {
     <ol className="grid gap-px overflow-hidden rounded-card border border-border bg-border md:grid-cols-2">
       {steps.map(([title, body]) => (
         <li key={title} className="bg-background p-5">
-          <div className="text-control font-act text-foreground">{title}</div>
+          <div className="text-16 leading-5 font-act text-foreground">{title}</div>
           <p className="mt-1 text-caption font-read text-muted-foreground">{body}</p>
         </li>
       ))}
@@ -127,7 +127,7 @@ function Migration() {
   return (
     <div className="flex flex-col gap-10">
       <div>
-        <h4 className="font-heading text-2xl font-headline tracking-tight text-foreground">The steps</h4>
+        <h4 className="font-heading text-28 leading-8 font-headline tracking-tight text-foreground">The steps</h4>
         <p className="mt-2 max-w-2xl text-body font-read text-muted-foreground">
           The tokens go in first and the components follow, so the product never breaks in between.
         </p>
@@ -136,8 +136,8 @@ function Migration() {
         </div>
         <div className="mt-4 flex flex-col gap-2 rounded-card border border-border p-5">
           <span className="text-caption font-label text-subtle">Install the tokens, then any of ours</span>
-          <code className="font-mono text-[12px] break-all text-foreground">{install("playground-tokens")}</code>
-          <code className="font-mono text-[12px] break-all text-foreground">{install("stepper")}</code>
+          <code className="font-mono text-13 break-all text-foreground">{install("playground-tokens")}</code>
+          <code className="font-mono text-13 break-all text-foreground">{install("stepper")}</code>
           <span className="text-caption font-read text-muted-foreground">
             Everything the registry holds is listed at{" "}
             <a className="text-foreground underline underline-offset-3" href={`${SITE}/r/registry.json`}>
@@ -149,7 +149,7 @@ function Migration() {
       </div>
 
       <div>
-        <h4 className="font-heading text-2xl font-headline tracking-tight text-foreground">Stock shadcn, restyled by tokens</h4>
+        <h4 className="font-heading text-28 leading-8 font-headline tracking-tight text-foreground">Stock shadcn, restyled by tokens</h4>
         <p className="mt-2 max-w-2xl text-body font-read text-muted-foreground">
           These are shadcn as it ships. The tokens carry our look. What little is ours is a class at the place it is used.
         </p>
@@ -159,7 +159,7 @@ function Migration() {
       </div>
 
       <div>
-        <h4 className="font-heading text-2xl font-headline tracking-tight text-foreground">Where ours does more</h4>
+        <h4 className="font-heading text-28 leading-8 font-headline tracking-tight text-foreground">Where ours does more</h4>
         <p className="mt-2 max-w-2xl text-body font-read text-muted-foreground">
           shadcn has one, but ours does something it does not. We keep ours, written the way shadcn writes its own. The stock file stays untouched, so shadcn can still update it.
         </p>
@@ -169,7 +169,7 @@ function Migration() {
       </div>
 
       <div>
-        <h4 className="font-heading text-2xl font-headline tracking-tight text-foreground">Only in Playground</h4>
+        <h4 className="font-heading text-28 leading-8 font-headline tracking-tight text-foreground">Only in Playground</h4>
         <p className="mt-2 max-w-2xl text-body font-read text-muted-foreground">No shadcn equivalent. These are ours outright, in the same structure.</p>
         <div className="mt-6">
           <Rows rows={ONLY} />
@@ -177,7 +177,7 @@ function Migration() {
       </div>
 
       <div>
-        <h4 className="font-heading text-2xl font-headline tracking-tight text-foreground">Patterns that became tokens</h4>
+        <h4 className="font-heading text-28 leading-8 font-headline tracking-tight text-foreground">Patterns that became tokens</h4>
         <div className="mt-6 grid gap-px overflow-hidden rounded-card border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
           {[
             ["frosted", "The bars over the stage: 82% of the ground, blurred 18 px."],

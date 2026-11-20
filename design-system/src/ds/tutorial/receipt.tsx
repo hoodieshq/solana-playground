@@ -104,7 +104,7 @@ function Answer({ open, onOpenChange }: { open?: boolean; onOpenChange?: (open: 
           <ReceiptAnswer>Hello, Ada!</ReceiptAnswer>
           <ReceiptGroup>
             <ReceiptRow label="You paid">
-              <span className="block font-medium">0.000005 SOL</span>
+              <span className="block font-act">0.000005 SOL</span>
               <span className="block text-subtle">Devnet SOL, free test money</span>
             </ReceiptRow>
           </ReceiptGroup>

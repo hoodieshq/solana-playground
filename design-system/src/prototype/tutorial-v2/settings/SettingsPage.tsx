@@ -90,7 +90,7 @@ export function SettingsPage({ scene, section, rpcForm, onClose }: { scene: Scen
             className={cn("mx-auto w-full", view === "phone" ? "max-w-[35rem] px-4 pt-2 pb-[calc(var(--safe-bottom)+24px)]" : phone ? "px-4 pt-2 pb-[calc(var(--safe-bottom)+24px)]" : "max-w-[50rem] px-8 pt-8 pb-24")}
           >
             {/* Beside the nav there's no Back to app: the nav, Escape and ⌘, close it */}
-            {!phone && <h1 className="mt-6 mb-8 flex min-h-8 items-center font-heading text-28 font-normal tracking-[-0.015em] text-foreground">Settings</h1>}
+            {!phone && <h1 className="mt-6 mb-8 flex min-h-8 items-center font-heading text-28 font-normal tracking-tight text-foreground">Settings</h1>}
 
             <Group id="top" title="Editor">
               {/* The name alone didn't say what it does (Almaz, 10 Nov) */}

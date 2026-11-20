@@ -28,7 +28,7 @@ function CodeBlockTitle({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="code-block-title"
-      className={cn("min-w-0 truncate font-mono text-xs text-muted-foreground", className)}
+      className={cn("min-w-0 truncate font-mono text-13 leading-4 text-muted-foreground", className)}
       {...props}
     />
   )
@@ -56,7 +56,7 @@ function CodeBlockContent({ className, wrap = false, ...props }: React.Component
       data-slot="code-block-content"
       data-wrap={wrap || undefined}
       className={cn(
-        "group/code-block-content overflow-x-auto p-3 font-mono text-[0.8125rem] leading-relaxed text-syntax-plain [counter-reset:line]",
+        "group/code-block-content overflow-x-auto p-3 font-mono text-13 leading-5 text-syntax-plain [counter-reset:line]",
         className
       )}
       {...props}

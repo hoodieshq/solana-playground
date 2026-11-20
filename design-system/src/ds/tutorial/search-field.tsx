@@ -18,7 +18,7 @@ function Head({ className }: { className?: string }) {
   return (
     <SearchField collapsible value={query} onValueChange={setQuery} className={className}>
       <SearchFieldAside className="mr-auto">
-        <h2 className="font-heading text-[1.75rem] font-normal tracking-[-0.015em] text-foreground">Tutorials</h2>
+        <h2 className="font-heading text-28 font-normal tracking-tight text-foreground">Tutorials</h2>
       </SearchFieldAside>
       <SearchFieldInput placeholder="Search 24 tutorials" aria-label="Search tutorials" />
       <SearchFieldCancel />

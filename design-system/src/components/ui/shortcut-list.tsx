@@ -66,7 +66,7 @@ function ShortcutListGroup({
 }) {
   return (
     <section data-slot="shortcut-list-group" aria-label={label} className={className} {...props}>
-      {label && <h3 className="mb-1 text-[12px] leading-4 text-subtle">{label}</h3>}
+      {label && <h3 className="mb-1 text-13 leading-4 text-subtle">{label}</h3>}
       <dl className="flex flex-col">{children}</dl>
     </section>
   )
@@ -88,7 +88,7 @@ function ShortcutListItem({
   const list = Array.isArray(keys) ? keys : keys.split(" ").filter(Boolean)
   return (
     <div data-slot="shortcut-list-item" className={cn("flex h-8 items-center justify-between gap-4", className)} {...props}>
-      <dt className="min-w-0 text-[14px] leading-[18px] text-foreground/80">{children}</dt>
+      <dt className="min-w-0 text-13 leading-5 text-foreground/80">{children}</dt>
       <dd className="flex shrink-0 gap-1">
         {list.map((key, i) => (
           <Kbd key={i}>{key}</Kbd>

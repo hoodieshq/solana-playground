@@ -23,7 +23,7 @@ export function ShortcutsDialog({ open, onOpenChange, onCloseAutoFocus }: { open
               <dl className="flex flex-col">
                 {SHORTCUTS.filter((k) => k.group === group).map((k) => (
                   <div key={k.what} className="flex h-8 items-center justify-between gap-4">
-                    <dt className="text-13 leading-[1.125rem] text-foreground/80">{k.what}</dt>
+                    <dt className="text-13 leading-5 text-foreground/80">{k.what}</dt>
                     <dd className="flex gap-1">
                       {k.keys.split(" ").map((key) => (
                         <Kbd key={key}>{key}</Kbd>

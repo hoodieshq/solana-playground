@@ -27,7 +27,7 @@ export function AvatarDisc({ a, size = 32, notch = false }: { a: Account; size?:
       <span
         style={a.avatar ? { backgroundImage: "linear-gradient(135deg, rgb(153 69 255 / 0.34), rgb(20 241 149 / 0.2))" } : undefined}
         className={cn(
-          "flex size-full items-center justify-center rounded-full bg-surface-raised font-act tracking-[0.02em] [&>svg]:size-[55%]",
+          "flex size-full items-center justify-center rounded-full bg-surface-raised font-act tracking-wide [&>svg]:size-[55%]",
           a.avatar ? "text-foreground" : "text-muted-foreground",
           size < 28 ? "text-11" : "text-13"
         )}
@@ -120,14 +120,14 @@ export function AccountRow({ account: a, chip, menu, chipWord, setup }: Props) {
                 <span className="flex min-w-0 items-center gap-2">
                   <span
                     className={cn(
-                      "min-w-0 truncate leading-5 font-act tracking-[-0.005em] text-foreground",
+                      "min-w-0 truncate leading-5 font-act tracking-normal text-foreground",
                       roomy ? "text-16" : "text-13"
                     )}
                   >
                     {a.primary}
                   </span>
                   {/* The chip's room, drawn invisibly at its size: the chip itself is a button of its own over it */}
-                  <span aria-hidden="true" className="invisible ml-auto flex shrink-0 items-center gap-1.5 px-2 text-13 font-act tracking-[0.01em] whitespace-nowrap">
+                  <span aria-hidden="true" className="invisible ml-auto flex shrink-0 items-center gap-1.5 px-2 text-13 font-act tracking-normal whitespace-nowrap">
                     <span className="size-1.5" />
                     {a.session === "waiting" ? "Cancel" : chipWord}
                   </span>
@@ -136,7 +136,7 @@ export function AccountRow({ account: a, chip, menu, chipWord, setup }: Props) {
                 {!alone && (
                   <span
                     className={cn(
-                      "truncate leading-4 text-13 font-act tracking-[0.01em]",
+                      "truncate leading-4 text-13 font-act tracking-normal",
                       !calm && needsYou(a) ? "text-warning-ink" : "text-(color:--text-quiet)"
                     )}
                   >

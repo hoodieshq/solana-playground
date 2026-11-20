@@ -45,7 +45,7 @@ export function ResumeList({ id, title, items, className }: { id: string; title:
   return (
     <section aria-labelledby={id} className={className}>
       <div className="mb-2.5 flex min-h-9 items-center gap-2">
-        <h2 id={id} className="font-heading text-20 leading-[1.5rem] font-headline text-foreground">
+        <h2 id={id} className="font-heading text-20 leading-6 font-headline text-foreground">
           {title}
         </h2>
         {/* How many, as the levels of Tutorials say it */}
@@ -106,9 +106,9 @@ export function ResumeList({ id, title, items, className }: { id: string; title:
             >
               {it.cover}
               <div className="min-w-0 flex-1">
-                <p className="truncate font-heading text-16 leading-[1.25] font-normal tracking-[-0.015em] text-foreground">{it.name}</p>
+                <p className="truncate font-heading text-16 leading-5 font-normal tracking-tight text-foreground">{it.name}</p>
                 {/* Green and white once it's done, as the catalog's standing; grey while it's under way */}
-                <p className={cn("mt-1 flex items-center gap-1.5 text-13 leading-[1.125rem]", it.done ? "text-foreground" : "text-muted-foreground")}>
+                <p className={cn("mt-1 flex items-center gap-1.5 text-13 leading-5", it.done ? "text-foreground" : "text-muted-foreground")}>
                   <StatusDot variant={it.failed ? "error" : it.done ? "success" : "idle"} />
                   <span className="truncate">{it.where}</span>
                 </p>

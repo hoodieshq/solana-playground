@@ -65,7 +65,7 @@ function BuildSuccessful() {
       </ResultCardHeader>
       <ResultCardFold>
         <ResultCardDetails>
-          <pre className="font-mono text-[0.75rem] leading-5 whitespace-pre-wrap text-muted-foreground">
+          <pre className="font-mono text-13 leading-5 whitespace-pre-wrap text-muted-foreground">
             {"Compiling lumberjack v0.1.0\n"}
             <span className="text-success">Finished release in 1.6 s</span>
           </pre>
@@ -107,7 +107,7 @@ function PlayerAccount() {
     <div>
       <div className="flex items-center gap-2 text-caption text-muted-foreground">
         <span className="text-foreground">Player account</span>
-        <span className="min-w-0 truncate font-mono text-[0.75rem]" title={PLAYER}>
+        <span className="min-w-0 truncate font-mono text-13" title={PLAYER}>
           {shortKey(PLAYER)}
         </span>
       </div>
@@ -122,7 +122,7 @@ function PlayerAccount() {
         </Meter>
         <span className="flex items-center gap-1.5">
           <TreePine aria-hidden="true" className="size-3.5 text-muted-foreground" />
-          <span className="font-mono text-[0.8125rem] text-foreground tabular-nums">0</span>
+          <span className="font-mono text-13 text-foreground tabular-nums">0</span>
           <span className="text-caption text-muted-foreground">wood</span>
         </span>
       </div>
@@ -174,10 +174,10 @@ function ResultCardBlock() {
                 </ResultCardText>
               </ResultCardHeader>
               <ResultCardBody className="gap-6">
-                <p className="border-l-2 border-error/40 pl-3 font-mono text-[0.8125rem] leading-[1.6] break-words text-foreground/90">
+                <p className="border-l-2 border-error/40 pl-3 font-mono text-13 leading-5 break-words text-foreground/90">
                   error[E0412]: cannot find type `Initialize` in this scope
                 </p>
-                <p className="text-[1rem] leading-[1.5rem] font-read text-foreground/80">
+                <p className="text-16 leading-6 font-read text-foreground/80">
                   The Context names a struct that does not exist yet. Add it under the module.
                 </p>
                 <div className="flex flex-wrap items-center gap-2 max-sm:flex-col max-sm:items-stretch">
@@ -198,7 +198,7 @@ function ResultCardBlock() {
               </ResultCardHeader>
               <ResultCardFold>
                 <ResultCardBody>
-                  <p className="text-[1rem] leading-[1.5rem] font-read text-foreground/80">The Context names a struct that does not exist yet.</p>
+                  <p className="text-16 leading-6 font-read text-foreground/80">The Context names a struct that does not exist yet.</p>
                 </ResultCardBody>
               </ResultCardFold>
             </ResultCard>

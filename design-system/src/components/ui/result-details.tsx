@@ -28,7 +28,7 @@ import { useScrollEdges } from "@/hooks/use-scroll-edges"
             loudest text there */
 
 const QUIET =
-  "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-[0.875rem] leading-[1.125rem] text-muted-foreground outline-none transition-colors duration-150 ease-standard hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:min-h-11 motion-reduce:transition-none"
+  "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-13 leading-5 text-muted-foreground outline-none transition-colors duration-150 ease-standard hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:min-h-11 motion-reduce:transition-none"
 
 /* A line the program itself logged, other than Anchor's own "Instruction:"
    line: what msg! said, in the text's ink on a plate inside the well. Run
@@ -99,7 +99,7 @@ function ResultDetails({
   return (
     // Under a finger the last row is already a thumb's height, so it gives back some of the card's 12 under it
     <div data-slot="result-details" className={cn("pointer-coarse:-mb-2", className)} {...props}>
-      <p className={quiet ? "text-[0.875rem] leading-5 text-pretty text-muted-foreground" : "text-[1rem] leading-[1.5rem] font-read text-pretty text-foreground/80"}>
+      <p className={quiet ? "text-13 leading-5 text-pretty text-muted-foreground" : "text-16 leading-6 font-read text-pretty text-foreground/80"}>
         <Prose text={text} />
       </p>
 
@@ -138,7 +138,7 @@ function ResultDetails({
           <div ref={well} className="mt-3 scroll-mb-4 overflow-hidden rounded-[6px] bg-surface-well pointer-coarse:mt-1">
             {onOpenTerminal && (
               <div className="flex justify-end px-3 pt-2 pointer-coarse:hidden">
-                <button type="button" title="Terminal ⌘J" onClick={onOpenTerminal} className={cn(QUIET, "text-[0.75rem] leading-4")}>
+                <button type="button" title="Terminal ⌘J" onClick={onOpenTerminal} className={cn(QUIET, "text-13 leading-4")}>
                   Open terminal
                 </button>
               </div>
@@ -146,7 +146,7 @@ function ResultDetails({
             <pre
               ref={scroller}
               className={cn(
-                "fade-edges overflow-x-auto px-3 pt-3 pb-3 font-mono text-[0.75rem] leading-5 whitespace-pre [--fade-size:1.5rem]",
+                "fade-edges overflow-x-auto px-3 pt-3 pb-3 font-mono text-13 leading-5 whitespace-pre [--fade-size:1.5rem]",
                 onOpenTerminal && "pt-1 pointer-coarse:pt-3"
               )}
             >

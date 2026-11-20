@@ -20,7 +20,7 @@ const Size = React.createContext<FileTreeSize>("default")
 const indent = (depth: number): React.CSSProperties => ({ paddingLeft: `${8 + depth * 20}px` })
 
 const ROW =
-  "flex h-7 w-full items-center gap-2 rounded-[6px] px-2 text-left text-[0.8125rem] whitespace-nowrap outline-none transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+  "flex h-7 w-full items-center gap-2 rounded-[6px] px-2 text-left text-13 whitespace-nowrap outline-none transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
 
 function FileTree({
   className,
@@ -73,7 +73,7 @@ function FileTreeFolder({ className, depth = 0, style, children, ...props }: Rea
       aria-level={depth + 1}
       data-slot="file-tree-folder"
       style={{ ...indent(depth), ...style }}
-      className={cn(ROW, "cursor-default text-muted-foreground", size === "touch" && "h-9 text-[0.9375rem]", className)}
+      className={cn(ROW, "cursor-default text-muted-foreground", size === "touch" && "h-9 text-16", className)}
       {...props}
     >
       <ChevronDown aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" strokeWidth={1.75} />
@@ -118,7 +118,7 @@ function FileTreeItem({
       className={cn(
         ROW,
         "group/file-tree-item relative text-muted-foreground disabled:cursor-default [&>svg]:shrink-0 [&>svg]:text-subtle",
-        touch ? "h-11 text-[0.9375rem] [&>svg]:size-4" : "[&>svg]:size-[15px]",
+        touch ? "h-11 text-16 [&>svg]:size-4" : "[&>svg]:size-[15px]",
         /* Under a finger the open file takes a fill of its own and hover
            leaves it be: a tap's hover sticks on a phone, so a press answers */
         touch

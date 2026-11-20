@@ -25,7 +25,7 @@ const receiptVariants = cva("group/receipt @container/receipt flex flex-col [&_[
       printed:
         "edge-torn rounded-t-control border border-b-0 border-border bg-surface-panel px-4 pt-4 font-mono text-code text-foreground",
       compact:
-        "flex-row flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border pt-3 text-[0.875rem] leading-[1.125rem] text-muted-foreground",
+        "flex-row flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border pt-3 text-13 leading-5 text-muted-foreground",
       answer: "overflow-hidden rounded-card border border-border bg-surface-well",
     },
   },
@@ -98,7 +98,7 @@ function ReceiptAnswer({ className, ...props }: React.ComponentProps<"p">) {
       data-slot="receipt-answer"
       data-print-row=""
       className={cn(
-        "mt-1 font-mono text-[1.375rem] leading-tight font-medium break-words text-foreground @max-[30rem]/receipt:text-[1.25rem]",
+        "mt-1 font-mono text-20 leading-6 font-act break-words text-foreground @max-[30rem]/receipt:text-20",
         PRINT_ROW,
         className
       )}
@@ -151,7 +151,7 @@ function ReceiptNote({ className, ...props }: React.ComponentProps<"p">) {
     <p
       data-slot="receipt-note"
       data-print-row=""
-      className={cn("mt-3 font-sans text-[0.6875rem] text-muted-foreground", PRINT_ROW, className)}
+      className={cn("mt-3 font-sans text-11 text-muted-foreground", PRINT_ROW, className)}
       {...props}
     />
   )
@@ -190,7 +190,7 @@ function ReceiptKey({
     <code
       data-slot="receipt-key"
       title={value}
-      className={cn("min-w-0 truncate font-mono group-data-[variant=compact]/receipt:mr-1 group-data-[variant=compact]/receipt:shrink-0 group-data-[variant=compact]/receipt:overflow-visible group-data-[variant=compact]/receipt:text-[13px]", className)}
+      className={cn("min-w-0 truncate font-mono group-data-[variant=compact]/receipt:mr-1 group-data-[variant=compact]/receipt:shrink-0 group-data-[variant=compact]/receipt:overflow-visible group-data-[variant=compact]/receipt:text-13", className)}
       {...props}
     >
       {shortKey(value, head, tail)}

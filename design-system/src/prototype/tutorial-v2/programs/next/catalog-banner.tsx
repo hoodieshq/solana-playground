@@ -33,7 +33,7 @@ const BEAM_CSS = `
   .start-beam:hover:not(:disabled):not(:active)::before { opacity: 1; }
 }`
 
-const GO = "start-beam h-10 font-heading text-16 font-act tracking-[-0.005em] pointer-coarse:h-11"
+const GO = "start-beam h-10 font-heading text-16 font-act tracking-normal pointer-coarse:h-11"
 
 /** The catalog's top, built as the Tutorials gallery's Start here banner: the words on the left, the
  * mark as a voxel sculpture beside them, here telling a deploy. Under 640px wide the sculpture hangs
@@ -76,11 +76,11 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
               {st ? ` · ${p.minutes} min` : `${p.minutes} min`}
             </span>
           </p>
-          <h2 id={titleId} className="mt-1.5 font-heading text-20 leading-6 font-normal tracking-[-0.015em] text-foreground">
+          <h2 id={titleId} className="mt-1.5 font-heading text-20 leading-6 font-normal tracking-tight text-foreground">
             {/* A heading, so the name takes a capital here; the cards keep the program's own lowercase */}
             {p.name.charAt(0).toUpperCase() + p.name.slice(1)}
           </h2>
-          <p className="mt-2 max-w-[44ch] text-16 leading-[1.35] text-balance text-foreground/78">
+          <p className="mt-2 max-w-[44ch] text-16 leading-5 text-balance text-foreground/78">
             {native ? "Send text and read it back" : "Deploy a counter and count up"}
           </p>
           {/* On the phone the button takes the card's width, a thumb's 48, as the Tutorials banner sets it; an

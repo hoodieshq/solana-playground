@@ -100,7 +100,7 @@ function SearchFieldInput({
     <label
       data-slot="search-field-control"
       className={cn(
-        "relative flex h-8 w-80 max-w-full shrink-0 items-center gap-2 rounded-lg border border-foreground/[0.05] bg-surface-panel pr-2 pl-3 text-[0.875rem] text-foreground/80 transition-colors duration-150 focus-within:border-foreground/20 pointer-coarse:h-11",
+        "relative flex h-8 w-80 max-w-full shrink-0 items-center gap-2 rounded-lg border border-foreground/[0.05] bg-surface-panel pr-2 pl-3 text-13 text-foreground/80 transition-colors duration-150 focus-within:border-foreground/20 pointer-coarse:h-11",
         folds &&
           "@max-[35rem]/search-field:w-8 @max-[35rem]/search-field:justify-center @max-[35rem]/search-field:border-foreground/10 @max-[35rem]/search-field:bg-transparent @max-[35rem]/search-field:p-0 @max-[35rem]/search-field:text-foreground pointer-coarse:@max-[35rem]/search-field:w-11",
         open && "min-w-0 flex-1 duration-200 animate-in fade-in motion-reduce:animate-none",
@@ -125,7 +125,7 @@ function SearchFieldInput({
         }}
         aria-label={label}
         className={cn(
-          "min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground/80 pointer-coarse:text-base [&::-webkit-search-cancel-button]:hidden",
+          "min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground/80 pointer-coarse:text-16 [&::-webkit-search-cancel-button]:hidden",
           folds && "@max-[35rem]/search-field:absolute @max-[35rem]/search-field:w-px @max-[35rem]/search-field:opacity-0"
         )}
         {...props}
@@ -178,7 +178,7 @@ function SearchFieldCancel({ className, children = "Cancel", ...props }: React.C
       data-slot="search-field-cancel"
       onClick={cancel}
       className={cn(
-        "h-8 shrink-0 rounded-md pr-1 pl-2 text-[0.875rem] text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring pointer-coarse:h-11",
+        "h-8 shrink-0 rounded-md pr-1 pl-2 text-13 text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring pointer-coarse:h-11",
         className
       )}
       {...props}

@@ -3,7 +3,7 @@ import { StepHeading, StepHeadingTitle } from "@/components/ui/step-heading"
 import { Block } from "../parts"
 
 /* The assistant's reading text, as the feed sets it */
-const READ = "text-[1rem] leading-[1.5rem] font-read tracking-normal text-foreground/80"
+const READ = "text-16 leading-6 font-read tracking-normal text-foreground/80"
 
 function StepHeadingBlock() {
   return (

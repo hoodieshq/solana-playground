@@ -209,7 +209,8 @@
 @theme {
   /* The product's scale (Almaz and Nikita, 20 Nov): five sizes a step apart that the eye can tell, and a
      sixth for tags only. 15, 16 and 17 read as one size, so they are one now. Screens take these and
-     nothing in between: no text-[…]. A size sets no line height of its own; leading-* sets it.
+     nothing in between: no text-[…]. Each size brings a whole-pixel line height (11/16, 13/20, 16/24,
+     20/28, 28/32, 40/44); leading-* overrides it. Ratios gave 18.85 and 19.5 px lines (Almaz, 20 Nov).
        11  tags and key caps only (BETA, ⌘K), never running text
        13  interface: controls, tabs, menus, meta, code
        16  reading: text, names, labels
@@ -217,27 +218,33 @@
        28  a page's title
        40  the home hero */
   --text-11: 0.6875rem;
+  --text-11--line-height: 1rem;
   --text-13: 0.8125rem;
+  --text-13--line-height: 1.25rem;
   --text-16: 1rem;
+  --text-16--line-height: 1.5rem;
   --text-20: 1.25rem;
+  --text-20--line-height: 1.75rem;
   --text-28: 1.75rem;
+  --text-28--line-height: 2rem;
   --text-40: 2.5rem;
+  --text-40--line-height: 2.75rem;
 
   /* The named sizes below sit on the scale. title and control are off it (17 and 15) and stay only for
      tutorial v1, which is frozen: nothing new uses them */
   --text-display: 1.75rem;
-  --text-display--line-height: 1.15;
+  --text-display--line-height: 2rem;
   --text-display--letter-spacing: -0.02em;
   --text-title: 1.0625rem;
-  --text-title--line-height: 1.3;
+  --text-title--line-height: 1.375rem;
   --text-body: 1rem;
-  --text-body--line-height: 1.5;
+  --text-body--line-height: 1.5rem;
   --text-control: 0.9375rem;
-  --text-control--line-height: 1.3;
+  --text-control--line-height: 1.25rem;
   --text-caption: 0.8125rem;
-  --text-caption--line-height: 1.45;
+  --text-caption--line-height: 1.25rem;
   --text-code: 0.8125rem;
-  --text-code--line-height: 1.6;
+  --text-code--line-height: 1.25rem;
 
   /* Lighter than the usual 400/500: light text on a dark ground blooms */
   --font-weight-read: 320;

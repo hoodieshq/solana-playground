@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 
 import { PRIMARY_KEYS } from "../../../desktop/keys"
-import { LIT_STROKE } from "../../../desktop/navLit/icons"
+import { StepRing } from "../../../ui/StepRing"
 import { readPath } from "../../read"
 import { behind, build, busy, call, deploy, firstIx, metaOf, onChain, refCall, retryDeploy, runClient, setPane, setTerminal, stale, steps, type Project, type StepState } from "../../store"
 import { deployingText, lastResult } from "./util"
@@ -140,33 +140,10 @@ export function stageHint(p: Project): string | null {
   }
 }
 
-/** The stages as one ring before the words: a whole grey track, and an arc over it as long as the share of
- * stages done. One continuous ring, not an arc a stage: four pieces read as four things (Almaz, 20 Nov).
- * The arc takes the colour of what stands: red after a failure, amber when the code changed after a build */
+/** The stages as the shared ring: the arc red after a failure, amber when the code moved past a build */
 function StageRing({ list }: { list: Stage[] }) {
-  const r = 8
-  const c = 2 * Math.PI * r
-  const done = list.filter((s) => s.state === "done").length
-  const tone = list.some((s) => s.state === "failed") ? "stroke-error" : list.some((s) => s.state === "stale") ? "stroke-warning" : "stroke-muted-foreground"
-  const running = list.some((s) => s.state === "running")
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" width={16} height={16} className="shrink-0 -rotate-90">
-      <circle cx="10" cy="10" r={r} fill="none" strokeWidth={LIT_STROKE} className="stroke-border-strong" />
-      {done > 0 && (
-        <circle
-          cx="10"
-          cy="10"
-          r={r}
-          fill="none"
-          strokeWidth={LIT_STROKE}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - done / list.length)}
-          className={cn(tone, running && "animate-pulse", "transition-[stroke-dashoffset] duration-500 ease-out motion-reduce:transition-none")}
-        />
-      )}
-    </svg>
-  )
+  const tone = list.some((s) => s.state === "failed") ? "error" : list.some((s) => s.state === "stale") ? "warning" : undefined
+  return <StepRing done={list.filter((s) => s.state === "done").length} of={list.length} tone={tone} running={list.some((s) => s.state === "running")} />
 }
 
 /** Where the project is, as the tutorial shows its steps: the ring, then "Step 2 of 4 · Build", on one line.

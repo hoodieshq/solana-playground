@@ -93,7 +93,7 @@ function CoachMark({
       data-side={side}
       data-leaving={leaving || undefined}
       className={cn(
-        "pointer-events-none absolute z-50 flex h-[1.875rem] w-max animate-menu-in items-center gap-1.5 rounded-md border border-border-strong bg-surface-raised px-3 text-xs whitespace-nowrap text-muted-foreground shadow-panel transition-opacity duration-[120ms] data-leaving:opacity-0 motion-reduce:animate-none",
+        "pointer-events-none absolute z-50 flex h-[1.875rem] w-max animate-menu-in items-center gap-1.5 rounded-md border border-border-strong bg-surface-raised px-3 text-13 leading-4 whitespace-nowrap text-muted-foreground shadow-panel transition-opacity duration-[120ms] data-leaving:opacity-0 motion-reduce:animate-none",
         SIDE[side],
         className
       )}

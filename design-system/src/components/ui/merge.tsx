@@ -122,9 +122,9 @@ function MergeTitle({
 }: Omit<React.ComponentProps<"div">, "children"> & { path: string; index?: number; total?: number }) {
   return (
     <div data-slot="merge-title" className={cn("flex min-w-0 flex-1 basis-32 items-baseline gap-2 px-1 @max-3xl/merge:order-first @max-3xl/merge:basis-full @max-3xl/merge:py-1", className)} {...props}>
-      <span className="min-w-0 truncate font-mono text-[0.8125rem] text-foreground">{path}</span>
+      <span className="min-w-0 truncate font-mono text-13 text-foreground">{path}</span>
       {index != null && total != null && total > 1 && (
-        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+        <span className="shrink-0 text-13 leading-4 text-muted-foreground tabular-nums">
           file {index} of {total}
         </span>
       )}
@@ -141,7 +141,7 @@ function MergeCount({ className, count, ...props }: Omit<React.ComponentProps<"s
       role="status"
       data-slot="merge-count"
       data-done={done || undefined}
-      className={cn("inline-flex shrink-0 items-center gap-1.5 px-1.5 text-xs text-muted-foreground tabular-nums", className)}
+      className={cn("inline-flex shrink-0 items-center gap-1.5 px-1.5 text-13 leading-4 text-muted-foreground tabular-nums", className)}
       {...props}
     >
       {done ? (
@@ -182,7 +182,7 @@ function MergeShowAll({
         onPressedChange?.(!pressed)
       }}
       className={cn(
-        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=on]:bg-primary/12 data-[state=on]:text-foreground [@media(hover:none)]:h-9",
+        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-13 leading-4 text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=on]:bg-primary/12 data-[state=on]:text-foreground [@media(hover:none)]:h-9",
         className
       )}
       {...props}
@@ -297,7 +297,7 @@ function MergePaneHeader({ className, children, ...props }: React.ComponentProps
     <div
       data-slot="merge-pane-header"
       className={cn(
-        "flex h-9 shrink-0 items-center gap-1.5 border-b border-border px-3 text-xs font-act text-muted-foreground",
+        "flex h-9 shrink-0 items-center gap-1.5 border-b border-border px-3 text-13 leading-4 font-act text-muted-foreground",
         side === "result" && "text-foreground",
         className
       )}
@@ -557,7 +557,7 @@ function MergeHunkBarSide({
   children,
   ...props
 }: React.ComponentProps<"div"> & { side: "left" | "right" }) {
-  const name = <span className="truncate text-xs font-act text-muted-foreground">{PANE_NAME[side]}</span>
+  const name = <span className="truncate text-13 leading-4 font-act text-muted-foreground">{PANE_NAME[side]}</span>
   return (
     <div data-slot="merge-hunk-bar-side" data-side={side} className={cn("flex min-w-0 items-center gap-1", className)} {...props}>
       {side === "left" && name}
@@ -579,7 +579,7 @@ function MergeFold({
       type="button"
       data-slot="merge-fold"
       className={cn(
-        "flex h-6 w-full items-center gap-2 border-y border-dashed border-border bg-surface-panel px-3 text-left text-xs text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        "flex h-6 w-full items-center gap-2 border-y border-dashed border-border bg-surface-panel px-3 text-left text-13 leading-4 text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         className
       )}
       {...props}

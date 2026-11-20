@@ -27,7 +27,7 @@ function DiagnosticHeader({ className, ...props }: React.ComponentProps<"div">) 
 }
 
 function DiagnosticTitle({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="diagnostic-title" className={cn("min-w-0 flex-1 text-control font-act text-foreground", className)} {...props} />
+  return <div data-slot="diagnostic-title" className={cn("min-w-0 flex-1 text-16 leading-5 font-act text-foreground", className)} {...props} />
 }
 
 /* The compiler's code for it, E0425 and the like */
@@ -35,7 +35,7 @@ function DiagnosticCode({ className, ...props }: React.ComponentProps<"code">) {
   return (
     <code
       data-slot="diagnostic-code"
-      className={cn("shrink-0 rounded-full bg-error/10 px-2 py-0.5 font-mono text-[0.6875rem] text-error lowercase", className)}
+      className={cn("shrink-0 rounded-full bg-error/10 px-2 py-0.5 font-mono text-11 text-error lowercase", className)}
       {...props}
     />
   )
@@ -49,7 +49,7 @@ function DiagnosticSource({ className, ...props }: React.ComponentProps<"pre">) 
   return (
     <pre
       data-slot="diagnostic-source"
-      className={cn("mx-3.5 my-3 overflow-x-auto rounded-lg border border-border bg-surface-well py-2 font-mono text-[0.8125rem] leading-relaxed text-syntax-plain", className)}
+      className={cn("mx-3.5 my-3 overflow-x-auto rounded-lg border border-border bg-surface-well py-2 font-mono text-13 leading-5 text-syntax-plain", className)}
       {...props}
     />
   )
@@ -74,7 +74,7 @@ function DiagnosticLine({
         {number}
       </span>
       <code className="min-w-0 whitespace-pre">{children}</code>
-      {fault && <span className="col-start-2 font-sans text-xs text-error">{fault}</span>}
+      {fault && <span className="col-start-2 font-sans text-13 leading-4 text-error">{fault}</span>}
     </div>
   )
 }

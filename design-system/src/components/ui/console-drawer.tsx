@@ -121,7 +121,7 @@ function ConsoleDrawerBar({ className, onClick, children, ...props }: React.Comp
         onClick?.(e)
         if (!e.defaultPrevented && !(e.target as HTMLElement).closest("button,a,input")) setOpen(!open)
       }}
-      className={cn("frosted flex h-bar cursor-pointer items-center gap-2 border-t border-border px-2.5 text-xs text-muted-foreground select-none", className)}
+      className={cn("frosted flex h-bar cursor-pointer items-center gap-2 border-t border-border px-2.5 text-13 leading-4 text-muted-foreground select-none", className)}
       {...props}
     >
       {children}

@@ -17,6 +17,7 @@ import { GitHubMark } from "../newProject/next/SourceRail"
 import { YourPrograms } from "../programs/next/YourPrograms"
 import { useStore } from "../store"
 import { CATALOG, shownName } from "../ui/catalog"
+import { StepRing } from "../ui/StepRing"
 import { FOCUS } from "../ui/type"
 
 /* Home (Almaz, 10 Nov): the page you land on. Three things, in the order a visit needs them: what to
@@ -56,22 +57,6 @@ function useLead() {
   }
 }
 
-/** The lesson's steps as a row of short bars: passed ones lit in one sweep of the brand's light, the one
- * you're on in white, the rest in the border's grey */
-function StepTrack({ at, of }: { at: number; of: number }) {
-  return (
-    <span role="img" aria-label={`Step ${Math.min(of, at + 1)} of ${of}`} className="flex w-full max-w-60 gap-1">
-      {Array.from({ length: of }, (_, i) => (
-        <span
-          key={i}
-          className={cn("h-1 flex-1 rounded-full", i === at ? "bg-foreground/55" : i > at && "bg-border-strong")}
-          style={i < at ? { background: "linear-gradient(90deg,#9945ff,#14f195)", backgroundSize: `${of * 100}% 100%`, backgroundPosition: `${(i / Math.max(1, of - 1)) * 100}% 0` } : undefined}
-        />
-      ))}
-    </span>
-  )
-}
-
 /** The top of the page: the greeting, what to carry on with and its one brand button. Words alone: the
  * mark's sculpture stood beside them and only got in their way (Almaz, 10 Nov) */
 function Hero({ phone }: { phone: boolean }) {
@@ -89,26 +74,30 @@ function Hero({ phone }: { phone: boolean }) {
   return (
     <section ref={box} aria-labelledby="home-title" className={cn(wide ? "pt-12 pb-6" : "pt-3 pb-4")}>
       <div className="max-w-[34rem] min-w-0">
-        <h1 id="home-title" className={cn("font-heading font-normal tracking-[-0.02em] text-balance text-foreground", wide ? "text-40 leading-[1.1]" : "text-28 leading-[1.15]")}>
+        <h1 id="home-title" className={cn("font-heading font-normal tracking-tight text-balance text-foreground", wide ? "text-40 leading-11" : "text-28 leading-8")}>
           {l.title}
         </h1>
         {l.state === "started" && (
           <>
-            <p className="mt-4 text-16 leading-[1.35] text-foreground/78">
-              <span className="text-foreground">{l.name}</span>
-              {` · Step ${Math.min(l.steps, l.at + 1)} of ${l.steps}`}
-              <span className="mt-0.5 block text-muted-foreground">{`Next: ${l.next}`}</span>
+            {/* The ring by the step, as the lesson and a project show it: a row of bars under it was a third
+                pattern for the same thing (Nikita, 20 Nov) */}
+            <p className="mt-4 text-16 leading-5 text-foreground/78">
+              <span className="flex items-center gap-2">
+                <StepRing done={l.at} of={l.steps} />
+                <span>
+                  <span className="text-foreground">{l.name}</span>
+                  {` · Step ${Math.min(l.steps, l.at + 1)} of ${l.steps}`}
+                </span>
+              </span>
+              <span className="mt-0.5 block pl-6 text-muted-foreground">{`Next: ${l.next}`}</span>
             </p>
-            <div className="mt-3.5">
-              <StepTrack at={l.at} of={l.steps} />
-            </div>
           </>
         )}
         {/* One line under the title, not three: the lesson's name is on the button, and its level and steps said
             little a first visit needs (Almaz, 20 Nov). Its time stays, as how long the yes costs */}
-        {l.state === "fresh" && <p className="mt-4 max-w-[44ch] text-16 leading-[1.4] text-muted-foreground">{l.sub}</p>}
+        {l.state === "fresh" && <p className="mt-4 max-w-[44ch] text-16 leading-6 text-muted-foreground">{l.sub}</p>}
         {l.state === "done" && (
-          <p className="mt-4 flex max-w-[40ch] items-start gap-2 text-16 leading-[1.35] text-foreground/78">
+          <p className="mt-4 flex max-w-[40ch] items-start gap-2 text-16 leading-5 text-foreground/78">
             <span aria-hidden="true" className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
               <Check strokeWidth={2.5} className="size-2.5" />
             </span>
@@ -134,7 +123,7 @@ function Hero({ phone }: { phone: boolean }) {
 }
 
 /* The play ring cut from the mark trails the words of the main Start: taken off once, the art director asked for it back (11 Nov) */
-const GO = "h-10 font-heading text-16 font-act tracking-[-0.005em] pointer-coarse:h-11"
+const GO = "h-10 font-heading text-16 font-act tracking-normal pointer-coarse:h-11"
 
 /** A way to start, in the box's foot: an icon and its words, no box of its own. A step under the field (13 to its
  * 16), so the field reads first and the ways as the alternatives (Almaz, 20 Nov) */
@@ -257,12 +246,12 @@ function PathCard({ slug }: { slug: string }) {
     <li className="group/card relative flex min-w-0 flex-col gap-3 rounded-panel border border-border bg-surface-panel p-4 transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none max-sm:flex-row max-sm:items-center">
       <TutorialThumb t={t} />
       <div className="min-w-0 flex-1">
-        <h3 className="truncate font-heading text-16 leading-5 font-headline tracking-[-0.01em] text-foreground">
+        <h3 className="truncate font-heading text-16 leading-5 font-headline tracking-normal text-foreground">
           <button type="button" onClick={() => open(slug)} className={cn("rounded-sm after:absolute after:inset-0 after:rounded-panel after:content-['']", FOCUS)}>
             {name}
           </button>
         </h3>
-        <p className={cn("mt-1 flex items-center gap-1.5 text-13 leading-[1.125rem] tabular-nums", p.finished ? "text-foreground" : "text-muted-foreground")}>
+        <p className={cn("mt-1 flex items-center gap-1.5 text-13 leading-5 tabular-nums", p.finished ? "text-foreground" : "text-muted-foreground")}>
           {p.finished ? (
             <>
               <span aria-hidden="true" className="size-1.5 rounded-full bg-brand-green" />
@@ -285,7 +274,7 @@ function AllCard() {
   const { dispatch } = useStore()
   return (
     <li className="group/card relative flex min-w-0 flex-col justify-end gap-3 rounded-panel border border-border bg-surface-panel p-4 transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none max-sm:flex-row max-sm:items-center max-sm:justify-start">
-      <h3 className="font-heading text-16 leading-5 font-headline tracking-[-0.01em] text-foreground">
+      <h3 className="font-heading text-16 leading-5 font-headline tracking-normal text-foreground">
         <button type="button" onClick={() => dispatch({ type: "open", screen: "gallery" })} className={cn("flex items-center gap-1 rounded-sm after:absolute after:inset-0 after:rounded-panel after:content-['']", FOCUS)}>
           {`All ${CATALOG.length} tutorials`}
           <ArrowRight aria-hidden="true" strokeWidth={1.75} className="size-3.5 text-muted-foreground transition-transform duration-150 group-hover/card:translate-x-0.5 motion-reduce:transition-none" />

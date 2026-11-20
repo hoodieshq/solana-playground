@@ -113,7 +113,7 @@ export function ReadNotice({ p, phone = false, onAsk }: { p: Project; phone?: bo
       ref={ref}
       role="status"
       className={cn(
-        "flex items-start gap-2 text-13 leading-[1.125rem] text-foreground/80 animate-in fade-in-0 duration-[120ms]",
+        "flex items-start gap-2 text-13 leading-5 text-foreground/80 animate-in fade-in-0 duration-[120ms]",
         phone ? "min-h-11 border-b border-border bg-surface-raised px-4 py-2.5 [html.portrait_&]:px-8" : "max-w-[360px] rounded-[10px] border border-border-strong bg-surface-raised px-3 py-2 shadow-md"
       )}
     >

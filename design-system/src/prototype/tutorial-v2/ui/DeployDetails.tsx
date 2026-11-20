@@ -12,7 +12,7 @@ import { FOCUS, READ } from "./type"
 
 // The details' quiet controls share one face: caption size, muted, brightening on hover, never broken in two
 const QUIET = cn(
-  "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-13 leading-[1.125rem] text-muted-foreground transition-colors duration-150 ease-standard hover:text-foreground motion-reduce:transition-none",
+  "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-13 leading-5 text-muted-foreground transition-colors duration-150 ease-standard hover:text-foreground motion-reduce:transition-none",
   FOCUS
 )
 // Under a finger each row of controls is 44px tall. Reaching into the margins instead let the id's

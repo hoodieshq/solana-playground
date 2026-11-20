@@ -71,7 +71,7 @@ function StepperItem({
       data-target={target || undefined}
       aria-label={said || undefined}
       className={cn(
-        "relative z-10 inline-flex h-[1.625rem] items-center justify-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-act whitespace-nowrap text-muted-foreground transition-colors duration-140 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:text-foreground",
+        "relative z-10 inline-flex h-[1.625rem] items-center justify-center gap-1.5 rounded-full px-3 text-13 font-act whitespace-nowrap text-muted-foreground transition-colors duration-140 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:text-foreground",
         className
       )}
       {...props}

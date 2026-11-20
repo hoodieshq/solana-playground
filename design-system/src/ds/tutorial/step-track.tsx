@@ -19,7 +19,7 @@ const at = (step: number, passed = step): StepTrackStep[] =>
 function Head({ children }: { children: React.ReactNode }) {
   return (
     <div className="w-full max-w-md overflow-hidden rounded-lg bg-surface-panel">
-      <div className="flex h-12 items-center border-b border-border px-5 font-heading text-[0.9375rem] font-medium text-foreground">Hello, Anchor</div>
+      <div className="flex h-12 items-center border-b border-border px-5 font-heading text-16 font-act text-foreground">Hello, Anchor</div>
       <div className="px-5 pb-3">{children}</div>
     </div>
   )
@@ -29,8 +29,8 @@ function Head({ children }: { children: React.ReactNode }) {
 function PhoneHeader({ lit, where }: { lit: number; where: string }) {
   return (
     <div className="relative flex h-[4.75rem] w-[23.4375rem] max-w-full shrink-0 flex-col justify-center rounded-t-lg bg-surface-panel pb-4 pl-4">
-      <span className="font-heading text-[0.9375rem] leading-5 font-medium text-foreground">Hello, Anchor</span>
-      <span className="text-caption leading-[1.125rem] text-muted-foreground">{where}</span>
+      <span className="font-heading text-16 leading-5 font-act text-foreground">Hello, Anchor</span>
+      <span className="text-caption leading-5 text-muted-foreground">{where}</span>
       <StepTrackBar count={4} lit={lit} />
     </div>
   )

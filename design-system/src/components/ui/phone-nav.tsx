@@ -158,12 +158,12 @@ function PhoneNavGroup({
    one on a filled pill. The 8px inset puts every glyph on the page's 16px
    edge. lg is for the destinations, default for the rows under them. */
 const phoneNavItemVariants = cva(
-  "flex w-full items-center gap-3 rounded-lg px-2 text-left text-muted-foreground transition-colors outline-none active:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple aria-[current=page]:bg-surface-hover aria-[current=page]:font-medium aria-[current=page]:text-foreground in-data-[slot=phone-nav-footer]:w-auto in-data-[slot=phone-nav-footer]:gap-2.5",
+  "flex w-full items-center gap-3 rounded-lg px-2 text-left text-muted-foreground transition-colors outline-none active:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple aria-[current=page]:bg-surface-hover aria-[current=page]:font-act aria-[current=page]:text-foreground in-data-[slot=phone-nav-footer]:w-auto in-data-[slot=phone-nav-footer]:gap-2.5",
   {
     variants: {
       size: {
-        default: "h-11 text-[0.9375rem]",
-        lg: "h-12 text-[1.0625rem]",
+        default: "h-11 text-16",
+        lg: "h-12 text-16",
       },
     },
     defaultVariants: {
