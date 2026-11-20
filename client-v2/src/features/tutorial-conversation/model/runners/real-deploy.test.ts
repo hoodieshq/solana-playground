@@ -49,6 +49,7 @@ vi.mock("@/utils", () => ({
     accounts: [{}],
     currentIndex: 0,
     create: () => ({ publicKey: { toBase58: () => WALLET } }),
+    untilLoaded: async () => undefined,
   },
   PgProgramInfo: { pk: undefined, kp: undefined, uuid: "build-uuid" },
   PgExplorer: { currentWorkspaceName: "Hello Anchor", files: {} },

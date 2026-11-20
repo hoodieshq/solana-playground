@@ -257,6 +257,9 @@ export const realDeployPort = (): DeployPort => {
     // As the no-wallet card's Create wallet makes it (`PgWallet.addFirst`
     // makes it the current wallet too)
     createWallet: async () => {
+      // A wallet still loading from the key origin: read it first, so the
+      // account is made as it would be once loaded
+      await PgWallet.untilLoaded();
       await PgWallet.addFirst();
       wallet = playgroundWallet();
       if (!wallet) throw new Error("The Playground wallet was not made");

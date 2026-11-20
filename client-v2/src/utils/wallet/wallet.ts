@@ -581,6 +581,19 @@ const migrate = () => {
 const accountLog = createLogger("wallet:account");
 
 /**
+ * Make the first account. A wallet still loading may hold accounts: it is
+ * read first, and then none is made when it brought some.
+ *
+ * @returns whether an account was made
+ */
+const addFirstOnce = (): Promise<boolean> =>
+  PgWallet.state === "loading"
+    ? PgWallet.untilLoaded().then(() =>
+        PgWallet.accounts.length ? false : PgWallet.addNew()
+      )
+    : PgWallet.addNew();
+
+/**
  * The first account being made, so a second caller does not make another;
  * once it failed, the failure, until the page reloads or the provider changes
  */
@@ -631,7 +644,7 @@ class _PgWallet {
    * the page; with neither, a random one
    * @returns `false` when an account with the name or key already existed
    * and it switched to that account instead
-   * @throws while the wallet is unavailable
+   * @throws while the wallet is unavailable or still loading
    */
   static add(params?: {
     name?: string;
@@ -694,7 +707,7 @@ class _PgWallet {
    * @param name name of the account, by default the next free default name
    * @returns `false` when an account with the name already existed and it
    * switched to that account instead
-   * @throws while the wallet is unavailable, or when the provider cannot make
+   * @throws while the wallet is unavailable or still loading, or when the provider cannot make
    * the key
    */
   // eslint-disable-next-line layers/curry-order -- the name is optional as in `add`, a call of the wallet API
@@ -724,23 +737,21 @@ class _PgWallet {
    * otherwise wait out the key page's handshake and report again.
    * `setSignerProvider` clears it.
    *
-   * @returns what `addNew` resolves with
+   * @returns what `addNew` resolves with, or `false` when a wallet that was
+   * loading brought accounts of its own
    * @throws what `addNew` threw, to every caller from then on
    */
   static addFirst() {
-    // A wallet still loading may hold accounts: wait for it, and add none then
-    addingFirst ??= PgWallet.untilLoaded()
-      .then(() => (PgWallet.accounts.length ? false : PgWallet.addNew()))
-      .then(
-        (added) => {
-          addingFirst = undefined;
-          return added;
-        },
-        (error: unknown) => {
-          accountLog.error(error, { report: true });
-          throw error;
-        }
-      );
+    addingFirst ??= addFirstOnce().then(
+      (added) => {
+        addingFirst = undefined;
+        return added;
+      },
+      (error: unknown) => {
+        accountLog.error(error, { report: true });
+        throw error;
+      }
+    );
     return addingFirst;
   }
 
@@ -770,7 +781,7 @@ class _PgWallet {
    * `forgetKey`.
    *
    * @returns the new key's public key
-   * @throws while the wallet is unavailable, or when the provider cannot make
+   * @throws while the wallet is unavailable or still loading, or when the provider cannot make
    * the key
    */
   static makeKey() {
@@ -855,7 +866,7 @@ class _PgWallet {
    * was chosen
    * @throws {KeypairFileError} when the file is not a keypair; any other
    * failure, such as an unreadable file, propagates as it is
-   * @throws while the wallet is unavailable, or under a provider that keeps
+   * @throws while the wallet is unavailable or still loading, or under a provider that keeps
    * the keys out of the page (the key page's own panel imports there), before
    * the file picker opens
    */

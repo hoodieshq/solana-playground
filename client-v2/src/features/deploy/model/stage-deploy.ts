@@ -64,6 +64,9 @@ const WALLET_TIMEOUT_MS = 15_000;
 const ensurePlaygroundWallet = async (
   PgWallet: typeof import("@/utils").PgWallet
 ) => {
+  // A wallet still loading from the key origin has no accounts yet: wait for
+  // the read before choosing, and before the timer starts
+  await PgWallet.untilLoaded();
   if (PgWallet.current) return;
   let dispose = () => {};
   const connected = new Promise<void>((resolve, reject) => {
