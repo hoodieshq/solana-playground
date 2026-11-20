@@ -260,7 +260,7 @@ export const realDeployPort = (): DeployPort => {
       // A wallet still loading from the key origin may bring the learner's
       // account: read it first, and make one only when it brought none.
       // TODO(HOO-2934 follow-up): `wallet()` does not wait, so a beat during
-      // the load shows the no-wallet card; its Create wallet lands here
+      // the load reads no wallet; the airdrop card's Create wallet lands here
       await PgWallet.untilLoaded();
       wallet = playgroundWallet();
       if (wallet) return wallet.publicKey.toBase58();
