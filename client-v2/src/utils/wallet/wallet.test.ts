@@ -218,6 +218,8 @@ describe("utils/wallet/wallet", () => {
         remove: async (publicKey) => {
           kept.delete(publicKey);
         },
+        keep: async () => {},
+        kept: async () => [],
       });
       let id = 0;
       const link: KeyFrame = {

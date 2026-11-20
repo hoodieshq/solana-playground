@@ -9,9 +9,21 @@ export interface KeyStore {
   put(entries: [string, Uint8Array][]): Promise<void>;
   /** Drop a key; a key that is not there is not an error */
   remove(publicKey: string): Promise<void>;
+  /**
+   * Keep the text of a wallet the app could not read, as it is: it may hold
+   * keys in a shape nothing parses, so it leaves the app's origin only once
+   * stored here. Keeping the same text twice stores it once.
+   */
+  keep(text: string): Promise<void>;
+  /** Every text kept */
+  kept(): Promise<string[]>;
 }
 
 const STORE_NAME = "keys";
+/** Unreadable wallet texts, each under itself as its key */
+const KEPT_STORE_NAME = "unreadable";
+/** 2 added `KEPT_STORE_NAME` */
+const DB_VERSION = 2;
 const LOCK_NAME = "pg-wallet-keys";
 
 /** The key origin's database of keys */
@@ -36,9 +48,12 @@ export const indexedDbKeyStore = (name: string): KeyStore => {
   let opened: Promise<IDBDatabase> | undefined;
   const open = () => {
     opened ??= new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(name, 1);
+      const request = indexedDB.open(name, DB_VERSION);
       request.onupgradeneeded = () => {
-        request.result.createObjectStore(STORE_NAME);
+        const db = request.result;
+        for (const store of [STORE_NAME, KEPT_STORE_NAME]) {
+          if (!db.objectStoreNames.contains(store)) db.createObjectStore(store);
+        }
       };
       request.onsuccess = () => {
         const db = request.result;
@@ -96,6 +111,23 @@ export const indexedDbKeyStore = (name: string): KeyStore => {
         tx.objectStore(STORE_NAME).delete(publicKey);
         await settled(tx);
       });
+    },
+    keep(text) {
+      return exclusive(async () => {
+        const db = await open();
+        const tx = db.transaction(KEPT_STORE_NAME, "readwrite");
+        tx.objectStore(KEPT_STORE_NAME).put(text, text);
+        await settled(tx);
+      });
+    },
+    async kept() {
+      const db = await open();
+      const tx = db.transaction(KEPT_STORE_NAME, "readonly");
+      const values = tx.objectStore(KEPT_STORE_NAME).getAll();
+      await settled(tx);
+      return values.result.filter(
+        (value): value is string => typeof value === "string"
+      );
     },
   };
 };
@@ -171,6 +203,40 @@ if (import.meta.vitest) {
       expect((await store.all()).size).toBe(0);
     });
 
+    it("keeps an unreadable wallet's text once, beside the keys", async () => {
+      const store = indexedDbKeyStore(KEY_DB_NAME);
+      await store.put([["a", secret(1)]]);
+
+      await store.keep("{not json");
+      await store.keep("{not json");
+      await indexedDbKeyStore(KEY_DB_NAME).keep("[1,2]");
+
+      expect((await store.kept()).sort()).toEqual(["[1,2]", "{not json"]);
+      expect(Array.from((await store.all()).keys())).toEqual(["a"]);
+    });
+
+    it("opens a database made before kept texts, keeping its keys", async () => {
+      await new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open("old", 1);
+        request.onupgradeneeded = () => {
+          request.result
+            .createObjectStore("keys")
+            .put(Array.from(secret(1)), "a");
+        };
+        request.onsuccess = () => {
+          request.result.close();
+          resolve();
+        };
+        request.onerror = () => reject(request.error);
+      });
+      const store = indexedDbKeyStore("old");
+
+      await store.keep("{not json");
+
+      expect((await store.all()).get("a")).toEqual(secret(1));
+      expect(await store.kept()).toEqual(["{not json"]);
+    });
+
     it("asks the browser to keep the storage, where it can be asked", async () => {
       const persist = vi.fn(async () => true);
       expect(await requestPersistence({ persist })).toBe(true);
@@ -196,8 +262,13 @@ if (import.meta.vitest) {
 
       await store.put([["a", secret(1)]]);
       await store.remove("a");
+      await store.keep("{not json");
 
-      expect(names).toEqual(["pg-wallet-keys", "pg-wallet-keys"]);
+      expect(names).toEqual([
+        "pg-wallet-keys",
+        "pg-wallet-keys",
+        "pg-wallet-keys",
+      ]);
     });
   });
 }

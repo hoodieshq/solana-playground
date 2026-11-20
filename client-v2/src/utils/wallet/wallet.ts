@@ -18,7 +18,7 @@ import {
   keyFrame,
   KeyFrameUnavailable,
 } from "./key-origin/client";
-import { moveKeysWith } from "./key-origin/move";
+import { keepTextWith, moveKeysWith } from "./key-origin/move";
 import { keyOriginFor } from "./key-origin/origin";
 import { keyOriginSignerProvider } from "./key-origin/provider";
 import { parseKeypairFile } from "./keypair-file";
@@ -36,7 +36,7 @@ import type {
 } from "./types";
 import {
   isSavedForGood,
-  type MoveKeys,
+  type KeyMove,
   WALLET_LOCAL_KEY,
   type WalletRead,
   walletStorageWith,
@@ -294,8 +294,12 @@ const storage = {
     }
     // The keys still in the page move into the key page under the read's
     // lock, once it answers: copy, confirm, then drop (`moveKeysWith`)
-    const move: MoveKeys = async (record, others) =>
-      moveKeysWith(await keyPage())(record, others);
+    // An unreadable wallet goes to the key page as text (`keepTextWith`)
+    const move: KeyMove = {
+      keys: async (record, others) =>
+        moveKeysWith(await keyPage())(record, others),
+      keep: async (text) => keepTextWith(await keyPage())(text),
+    };
     return readWith(keyOrigin)(keyPage)(() =>
       storage.readStored(walletStorage().readMovingKeys(move))
     );
