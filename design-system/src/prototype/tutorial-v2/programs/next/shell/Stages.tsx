@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react"
 import { Play } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -8,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 
 import { PRIMARY_KEYS } from "../../../desktop/keys"
+import { LIT_STROKE } from "../../../desktop/navLit/icons"
 import { readPath } from "../../read"
 import { behind, build, busy, call, deploy, firstIx, metaOf, onChain, refCall, retryDeploy, runClient, setPane, setTerminal, stale, steps, type Project, type StepState } from "../../store"
 import { deployingText, lastResult } from "./util"
@@ -142,13 +142,33 @@ export function stageHint(p: Project): string | null {
 
 /** One segment a stage, the tutorial's 4px bar: done ones lit in one sweep of the brand's gradient, a
  * failed one red, one the code moved past amber */
-function Segment({ i, of, state }: { i: number; of: number; state: Stage["state"] }) {
-  const lit: CSSProperties | undefined =
-    state === "done" ? { backgroundImage: "linear-gradient(90deg,#9945ff,#14f195)", backgroundSize: `${of * 100}% 100%`, backgroundPosition: `${(i / Math.max(1, of - 1)) * 100}% 0` } : undefined
-  return <span style={lit} className={cn("block h-1 rounded-[4px]", state === "failed" ? "bg-error" : state === "stale" ? "bg-warning/80" : state === "running" ? "animate-pulse bg-foreground/45" : !lit && "bg-foreground/[0.12]")} />
+/** The stages as one ring before the words, an arc a stage, drawn as the nav's lesson ring is (ProgressRing):
+ * a bar under the words lifted them off the line the project's name sits on (Almaz, 20 Nov) */
+function StageRing({ list }: { list: Stage[] }) {
+  const r = 8
+  const c = 2 * Math.PI * r
+  const seg = c / list.length
+  const gap = 2.6
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" width={16} height={16} className="shrink-0 -rotate-90">
+      {list.map((s, i) => (
+        <circle
+          key={s.id}
+          cx="10"
+          cy="10"
+          r={r}
+          fill="none"
+          strokeWidth={LIT_STROKE}
+          strokeDasharray={`${seg - gap} ${c - seg + gap}`}
+          strokeDashoffset={-(i * seg + gap / 2)}
+          className={s.state === "failed" ? "stroke-error" : s.state === "stale" ? "stroke-warning" : s.state === "running" ? "animate-pulse stroke-foreground" : s.state === "done" ? "stroke-muted-foreground" : "stroke-border-strong"}
+        />
+      ))}
+    </svg>
+  )
 }
 
-/** Where the project is, as the tutorial shows its steps: "Step 2 of 4 · Build" over a segment a stage.
+/** Where the project is, as the tutorial shows its steps: the ring, then "Step 2 of 4 · Build", on one line.
  * It only shows; nothing in it runs or switches the view */
 export function StageTrack({ p, className }: { p: Project; className?: string }) {
   const list = stagesOf(p)
@@ -157,7 +177,8 @@ export function StageTrack({ p, className }: { p: Project; className?: string })
   const n = at ? list.indexOf(at) + 1 : list.length
   const word = at ? (at.state === "failed" ? `${at.label} failed` : at.state === "stale" ? `${at.label} · code changed` : at.label) : p.read || p.framework === "ts-client" ? null : "Live on devnet"
   return (
-    <div role="status" aria-label={at ? `Step ${n} of ${list.length}, ${word}` : "Every step done"} className={cn("flex min-w-0 flex-col gap-1.5", className)}>
+    <div role="status" aria-label={at ? `Step ${n} of ${list.length}, ${word}` : "Every step done"} className={cn("flex min-w-0 items-center gap-2", className)}>
+      <StageRing list={list} />
       <span className="flex min-w-0 items-center gap-1.5 text-13 leading-4 whitespace-nowrap">
         <span className="text-muted-foreground tabular-nums">{at ? `Step ${n} of ${list.length}` : "Done"}</span>
         {word && (
@@ -168,11 +189,6 @@ export function StageTrack({ p, className }: { p: Project; className?: string })
             <span className={cn("truncate font-act", at?.state === "failed" ? "text-error" : "text-foreground")}>{word}</span>
           </>
         )}
-      </span>
-      <span aria-hidden="true" className="grid gap-1" style={{ gridTemplateColumns: `repeat(${list.length}, minmax(0, 1fr))` }}>
-        {list.map((s, i) => (
-          <Segment key={s.id} i={i} of={list.length} state={s.state} />
-        ))}
       </span>
     </div>
   )
