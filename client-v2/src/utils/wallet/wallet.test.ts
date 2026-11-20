@@ -408,7 +408,7 @@ describe("utils/wallet/wallet", () => {
         expect(kept.size).toBe(1);
       });
 
-      it("addFirst keeps a failure for the page load, reported once, until the provider changes", async () => {
+      it("addFirst tries again after a failed attempt, reporting each failure", async () => {
         const logged = memoryProvider();
         initLogger({ providers: [logged] });
         const { kept, provider } = fakeKeyPage();
@@ -424,21 +424,18 @@ describe("utils/wallet/wallet", () => {
         PgWallet.setSignerProvider(provider);
         const { accounts } = holdState([]);
 
-        const first = PgWallet.addFirst();
-        await expect(first).rejects.toBeInstanceOf(KeyFrameUnavailable);
-        failNext = false;
         await expect(PgWallet.addFirst()).rejects.toBeInstanceOf(
           KeyFrameUnavailable
         );
-        expect(makeKey).toHaveBeenCalledOnce();
         expect(accounts).toHaveLength(0);
         expect(
           logged.entries.filter((entry) => entry.ns === "wallet:account")
         ).toEqual([expect.objectContaining({ level: "error", report: true })]);
-        resetLogger();
 
-        PgWallet.setSignerProvider(provider);
+        failNext = false;
         expect(await PgWallet.addFirst()).toBe(true);
+        expect(makeKey).toHaveBeenCalledTimes(2);
+        expect(accounts).toHaveLength(1);
         expect(kept.size).toBe(1);
       });
 
