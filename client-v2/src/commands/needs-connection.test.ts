@@ -25,6 +25,7 @@ const NEEDS_CONNECTION = [
   "run",
   "solana",
   "spl-token",
+  "sugar",
   "test",
 ];
 

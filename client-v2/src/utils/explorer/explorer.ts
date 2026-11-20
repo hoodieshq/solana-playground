@@ -426,9 +426,7 @@ export class PgExplorer {
 
   /**
    * Write a file the playground generates from work already done, such as
-   * a cache that holds the links of uploads the user has paid for. It has no
-   * caller while `sugar` is out of the terminal (HOO-2867); the
-   * `sync-size-limits` change specifies it, and HOO-2866 restores its user.
+   * the Sugar cache, which holds the links of uploads the user has paid for.
    * Unlike `createItem`, the project's limits do not refuse it: refusing
    * would lose that work. A project left over a limit stays local: sync's
    * own check finds it before uploading and the sync banner names the limit. The file is overwritten, and
