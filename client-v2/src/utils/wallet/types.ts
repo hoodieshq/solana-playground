@@ -63,6 +63,15 @@ export type PlaygroundWallet = {
   keypair: PgWeb3.Keypair;
   /** Name of the account */
   name: string;
+  /**
+   * Sign a transaction's serialized message, of any version: the signature
+   * goes over the message bytes, as Kit's signers sign. A v1 transaction,
+   * which web3.js cannot read, is signed this way (`signRequestWith`).
+   *
+   * @param bytes the transaction's message bytes
+   * @returns the account's signature of them
+   */
+  signTransactionMessage(bytes: Uint8Array): Promise<Uint8Array>;
 } & NonNullablePublicKeyProp &
   SignerWalletProps;
 

@@ -1,6 +1,7 @@
 // @vitest-environment node -- noble checks `instanceof Uint8Array`, which jsdom's realm fails
 
 import * as ed25519 from "@noble/ed25519";
+import { getCompiledTransactionMessageDecoder } from "@solana/kit";
 
 import type { FromSandbox, SignReply } from "../js-runtime/protocol";
 import { PgWeb3 } from "../web3";
@@ -23,8 +24,11 @@ const reasonOf = (error: unknown) =>
  * the sandbox asked about, so a wallet that changed the transaction cannot
  * hand back a signature for something else.
  *
- * A transaction comes as its serialized message, legacy or v0, and is
- * signed as a `VersionedTransaction`, which both kinds of wallet take.
+ * A transaction comes as its serialized message, read with Kit. A legacy or
+ * v0 one is signed as a `VersionedTransaction`, which both kinds of wallet
+ * take. A v1 one, which web3.js cannot read, is signed by the built-in wallet
+ * over its message bytes, as Kit's own signers do; a browser wallet is
+ * refused, since it takes only web3.js transactions here.
  *
  * @param walletsOf the wallets the page holds now
  * @returns a function of the request, resolving with the signature or the
@@ -44,19 +48,31 @@ export const signRequestWith =
       if (request.kind === "message") {
         signature = await wallet.signMessage(request.bytes);
       } else {
-        const message = PgWeb3.VersionedMessage.deserialize(request.bytes);
-        const signed = await wallet.signTransaction(
-          new PgWeb3.VersionedTransaction(message)
+        const compiled = getCompiledTransactionMessageDecoder().decode(
+          request.bytes
         );
-        const index = signed.message.staticAccountKeys.findIndex((key) =>
-          key.equals(wallet.publicKey)
-        );
+        // The signers are the first static accounts, in signature order
+        const index = compiled.staticAccounts
+          .slice(0, compiled.header.numSignerAccounts)
+          .indexOf(request.publicKey as typeof compiled.staticAccounts[0]);
         if (index < 0) {
           return {
             error: `Account ${request.publicKey} is not a signer of the transaction`,
           };
         }
-        signature = signed.signatures[index];
+
+        if (compiled.version === 1) {
+          if (!wallet.isPg) {
+            return { error: `${wallet.name} cannot sign a v1 transaction` };
+          }
+          signature = await wallet.signTransactionMessage(request.bytes);
+        } else {
+          const message = PgWeb3.VersionedMessage.deserialize(request.bytes);
+          const signed = await wallet.signTransaction(
+            new PgWeb3.VersionedTransaction(message)
+          );
+          signature = signed.signatures[index];
+        }
       }
 
       const isValid = await ed25519.verify(
@@ -213,6 +229,89 @@ if (import.meta.vitest) {
           keypair.publicKey.toBytes()
         )
       ).toBe(true);
+    });
+
+    /** Kit's message bytes of an empty v1 message paid by `payer` */
+    const kitV1MessageBytesOf = (
+      payer: InstanceType<typeof PgWeb3.PublicKey>
+    ) => {
+      const message = kit.pipe(
+        kit.createTransactionMessage({ version: 1 }),
+        (m) =>
+          kit.setTransactionMessageFeePayer(kit.address(payer.toBase58()), m),
+        (m) =>
+          kit.setTransactionMessageLifetimeUsingBlockhash(
+            { blockhash: kit.blockhash(blockhash), lastValidBlockHeight: 1n },
+            m
+          )
+      );
+      // Kit brands its bytes as a read-only array this TypeScript lib does
+      // not see as array-like; they are a Uint8Array
+      return Uint8Array.from(
+        kit.compileTransaction(message)
+          .messageBytes as unknown as ArrayLike<number>
+      );
+    };
+
+    /** The built-in wallet as `keypair`: it signs any message bytes */
+    const builtInWallet = () =>
+      ({
+        isPg: true,
+        name: "Wallet 1",
+        publicKey: keypair.publicKey,
+        signTransaction: async () => {
+          throw new Error("web3.js has no v1 transaction");
+        },
+        signTransactionMessage: (bytes: Uint8Array) =>
+          ed25519.sign(bytes, keypair.secretKey.slice(0, 32)),
+      } as unknown as Wallet);
+
+    it("signs a Kit v1 transaction with the built-in wallet", async () => {
+      const bytes = kitV1MessageBytesOf(keypair.publicKey);
+      expect(bytes[0]).toBe(0x81);
+
+      const reply = await signRequestWith(() => [builtInWallet()])(
+        transactionRequest(bytes)
+      );
+
+      if (!("signature" in reply)) throw new Error(`refused: ${reply.error}`);
+      expect(
+        await ed25519.verify(
+          Uint8Array.from(reply.signature),
+          bytes,
+          keypair.publicKey.toBytes()
+        )
+      ).toBe(true);
+    });
+
+    it("refuses a v1 transaction the account is not a signer of", async () => {
+      const bytes = kitV1MessageBytesOf(other.publicKey);
+
+      const reply = await signRequestWith(() => [builtInWallet()])(
+        transactionRequest(bytes)
+      );
+
+      expect(reply).toEqual({
+        error: `Account ${keypair.publicKey.toBase58()} is not a signer of the transaction`,
+      });
+    });
+
+    it("refuses a v1 transaction for a browser wallet, which takes web3.js transactions", async () => {
+      const bytes = kitV1MessageBytesOf(keypair.publicKey);
+      const phantom = {
+        isPg: false,
+        name: "Phantom",
+        publicKey: keypair.publicKey,
+        signTransaction: async (tx: PgWeb3.VersionedTransaction) => tx,
+      } as unknown as Wallet;
+
+      const reply = await signRequestWith(() => [phantom])(
+        transactionRequest(bytes)
+      );
+
+      expect(reply).toEqual({
+        error: "Phantom cannot sign a v1 transaction",
+      });
     });
 
     it("answers with the reason when the page's wallets cannot be listed", async () => {
