@@ -231,7 +231,8 @@ function CodeSpace({ p, active, jump, onFiles, onAsk }: { p: Project; active: bo
           </button>
         )}
         <span className="flex-1" />
-        <InteractTab p={p} className="h-11 rounded-lg px-3" />
+        {/* 36 drawn in the 48 row, 44 to the finger: at 44 its fill touched both rules (Almaz, 20 Nov) */}
+        <InteractTab p={p} className="relative h-9 rounded-lg px-3 after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']" />
       </div>
       {/* The notices pinned under the Code row, full width, so no line of code moves under the finger */}
       <ReadNotice p={p} phone onAsk={onAsk} />

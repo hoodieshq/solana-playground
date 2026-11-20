@@ -517,7 +517,11 @@ function compileError(files: Record<string, string>) {
       // items rustc wants an item; inside a function a bare name is a value it can't find
       const t = lines[i].replace(/\/\/.*$/, "").trim()
       const word = t.match(/^([A-Za-z_]\w*);?$/)?.[1]
-      if (word && !KEYWORDS.has(word)) {
+      // Without a semicolon and right before a `}` it is real Rust: a block's last expression, an enum's
+      // last variant, a struct's last shorthand field
+      const next = lines.slice(i + 1).find((l) => l.trim())?.trim() ?? ""
+      const tail = !t.endsWith(";") && next.startsWith("}")
+      if (word && !KEYWORDS.has(word) && !tail) {
         const col = lines[i].indexOf(word) + 1
         return depth === 0
           ? { file, line: i + 1, col, code: "E0000", message: `expected item, found \`${word}\``, quote: t }
@@ -880,11 +884,11 @@ const WHY_RUST: Record<string, string> = {
 
 type BuildFail = Extract<Turn, { k: "build-fail" }>
 
-/** The one change that clears a compiler error, as the whole file after it: a missing brace put back at
- * the end, a stray one taken out, the memo program's renamed declaration given its name again */
 /** A word typed where Rust wants code: the build's stray-word check, not a renamed name */
 const strayWord = (fail: BuildFail) => !!fail.message && (fail.message.startsWith("expected item") || (fail.code === "E0425" && !fail.message.includes("`memo`")))
 
+/** The one change that clears a compiler error, as the whole file after it: a missing brace put back at
+ * the end, a stray one taken out, the memo program's renamed declaration given its name again */
 function fixOf(p: Project, fail: BuildFail): { file: string; line: number; before: string; after: string } | null {
   const file = fail.file
   const before = file ? p.files[file] : undefined
@@ -928,7 +932,13 @@ export function settleFix(id: string, turn: number, how: "applied" | "kept" | "u
     if (p.files[t.file] !== t.after) return say(id, `You edited \`${t.file.split("/").pop()}\` after applying. Use undo in the editor.`)
     edit(id, t.file, t.before)
   } else if (t.done) return
-  if (how === "applied" && p.files[t.file] === t.before) edit(id, t.file, t.after)
+  if (how === "applied") {
+    // The file moved on since the patch was made: applying it would undo that edit, so it isn't
+    if (p.files[t.file] !== t.before) return say(id, `\`${t.file.split("/").pop()}\` changed since I wrote this fix. Ask again and I'll make one for the code as it is now.`)
+    edit(id, t.file, t.after)
+    // edit refuses with the projects full: the notice says why, and the card stays open
+    if (state.projects[id]?.files[t.file] !== t.after) return
+  }
   update(id, (q) => ({ ...q, feed: q.feed.map((x) => (x === t || (x.k === "fix" && x.id === turn) ? { ...t, done: how } : x)) }))
 }
 
@@ -1054,6 +1064,16 @@ export function ask(id: string, text: string) {
 // ----- Home's draft: what to build, before any code ----------------------------------------------
 
 /** A name no project or account project has: tip-jar, then tip-jar-2 */
+/** A project's id stays when it's renamed, and a draft takes its name only once written: a new one's id
+ * is checked against the ids, so it never lands on a project that already has it (20 Nov: a second
+ * draft replaced the first) */
+function freeId(base: string) {
+  if (!state.projects[base]) return base
+  let n = 2
+  while (state.projects[`${base}-${n}`]) n++
+  return `${base}-${n}`
+}
+
 function unusedName(base: string) {
   const taken = new Set([...Object.values(state.projects).map((p) => p.name), ...state.account.map((a) => a.name)])
   if (!taken.has(base)) return base
@@ -1070,6 +1090,9 @@ const extraOf = (p: Project, idea: IdeaId) => {
 
 /** The draft becomes a project: the files, a name from what it is, saved, and Build next */
 function writeDraft(p: Project, idea: IdeaId | null, option: 0 | 1): Project {
+  // Writing it would save an 11th project: the draft stays, and the way out is said
+  if (usedSlots() >= LIMIT)
+    return post({ ...p, notice: "full" }, { k: "assistant", text: `Your account keeps ${LIMIT} projects, and all ${LIMIT} are taken. Delete one in Manage projects, then say Write it again.`, chips: [WRITE_IT] })
   // The three programs are Anchor. Describe it on Native or TypeScript gets that framework's starter, said so
   const anchor = p.framework === "anchor"
   const starter = STARTERS[p.framework]
@@ -1192,6 +1215,13 @@ export const setShowPrograms = (fn: () => void) => {
   show = fn
 }
 
+/** One of your projects, from wherever its card is: Home's cards changed the route alone and left Home
+ * on screen (20 Nov) */
+export function openSaved(id: string) {
+  go({ at: "project", id })
+  show()
+}
+
 const bus = new EventTarget()
 /** A Deploy pressed with the projects full: the quota card scrolls into view and flashes */
 export function onQuotaFlash(fn: () => void) {
@@ -1209,16 +1239,16 @@ export function onProjectsEvent(name: "project:open", fn: (detail: unknown) => v
 export function openProject(o: OpenProject) {
   bus.dispatchEvent(new CustomEvent("project:open", { detail: o }))
   const meta = o.slug ? programBySlug(o.slug) : undefined
-  const existing = o.slug ? projectOfSlug(o.slug) : state.projects[o.name]
+  const existing = o.slug ? projectOfSlug(o.slug) : Object.values(state.projects).find((x) => x.name === o.name)
   let p: Project
-  if (o.draft) p = { ...blank(o.name, o.framework, o.source, {}), name: o.named ? o.name : "New program", example: true, draft: { idea: null, option: null, asks: 0, named: o.named } }
+  if (o.draft) p = { ...blank(o.name, o.framework, o.source, {}), id: freeId(o.name), name: o.named ? o.name : "New program", example: true, draft: { idea: null, option: null, asks: 0, named: o.named } }
   else if (existing) p = existing
   else if (meta) p = ensureLive(post(makeFromProgram(meta, o.name), { k: "intro" }))
   else {
     const starter = STARTERS[o.framework]
     // No IDL from the build: the stable build server compiles Anchor 1.1.2 without one (Sergo's
     // feat/stable-anchor-1.1.2), so a new project has none until it's built locally and uploaded
-    p = ensureLive(post({ ...blank(o.name, o.framework, o.source, starter.files), open: starter.main, idl: false }, { k: "intro" }))
+    p = ensureLive(post({ ...blank(o.name, o.framework, o.source, starter.files), id: freeId(o.name), open: starter.main, idl: false }, { k: "intro" }))
   }
   if (o.openFile && o.openFile in p.files) p = { ...p, open: o.openFile }
   set({ ...state, projects: { ...state.projects, [p.id]: p }, route: { at: "project", id: p.id } })

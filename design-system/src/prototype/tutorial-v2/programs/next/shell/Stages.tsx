@@ -140,8 +140,6 @@ export function stageHint(p: Project): string | null {
   }
 }
 
-/** One segment a stage, the tutorial's 4px bar: done ones lit in one sweep of the brand's gradient, a
- * failed one red, one the code moved past amber */
 /** The stages as one ring before the words: a whole grey track, and an arc over it as long as the share of
  * stages done. One continuous ring, not an arc a stage: four pieces read as four things (Almaz, 20 Nov).
  * The arc takes the colour of what stands: red after a failure, amber when the code changed after a build */

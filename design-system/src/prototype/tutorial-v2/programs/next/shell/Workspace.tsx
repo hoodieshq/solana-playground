@@ -161,7 +161,7 @@ export function errorIn(p: Project, file: string) {
   if (p.build.s !== "failed" || p.build.kind !== "compile") return null
   const t = [...p.feed].reverse().find((x): x is Extract<Turn, { k: "build-fail" }> => x.k === "build-fail")
   if (!t || t.file !== file || !t.line) return null
-  return { line: t.line, column: t.col, span: t.code === "E0425" ? 4 : undefined }
+  return { line: t.line, column: t.col, span: t.code === "E0425" ? (t.message?.match(/`(\w+)`/)?.[1].length ?? 4) : undefined }
 }
 
 /** The project page: one bar (back, the name, the stages, the program chip, the panels' toggles), then

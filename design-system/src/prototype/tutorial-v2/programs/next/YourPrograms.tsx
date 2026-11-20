@@ -16,7 +16,7 @@ import { progressOf, savedProgress, useStore } from "../../store"
 import { CATALOG as CATALOG_TUTORIALS, shownName } from "../../ui/catalog"
 import { ResumeList, type ResumeItem } from "../../ui/ResumeList"
 import { CATALOG } from "../data"
-import { deleteProject, go, usePrograms, type Project } from "../store"
+import { deleteProject, go, openSaved, usePrograms, type Project } from "../store"
 import { ProgramIcon, standing } from "./catalog-parts"
 import { ProjectCover } from "./ProjectCover"
 import { deletable, deleteQuestion, startRename } from "./shell/GuideColumn"
@@ -91,7 +91,7 @@ export function YourPrograms() {
         cover: meta ? <ProgramIcon p={meta} className="shrink-0" /> : <ProjectCover framework={p.framework} />,
         name: p.name,
         ...whereNow(p),
-        onOpen: () => go({ at: "project", id: p.id }),
+        onOpen: () => openSaved(p.id),
         menu: <RowMenu p={p} onDelete={() => setAsking(p.id)} />,
         confirm:
           asking === p.id ? (

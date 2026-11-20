@@ -22,7 +22,8 @@ export function markBuilt() {
   } catch {
     // Storage off: Get set up shows for the rest of this page
   }
-  window.dispatchEvent(new Event(EVENT))
+  // The lesson marks it from inside its reducer: the nav hears it after that render, not during it
+  setTimeout(() => window.dispatchEvent(new Event(EVENT)))
 }
 
 export function useBuiltOnce() {
