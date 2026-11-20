@@ -71,7 +71,7 @@ export type PlaygroundWallet = {
    * @param bytes the transaction's message bytes
    * @returns the account's signature of them
    */
-  signTransactionMessage(bytes: Uint8Array): Promise<Uint8Array>;
+  signTransactionBytes(bytes: Uint8Array): Promise<Uint8Array>;
 } & NonNullablePublicKeyProp &
   SignerWalletProps;
 

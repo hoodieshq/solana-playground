@@ -292,9 +292,10 @@ const storage = {
    * dropped them could not connect one again until the page reloaded.
    */
   async read(): Promise<WalletState> {
-    // Empty on the first read, which runs before `init` defines the field
-    const detected = PgWallet.standardWallets ?? [];
-    return { ...(await storage.readFresh()), standardWallets: detected };
+    const stored = await storage.readFresh();
+    // Taken after the read, so a wallet announced meanwhile is kept too; empty
+    // on the first read, which runs before `init` defines the field
+    return { ...stored, standardWallets: PgWallet.standardWallets ?? [] };
   },
 
   /** The wallet as stored, with no standard wallet detected yet */
@@ -357,9 +358,11 @@ const derive = () => ({
           const currentAccount = PgWallet.accounts[PgWallet.currentIndex];
           if (!currentAccount) {
             if (!PgWallet.accounts.length) {
-              // `addFirst` reports a failure and the user is told; the next
-              // change of the wallet, Deploy or Create wallet tries again
-              PgWallet.addFirst().catch(() => tell("first-account-failed"));
+              // Once per failure: after one, Deploy and Create wallet try
+              // again, not every change of the wallet (`canDeriveFirst`)
+              if (PgWallet.canDeriveFirst()) {
+                PgWallet.addFirst().catch(() => tell("first-account-failed"));
+              }
             } else PgWallet.switch(0);
 
             return null;
@@ -528,10 +531,21 @@ const migrate = () => {
 const accountLog = createLogger("wallet:account");
 
 /**
- * The first account being made, so a second caller does not make another.
- * Cleared once the attempt settles, so a failed attempt is tried again.
+ * Where making the first account stands (`addFirst`). `adding` holds the
+ * attempt every caller meanwhile shares. `failed` stops the wallet's derive
+ * from trying again on every change, which would report and tell the user
+ * each time; Deploy and Create wallet call `addFirst` and do try again.
  */
-let addingFirst: Promise<boolean> | undefined;
+type FirstAccount =
+  | { kind: "none" }
+  | { kind: "adding"; attempt: Promise<boolean> }
+  | { kind: "failed" };
+
+let firstAccount: FirstAccount = { kind: "none" };
+
+/** Whether `attempt` is still the first-account attempt in progress */
+const isCurrentAttempt = (attempt: Promise<boolean>) =>
+  firstAccount.kind === "adding" && firstAccount.attempt === attempt;
 
 /**
  * Tell of a key the provider failed to drop: by public key only,
@@ -661,26 +675,39 @@ class _PgWallet {
    * asynchronous, so every caller meanwhile (a derive, Deploy) shares this
    * attempt instead of adding a second account. A failure (the key page is
    * down) leaves the wallet with no account, as before the attempt, and is
-   * reported once per attempt. It is not kept: the next caller (Deploy,
-   * Create wallet) tries again, where a kept failure refused both until the
-   * page reloaded.
+   * reported once per attempt. It does not refuse the next call: Deploy and
+   * Create wallet try again, where a kept failure refused both until the page
+   * reloaded. Only the derive holds off after one (`FirstAccount`).
    *
    * @returns what `addNew` resolves with
    * @throws what `addNew` threw, to the callers that shared that attempt
    */
   static addFirst() {
-    addingFirst ??= PgWallet.addNew().then(
+    if (firstAccount.kind === "adding") return firstAccount.attempt;
+
+    const attempt: Promise<boolean> = PgWallet.addNew().then(
       (added) => {
-        addingFirst = undefined;
+        // A provider change meanwhile started over: leave its state alone
+        if (isCurrentAttempt(attempt)) firstAccount = { kind: "none" };
         return added;
       },
       (error: unknown) => {
-        addingFirst = undefined;
+        if (isCurrentAttempt(attempt)) firstAccount = { kind: "failed" };
         accountLog.error(error, { report: true });
         throw error;
       }
     );
-    return addingFirst;
+    firstAccount = { kind: "adding", attempt };
+    return attempt;
+  }
+
+  /**
+   * Whether the wallet's derive may make the first account: not after an
+   * attempt failed, until Deploy, Create wallet or a provider change succeeds
+   * or starts over.
+   */
+  static canDeriveFirst() {
+    return firstAccount.kind === "none";
   }
 
   /**
@@ -923,8 +950,8 @@ class _PgWallet {
 
   /**
    * Replace the provider that holds the accounts' keys and signs with them.
-   * A first account still being made (`addFirst`) is the old provider's,
-   * so the next call starts afresh.
+   * A first account still being made, or one that failed (`addFirst`), was the
+   * old provider's, so the next call starts afresh.
    *
    * The local provider is the default. Set another before the wallet loads:
    * a wallet already derived keeps the provider it was made with.
@@ -933,8 +960,8 @@ class _PgWallet {
    */
   static setSignerProvider(provider: WalletSignerProvider) {
     signerProvider = provider;
-    // An attempt in flight was the old provider's
-    addingFirst = undefined;
+    // An attempt in flight, or a failure, was the old provider's
+    firstAccount = { kind: "none" };
   }
 
   /**

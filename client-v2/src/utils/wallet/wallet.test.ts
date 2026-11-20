@@ -413,7 +413,7 @@ describe("utils/wallet/wallet", () => {
         expect(kept.size).toBe(1);
       });
 
-      it("addFirst tries again after a failed attempt, reporting each failure", async () => {
+      it("addFirst tries again after a failed attempt, while the derive holds off", async () => {
         const logged = memoryProvider();
         initLogger({ providers: [logged] });
         const { kept, provider } = fakeKeyPage();
@@ -436,12 +436,45 @@ describe("utils/wallet/wallet", () => {
         expect(
           logged.entries.filter((entry) => entry.ns === "wallet:account")
         ).toEqual([expect.objectContaining({ level: "error", report: true })]);
+        expect(PgWallet.canDeriveFirst()).toBe(false);
 
         failNext = false;
         expect(await PgWallet.addFirst()).toBe(true);
         expect(makeKey).toHaveBeenCalledTimes(2);
         expect(accounts).toHaveLength(1);
         expect(kept.size).toBe(1);
+        expect(PgWallet.canDeriveFirst()).toBe(true);
+      });
+
+      it("addFirst keeps sharing the new provider's attempt when the old one fails after a provider change", async () => {
+        const { provider } = fakeKeyPage();
+        let failOld: (error: Error) => void = () => {};
+        let finishNew: (publicKey: string) => void = () => {};
+        vi.spyOn(provider, "makeKey")
+          .mockImplementationOnce(
+            () =>
+              new Promise<string>((_, reject) => {
+                failOld = reject;
+              })
+          )
+          .mockImplementationOnce(
+            () =>
+              new Promise<string>((resolve) => {
+                finishNew = resolve;
+              })
+          );
+        PgWallet.setSignerProvider(provider);
+        holdState([]);
+
+        const old = PgWallet.addFirst();
+        PgWallet.setSignerProvider(provider);
+        const current = PgWallet.addFirst();
+        failOld(new KeyFrameUnavailable("timeout"));
+        await expect(old).rejects.toBeInstanceOf(KeyFrameUnavailable);
+
+        expect(PgWallet.addFirst()).toBe(current);
+        finishNew(PgWeb3.Keypair.generate().publicKey.toBase58());
+        await current;
       });
 
       it("makeKey stores a key, and forgetKey drops it unless an account holds it", async () => {

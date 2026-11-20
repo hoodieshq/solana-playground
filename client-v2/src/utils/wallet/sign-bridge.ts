@@ -3,9 +3,12 @@
 import * as ed25519 from "@noble/ed25519";
 import { getCompiledTransactionMessageDecoder } from "@solana/kit";
 
+import { createLogger } from "../../shared/lib/logger";
 import type { FromSandbox, SignReply } from "../js-runtime/protocol";
 import { PgWeb3 } from "../web3";
 import type { Wallet } from "./types";
+
+const log = createLogger("wallet:sign-bridge");
 
 /** A sign request from the project-code sandbox */
 type SignRequest = Pick<
@@ -16,6 +19,22 @@ type SignRequest = Pick<
 /** The reason a wallet failed to sign, without anything it was given */
 const reasonOf = (error: unknown) =>
   error instanceof Error ? error.message : "The wallet refused to sign";
+
+/**
+ * The transaction message in `bytes`, read with Kit, which knows every
+ * version; nothing when the bytes are not one. Only the reason's name is
+ * logged: the bytes are the sandbox's, and may be anything.
+ */
+const compiledMessageOf = (bytes: Uint8Array) => {
+  try {
+    return getCompiledTransactionMessageDecoder().decode(bytes);
+  } catch (error) {
+    log.warn("sign request: the transaction message could not be read", {
+      context: { reason: error instanceof Error ? error.name : typeof error },
+    });
+    return undefined;
+  }
+};
 
 /**
  * Signs for the sandbox with the page's wallets: the page's signer provider's
@@ -48,13 +67,14 @@ export const signRequestWith =
       if (request.kind === "message") {
         signature = await wallet.signMessage(request.bytes);
       } else {
-        const compiled = getCompiledTransactionMessageDecoder().decode(
-          request.bytes
-        );
+        const compiled = compiledMessageOf(request.bytes);
+        if (!compiled) {
+          return { error: "The transaction's message could not be read" };
+        }
         // The signers are the first static accounts, in signature order
         const index = compiled.staticAccounts
           .slice(0, compiled.header.numSignerAccounts)
-          .indexOf(request.publicKey as typeof compiled.staticAccounts[0]);
+          .findIndex((account) => account === request.publicKey);
         if (index < 0) {
           return {
             error: `Account ${request.publicKey} is not a signer of the transaction`,
@@ -65,7 +85,7 @@ export const signRequestWith =
           if (!wallet.isPg) {
             return { error: `${wallet.name} cannot sign a v1 transaction` };
           }
-          signature = await wallet.signTransactionMessage(request.bytes);
+          signature = await wallet.signTransactionBytes(request.bytes);
         } else {
           const message = PgWeb3.VersionedMessage.deserialize(request.bytes);
           const signed = await wallet.signTransaction(
@@ -92,12 +112,14 @@ export const signRequestWith =
   };
 
 if (import.meta.vitest) {
-  const { beforeAll, describe, it, expect } = import.meta.vitest;
+  const { beforeAll, describe, it, expect, vi } = import.meta.vitest;
 
   describe("utils/wallet/sign-bridge", () => {
     let kit: typeof import("@solana/kit");
+    let localSignerProviderWith: typeof import("./signer-provider").localSignerProviderWith;
     beforeAll(async () => {
       kit = await import("@solana/kit");
+      ({ localSignerProviderWith } = await import("./signer-provider"));
     });
 
     const request = {
@@ -262,7 +284,7 @@ if (import.meta.vitest) {
         signTransaction: async () => {
           throw new Error("web3.js has no v1 transaction");
         },
-        signTransactionMessage: (bytes: Uint8Array) =>
+        signTransactionBytes: (bytes: Uint8Array) =>
           ed25519.sign(bytes, keypair.secretKey.slice(0, 32)),
       } as unknown as Wallet);
 
@@ -312,6 +334,45 @@ if (import.meta.vitest) {
       expect(reply).toEqual({
         error: "Phantom cannot sign a v1 transaction",
       });
+    });
+
+    it("signs a Kit v1 transaction with a wallet of the local provider", async () => {
+      const bytes = kitV1MessageBytesOf(keypair.publicKey);
+      const wallet = localSignerProviderWith(() =>
+        Array.from(keypair.secretKey)
+      ).walletFor({ name: "Wallet 1", publicKey: keypair.publicKey });
+
+      const reply = await signRequestWith(() => [wallet])(
+        transactionRequest(bytes)
+      );
+
+      if (!("signature" in reply)) throw new Error(`refused: ${reply.error}`);
+      expect(
+        await ed25519.verify(
+          Uint8Array.from(reply.signature),
+          bytes,
+          keypair.publicKey.toBytes()
+        )
+      ).toBe(true);
+    });
+
+    it("refuses bytes that are not a transaction message, signing nothing", async () => {
+      const signTransactionBytes = vi.fn();
+      const wallet = {
+        isPg: true,
+        name: "Wallet 1",
+        publicKey: keypair.publicKey,
+        signTransactionBytes,
+      } as unknown as Wallet;
+
+      const reply = await signRequestWith(() => [wallet])(
+        transactionRequest(new Uint8Array([0x81]))
+      );
+
+      expect(reply).toEqual({
+        error: "The transaction's message could not be read",
+      });
+      expect(signTransactionBytes).not.toHaveBeenCalled();
     });
 
     it("answers with the reason when the page's wallets cannot be listed", async () => {
