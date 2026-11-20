@@ -221,3 +221,38 @@ describe("features/tutorial-conversation/model/runners/real-deploy: realDeployPo
     });
   });
 });
+
+describe("features/tutorial-conversation/model/runners/real-deploy: realDeployPort.createWallet", () => {
+  it("takes the account a loading wallet brings instead of making another", async () => {
+    const { PgWallet } = await import("@/utils");
+    const wallet = PgWallet as unknown as {
+      accounts: unknown[];
+      untilLoaded: () => Promise<void>;
+      addFirst: () => Promise<boolean>;
+    };
+    const loaded = wallet.accounts;
+    const untilLoaded = wallet.untilLoaded;
+    let finishLoad = () => {};
+    wallet.accounts = [];
+    wallet.untilLoaded = () =>
+      new Promise<void>((resolve) => {
+        finishLoad = () => {
+          wallet.accounts = loaded;
+          resolve();
+        };
+      });
+    const addFirst = vi.fn(async () => true);
+    wallet.addFirst = addFirst;
+
+    try {
+      const made = realDeployPort().createWallet();
+      finishLoad();
+
+      expect(await made).toBe(WALLET);
+      expect(addFirst).not.toHaveBeenCalled();
+    } finally {
+      wallet.accounts = loaded;
+      wallet.untilLoaded = untilLoaded;
+    }
+  });
+});

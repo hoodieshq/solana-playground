@@ -257,9 +257,13 @@ export const realDeployPort = (): DeployPort => {
     // As the no-wallet card's Create wallet makes it (`PgWallet.addFirst`
     // makes it the current wallet too)
     createWallet: async () => {
-      // A wallet still loading from the key origin: read it first, so the
-      // account is made as it would be once loaded
+      // A wallet still loading from the key origin may bring the learner's
+      // account: read it first, and make one only when it brought none.
+      // TODO(HOO-2934 follow-up): `wallet()` does not wait, so a beat during
+      // the load shows the no-wallet card; its Create wallet lands here
       await PgWallet.untilLoaded();
+      wallet = playgroundWallet();
+      if (wallet) return wallet.publicKey.toBase58();
       await PgWallet.addFirst();
       wallet = playgroundWallet();
       if (!wallet) throw new Error("The Playground wallet was not made");

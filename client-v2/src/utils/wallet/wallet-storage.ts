@@ -526,10 +526,10 @@ export const walletStorageWith =
      * wallet in `localStorage` (the entry itself, and the one kept aside) to
      * the key page as it is, then drop it from the app's origin. A copy
      * rewritten meanwhile stays for the next read. A failure is reported:
-     * the copies not yet removed stay where they were, as before the key
-     * origin, every one of them already stored by the key page, and the next
-     * read tries again, while the wallet itself still loads, since nothing in
-     * it depends on them.
+     * every copy not yet removed stays where it was, as before the key
+     * origin (stored by the key page too when only its removal failed), and
+     * the next read tries again, while the wallet itself still loads, since
+     * nothing in it depends on them.
      */
     const handOverUnreadable = async (keep: KeyMove["keep"]) => {
       const found: [key: string, text: string][] = [];

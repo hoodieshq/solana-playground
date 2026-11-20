@@ -270,8 +270,9 @@ export const loadingWith =
   };
 
 /**
- * Take the wallet the page load's read found, unless a read the user started
- * since (`connect`, Try again) already answered. The state goes last, so
+ * Take the wallet the page load's read found, unless the wallet has left
+ * `loading` since: a read the user started (`connect`, Try again) answered
+ * first. The state goes last, so
  * nothing derives a connected wallet from the accounts before they are set.
  *
  * @param wallet the wallet read
