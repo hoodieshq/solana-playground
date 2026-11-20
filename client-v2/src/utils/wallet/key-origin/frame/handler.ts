@@ -319,7 +319,7 @@ if (import.meta.vitest) {
         keep: async (text) => {
           texts.add(text);
         },
-        kept: async () => [...texts],
+        kept: async () => Array.from(texts),
       };
       return { kept, store, texts };
     };
@@ -497,7 +497,7 @@ if (import.meta.vitest) {
 
       // eslint-disable-next-line unicorn/no-null -- the wire's "nothing"
       expect(reply).toMatchObject({ ok: true, result: null });
-      expect([...texts]).toEqual(["{not json"]);
+      expect(Array.from(texts)).toEqual(["{not json"]);
     });
 
     it("refuses to sign a v1 transaction message as a message", async () => {
@@ -556,9 +556,9 @@ if (import.meta.vitest) {
         expect(bytes[0]).toBe(0x81);
         expect(isTransactionMessage(bytes)).toBe(true);
         expect(isTransactionMessage(bytes.slice(0, -1))).toBe(false);
-        expect(isTransactionMessage(Uint8Array.from([...bytes, 0]))).toBe(
-          false
-        );
+        expect(
+          isTransactionMessage(Uint8Array.from(Array.from(bytes).concat(0)))
+        ).toBe(false);
         expect(
           await ask(handle, { type: "sign", publicKey, kind: "message", bytes })
         ).toMatchObject({ ok: false, error: "This message is a transaction" });

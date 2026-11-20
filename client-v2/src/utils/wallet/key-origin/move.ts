@@ -261,7 +261,7 @@ if (import.meta.vitest) {
         keep: async (text) => {
           texts.add(text);
         },
-        kept: async () => [...texts],
+        kept: async () => Array.from(texts),
       });
       let id = 0;
       const adopts: number[][][] = [];
@@ -520,7 +520,7 @@ if (import.meta.vitest) {
           wallet: keyless(record),
           setAside: 0,
         });
-        expect([...texts]).toEqual([text]);
+        expect(Array.from(texts)).toEqual([text]);
         expect(local.items.has(WALLET_LOCAL_KEY)).toBe(false);
         expect(local.items.has("wallet.unreadable")).toBe(false);
         const logText = JSON.stringify(logged.entries, (_, value: unknown) =>
@@ -545,8 +545,8 @@ if (import.meta.vitest) {
         );
 
         expect(read).toEqual({ kind: "none", setAside: 0 });
-        expect([...texts].sort()).toEqual([aside, text].sort());
-        expect([...local.items.keys()]).toEqual([]);
+        expect(Array.from(texts).sort()).toEqual([aside, text].sort());
+        expect(local.items.size).toBe(0);
       });
 
       it("keeps an unparseable wallet in place, and reads unavailable, while the key page does not take it", async () => {
