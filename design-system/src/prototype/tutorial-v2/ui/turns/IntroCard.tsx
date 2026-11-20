@@ -51,7 +51,7 @@ export function IntroCard({ phone = false }: { phone?: boolean }) {
           <PixelCover slug={LESSON.card.slug} square className="rounded-lg" />
         ) : (
           // The catalog's cover, Lucide on the lesson's ground: the product's old picture was the last one left (Almaz, 10 Nov)
-          <TutorialCover name={upstreamName(CATALOG.find((t) => t.slug === LESSON.card.slug)!)} framework={LESSON.card.framework} level={LESSON.card.level} className="size-10 shrink-0 rounded-[9px]" />
+          <TutorialCover name={upstreamName(CATALOG.find((t) => t.slug === LESSON.card.slug)!)} framework={LESSON.card.framework} level={LESSON.card.level} className="size-10 shrink-0 rounded-[9px] bg-surface-panel" />
         )}
         <div className="min-w-0">
           <h2 id={phone ? undefined : "intro-title"} className={TITLE}>
