@@ -12,7 +12,7 @@ import { FOCUS, READ } from "./type"
 
 // The details' quiet controls share one face: caption size, muted, brightening on hover, never broken in two
 const QUIET = cn(
-  "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-[0.875rem] leading-[1.125rem] text-muted-foreground transition-colors duration-150 ease-standard hover:text-foreground motion-reduce:transition-none",
+  "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-13 leading-[1.125rem] text-muted-foreground transition-colors duration-150 ease-standard hover:text-foreground motion-reduce:transition-none",
   FOCUS
 )
 // Under a finger each row of controls is 44px tall. Reaching into the margins instead let the id's
@@ -75,7 +75,7 @@ export function PlainDetails({
     <BuildLog
       log={log}
       inset
-      className={cn("flex-none bg-transparent pt-3 pb-3 text-[0.75rem] leading-5 [mask-image:linear-gradient(to_right,#000_calc(100%-3rem),transparent)]", bar ? "px-4" : "px-3")}
+      className={cn("flex-none bg-transparent pt-3 pb-3 text-13 leading-5 [mask-image:linear-gradient(to_right,#000_calc(100%-3rem),transparent)]", bar ? "px-4" : "px-3")}
     />
   )
 
@@ -90,7 +90,7 @@ export function PlainDetails({
     <div className={bar ? "-mb-3" : undefined}>
       {/* `quiet` is for a card whose accounts above are the answer, the Call panel's and a records call's:
           the cost is a footnote, set like the controls under it */}
-      <p className={quiet ? "text-[0.875rem] leading-5 text-pretty text-muted-foreground" : cn(READ, "text-pretty")}>
+      <p className={quiet ? "text-13 leading-5 text-pretty text-muted-foreground" : cn(READ, "text-pretty")}>
         <Prose text={text} />
       </p>
 

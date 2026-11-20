@@ -73,7 +73,7 @@ export function FinishHeadline({
   return (
     <Tag
       className={cn(
-        "text-center font-heading text-[1.75rem] leading-[1.15] font-medium tracking-tight text-foreground max-[30rem]:text-[1.5rem]",
+        "text-center font-heading text-28 leading-[1.15] font-act tracking-tight text-foreground max-[30rem]:text-28",
         className,
       )}
     >
@@ -101,13 +101,13 @@ export function AnswerCard({ className }: { className?: string }) {
                 : "hello() returned"
               : `${tx.instruction}() returned`}
           </p>
-          <p className="mt-1 font-mono text-[1.375rem] leading-tight font-medium break-words text-foreground max-[30rem]:text-[1.25rem]">
+          <p className="mt-1 font-mono text-20 leading-tight font-act break-words text-foreground max-[30rem]:text-20">
             {tx.said}
           </p>
           <div className="mt-3.5 flex items-start justify-between gap-4 border-t border-border pt-3 text-caption">
             <span className="text-muted-foreground">You paid</span>
             <span className="text-right">
-              <span className="block font-medium text-foreground">{TX_FEE}</span>
+              <span className="block font-act text-foreground">{TX_FEE}</span>
               <span className="block text-subtle">Devnet SOL: free test money</span>
             </span>
           </div>
@@ -184,7 +184,7 @@ export function NextTutorialButton({ className }: { className?: string }) {
   const next = LESSON.next;
   return (
     <BrandButton
-      className={cn("h-12 w-full text-[0.9375rem]", className)}
+      className={cn("h-12 w-full text-16", className)}
       onClick={() => openTutorial(next)}
     >
       <Play className="size-4 fill-current" aria-hidden="true" />

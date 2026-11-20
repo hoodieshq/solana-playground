@@ -182,7 +182,7 @@ export function StepScreen() {
         >
           {/* Whole pixel lines, 20 and 18 as Practicum sets its progress line: the caption's own 1.45
               left the line's foot at 49.2 and the gap to the segments a fraction */}
-          <span className="max-w-full truncate font-heading text-[0.9375rem] leading-5 font-medium text-foreground">{LESSON.card.name}</span>
+          <span className="max-w-full truncate font-heading text-16 leading-5 font-act text-foreground">{LESSON.card.name}</span>
           <span className="max-w-full truncate text-caption leading-[1.125rem] text-muted-foreground">{where}</span>
         </button>
         {/* The one way across besides the swipe: it names the space it takes you to. Drawn as the desktop's
@@ -193,7 +193,7 @@ export function StepScreen() {
           onClick={() => setSpace(onCode ? "chat" : "code")}
           aria-label={onCode ? "Back to the chat" : dot ? "Show the code, new lines written" : "Show the code"}
           className={cn(
-            "relative h-9 shrink-0 gap-1.5 rounded-[10px] px-3 text-[0.875rem] font-act pointer-coarse:h-9 after:absolute after:-inset-1 after:content-['']",
+            "relative h-9 shrink-0 gap-1.5 rounded-[10px] px-3 text-13 font-act pointer-coarse:h-9 after:absolute after:-inset-1 after:content-['']",
             ACTION_SOFT
           )}
         >
@@ -249,7 +249,7 @@ export function StepScreen() {
                   variant="ghost"
                   // Ghosted: in a 48 row a filled 36 button had no air round it. The text is the button, and the
                   // finger still gets 44 from the layer around it
-                  className="relative -mr-3 ml-auto h-9 shrink-0 gap-1.5 rounded-[10px] px-3 text-[0.875rem] font-act text-foreground/90 pointer-coarse:h-9 after:absolute after:-inset-1 after:content-[''] hover:bg-foreground/[0.06] active:bg-foreground/[0.08]"
+                  className="relative -mr-3 ml-auto h-9 shrink-0 gap-1.5 rounded-[10px] px-3 text-13 font-act text-foreground/90 pointer-coarse:h-9 after:absolute after:-inset-1 after:content-[''] hover:bg-foreground/[0.06] active:bg-foreground/[0.08]"
                   onClick={() => dispatch({ type: "openTest" })}
                 >
                   <Send className="size-4" aria-hidden="true" />

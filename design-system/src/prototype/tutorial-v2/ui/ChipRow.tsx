@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 /** A suggested question. 28 high with 13px words: at 24 and 12 it sat under a 16px answer and over a 40px
  * field like a footnote (Almaz, 18 Nov) */
 export const CHIP =
-  "h-7 shrink-0 rounded-full border border-border-strong px-3 text-[0.8125rem] whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground outline-none focus-visible:outline-2 focus-visible:outline-brand-purple pointer-coarse:h-11 pointer-coarse:px-4"
+  "h-7 shrink-0 rounded-full border border-border-strong px-3 text-13 whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground outline-none focus-visible:outline-2 focus-visible:outline-brand-purple pointer-coarse:h-11 pointer-coarse:px-4"
 
 const MORE_W = 76
 
@@ -83,7 +83,7 @@ export function ChipRow({ chips, phone = false, onPick }: { chips: string[]; pho
               rows lost their even step (Almaz, 18 Nov) */}
           <DropdownMenuContent side="top" align="start" sideOffset={6} className="w-max max-w-[min(22rem,calc(100vw-2rem))] min-w-52">
             {hidden.map((c) => (
-              <DropdownMenuItem key={c} onSelect={() => onPick(c)} className="h-8 px-2.5 text-[0.8125rem] whitespace-nowrap">
+              <DropdownMenuItem key={c} onSelect={() => onPick(c)} className="h-8 px-2.5 text-13 whitespace-nowrap">
                 {c}
               </DropdownMenuItem>
             ))}

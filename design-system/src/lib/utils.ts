@@ -7,7 +7,7 @@ import { createCn } from "cn/config"
 const cn = createCn({
   extend: {
     theme: {
-      text: ["display", "title", "body", "control", "caption", "code"],
+      text: ["11", "13", "16", "20", "28", "40", "display", "title", "body", "control", "caption", "code"],
       "font-weight": ["read", "label", "headline", "act"],
       shadow: ["panel", "modal", "glow", "thumb", "sheet", "composer"],
       radius: ["control", "panel", "card"],

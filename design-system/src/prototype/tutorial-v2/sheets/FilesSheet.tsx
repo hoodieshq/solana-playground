@@ -34,7 +34,7 @@ function FilesList({ onPick }: { onPick: (file: string) => void }) {
                 key={file}
                 type="button"
                 onClick={() => onPick(file)}
-                className={cn(ROW, "h-11 text-[0.9375rem] text-muted-foreground hover:bg-transparent active:bg-foreground/[0.05]")}
+                className={cn(ROW, "h-11 text-16 text-muted-foreground hover:bg-transparent active:bg-foreground/[0.05]")}
               >
                 <span className="truncate text-foreground">{file.slice(at + 1)}</span>
                 {at > 0 && <span className="ml-auto pl-3 text-caption">{file.slice(0, at)}</span>}

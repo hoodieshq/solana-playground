@@ -52,7 +52,7 @@ function QuietAction({ className, children, ...props }: ComponentProps<"button">
     <button
       type="button"
       className={cn(
-        "group/quiet -mx-2 flex h-10 shrink-0 items-center gap-1 rounded-control px-2 text-[0.8125rem] leading-5 whitespace-nowrap text-muted-foreground outline-none transition-colors duration-150 ease-standard hover:text-foreground focus-visible:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none pointer-coarse:h-11",
+        "group/quiet -mx-2 flex h-10 shrink-0 items-center gap-1 rounded-control px-2 text-13 leading-5 whitespace-nowrap text-muted-foreground outline-none transition-colors duration-150 ease-standard hover:text-foreground focus-visible:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none pointer-coarse:h-11",
         className
       )}
       {...props}
@@ -85,7 +85,7 @@ const BEAM_CSS = `
   .start-beam:hover:not(:disabled):not(:active)::before { opacity: 1; }
 }`
 
-const GO = "start-beam h-10 font-heading text-[0.9375rem] font-medium tracking-[-0.005em] pointer-coarse:h-11"
+const GO = "start-beam h-10 font-heading text-16 font-act tracking-[-0.005em] pointer-coarse:h-11"
 
 /** The banner's width, in px, from which the sculpture stands beside the words */
 const WIDE_MIN = 640
@@ -126,20 +126,24 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
       <style>{BEAM_CSS}</style>
       <IsoVoxels corner={!wide} icon={b.icon} />
       <div className={cn("relative", phone ? "p-5" : "p-7")}>
-        {/* The words keep to where the sculpture has faded out, about the left 42% of a wide banner */}
-        <div className="max-w-[19rem] min-w-0">
-          <p className={cn("flex items-center gap-1.5 text-[0.8125rem]", b.fresh ? "text-brand-periwinkle" : "text-muted-foreground")}>
+        {/* The words keep to where the sculpture has faded out, about the left 42% of a wide banner: 22rem
+            holds the line on one row, so the words are three lines at most (Almaz, 20 Nov) */}
+        <div className="max-w-[22rem] min-w-0">
+          <p className={cn("flex items-center gap-1.5 text-13", b.fresh ? "text-brand-periwinkle" : "text-muted-foreground")}>
             {b.finished && (
               <span aria-hidden="true" className="flex size-4 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
                 <Check strokeWidth={2.5} className="size-2.5" />
               </span>
             )}
-            {b.label}
+            {/* The facts that decide a start ride on the label's line, not a line of their own; the level is
+                the section under it. One span, so the flex gap (kept for the check) doesn't pad the dot */}
+            {/* Fresh, no "Start here": the button says it (Almaz, 20 Nov) */}
+            <span className="tabular-nums">{b.fresh ? `${b.steps} steps · ${b.lesson.minutes} min` : b.label}</span>
           </p>
-          <h2 id={titleId} className="mt-1.5 font-heading text-[1.5rem] font-normal tracking-[-0.015em] text-foreground">
+          <h2 id={titleId} className="mt-1.5 font-heading text-20 leading-6 font-normal tracking-[-0.015em] text-foreground">
             {b.lesson.card.name}
           </h2>
-          <p className="mt-2 max-w-[44ch] text-[0.9375rem] leading-[1.35] text-balance text-foreground/78">{b.line}</p>
+          <p className="mt-2 max-w-[44ch] text-16 leading-[1.35] text-balance text-foreground/78">{b.line}</p>
           {b.started ? (
             <div className="mt-3 flex max-w-xs items-center gap-3">
               <span aria-hidden="true" className="h-[3px] flex-1 overflow-hidden rounded-[2px] bg-border">
@@ -149,14 +153,7 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
                 />
               </span>
             </div>
-          ) : (
-            !b.finished && (
-              <p className="mt-3 text-[0.75rem] leading-4 font-[380] text-muted-foreground/80 tabular-nums">
-                {/* Only the facts that decide a start; the framework is on the card below */}
-                {`${b.lesson.card.level} · ${b.steps} steps · ${b.lesson.minutes} min`}
-              </p>
-            )
-          )}
+          ) : null}
           {/* On the phone the main button takes the card's width, a thumb's 48, as every phone call to action
               does. Only the main one: Open again stretched to a 48 row left a blank band under its words */}
           <div className={cn("mt-6 flex flex-wrap items-center gap-x-4 gap-y-2", phone && "[&>button:first-child]:h-12 [&>button:first-child]:w-full [html.portrait_&>button:first-child]:w-auto [html.portrait_&>button:first-child]:min-w-60")}>

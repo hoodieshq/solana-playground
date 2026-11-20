@@ -46,8 +46,8 @@ export function JournalRow({
       <span aria-hidden="true" className="flex w-4 shrink-0 justify-center [&_svg]:size-4 [&_svg]:shrink-0">
         {icon}
       </span>
-      <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-5 font-act text-foreground">{label}</span>
-      {took && <span className="shrink-0 text-[0.8125rem] leading-5 text-muted-foreground tabular-nums">{took}</span>}
+      <span className="min-w-0 flex-1 truncate text-16 leading-5 font-act text-foreground">{label}</span>
+      {took && <span className="shrink-0 text-13 leading-5 text-muted-foreground tabular-nums">{took}</span>}
       <span aria-hidden="true" className="flex w-4 shrink-0 justify-center">
         {children && (
           <ChevronDown

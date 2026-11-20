@@ -102,44 +102,55 @@ function Type() {
     <Section
       id="type"
       title="Type"
-      note="Stack Sans Headline for headings and Stack Sans Text for everything else. The weights run lighter than usual because light text on a dark ground blooms. Code keeps the monospace, and nothing else does."
+      note="Stack Sans Headline for headings and Stack Sans Text for everything else. Five sizes a step apart the eye can tell, and one for tags: screens take these and nothing in between, no text-[…]. A size sets no line height of its own, leading-* does. The weights run lighter than usual because light text on a dark ground blooms, and there are four of them. Code keeps the monospace, and nothing else does."
     >
       <div className="rounded-card border border-border px-6">
         <TokenRow
-          name="text-display"
-          sample={<div className="font-heading text-display font-headline">Where should we begin?</div>}
-          detail="28 px · 400 · the one headline a screen has"
+          name="text-40"
+          sample={<div className="font-heading text-40 leading-[1.1] font-headline tracking-[-0.02em]">Build your first program</div>}
+          detail="40 px · 400 · the home hero, once a screen"
         />
         <TokenRow
-          name="text-title"
-          sample={<div className="text-title font-act">Deploy to devnet</div>}
-          detail="17 px · 440 · what a page or sheet is called"
+          name="text-28"
+          sample={<div className="font-heading text-28 leading-[1.15] font-headline tracking-[-0.02em]">Where should we begin?</div>}
+          detail="28 px · 400 · a page's title"
         />
         <TokenRow
-          name="text-body"
-          sample={<div className="text-body font-read">A Solana workbench in a browser tab.</div>}
-          detail="16 px · 320 · what you read"
+          name="text-20"
+          sample={<div className="font-heading text-20 leading-6 font-headline">Deploy to devnet</div>}
+          detail="20 px · 400 · a card's or a section's heading"
         />
         <TokenRow
-          name="text-control"
-          sample={<div className="text-control font-act">Build and deploy</div>}
-          detail="15 px · 440 · what you press"
+          name="text-16"
+          sample={<div className="text-16 leading-6 font-read">A Solana workbench in a browser tab.</div>}
+          detail="16 px · 320 · what you read; 440 for names and labels"
         />
         <TokenRow
-          name="text-caption"
-          sample={<div className="text-caption font-read text-muted-foreground">Built 12 s ago · Anchor 1.2</div>}
-          detail="13 px · 320 · what supports the body"
+          name="text-13"
+          sample={<div className="text-13 leading-5 font-act">Build and deploy</div>}
+          detail="13 px · 440 · the interface: controls, tabs, menus"
         />
         <TokenRow
-          name="font-label"
-          sample={<div className="text-caption font-label text-subtle">Step 2 of 6</div>}
-          detail="13 px · 380 · labels, counts, footnotes"
+          name="text-13 · meta"
+          sample={<div className="text-13 leading-5 font-label text-muted-foreground">Built 12 s ago · Anchor 1.2</div>}
+          detail="13 px · 380 · labels, counts, meta"
         />
         <TokenRow
-          name="text-code"
-          sample={<code className="font-mono text-code">anchor build --no-idl</code>}
+          name="text-13 · code"
+          sample={<code className="font-mono text-13 leading-5">anchor build --no-idl</code>}
           detail="13 px mono · code only"
         />
+        <TokenRow
+          name="text-11"
+          sample={<span className="rounded-full border border-current px-1.5 font-heading text-11 leading-[0.875rem] font-act tracking-[0.06em] text-muted-foreground">BETA</span>}
+          detail="11 px · 440 · tags and key caps only, never running text"
+        />
+      </div>
+      <div className="mt-6 rounded-card border border-border px-6">
+        <TokenRow name="font-read" sample={<div className="text-16 font-read">320 · what you read</div>} detail="320 · body text" />
+        <TokenRow name="font-label" sample={<div className="text-16 font-label">380 · labels and meta</div>} detail="380 · labels, counts, values" />
+        <TokenRow name="font-headline" sample={<div className="font-heading text-16 font-headline">400 · headings</div>} detail="400 · every heading" />
+        <TokenRow name="font-act" sample={<div className="text-16 font-act">440 · what you press</div>} detail="440 · controls and names. No 500 or 600" />
       </div>
     </Section>
   )
@@ -154,7 +165,7 @@ function Shape() {
     >
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-card border border-border p-6">
-          <div className="mb-4 text-control font-act">Radius</div>
+          <div className="mb-4 text-16 font-act">Radius</div>
           <div className="flex flex-wrap items-end gap-4">
             {[
               ["rounded-control", "8"],
@@ -170,7 +181,7 @@ function Shape() {
           </div>
         </div>
         <div className="rounded-card border border-border p-6">
-          <div className="mb-4 text-control font-act">Layout</div>
+          <div className="mb-4 text-16 font-act">Layout</div>
           {[
             ["h-head", "2.75rem", "every column's first row"],
             ["h-subhead", "2.375rem", "a panel's own switch"],
@@ -188,7 +199,7 @@ function Shape() {
           ))}
         </div>
         <div className="rounded-card border border-border p-6">
-          <div className="mb-4 text-control font-act">Elevation</div>
+          <div className="mb-4 text-16 font-act">Elevation</div>
           <div className="flex flex-wrap gap-5">
             {[
               ["shadow-panel", "menus and panels"],

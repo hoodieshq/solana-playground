@@ -43,9 +43,9 @@ export function OpeningCard({ p }: { p: Project }) {
         <div className="flex flex-col gap-1.5 px-4 py-3">
           <div className="flex items-center gap-2">
             <CircleAlert aria-hidden="true" className="size-4 shrink-0 text-error" />
-            <h3 className="font-heading text-[1rem] leading-6 font-medium text-foreground">{`Couldn't open ${p.name}`}</h3>
+            <h3 className="font-heading text-16 leading-6 font-act text-foreground">{`Couldn't open ${p.name}`}</h3>
           </div>
-          <p className="text-[0.9375rem] leading-[1.375rem] text-foreground/80">
+          <p className="text-16 leading-[1.375rem] text-foreground/80">
             {FAIL_LINE[o.kind](meta.path)} <span className="text-muted-foreground">Nothing was created.</span>
           </p>
         </div>
@@ -77,12 +77,12 @@ export function OpeningCard({ p }: { p: Project }) {
         {/* Cancel in the head: a foot bar held only it and the repo path, which the intro's source link names */}
         <div className="flex items-center gap-2">
           <Spinner className="size-4 text-muted-foreground" />
-          <h3 className="font-heading text-[1rem] leading-6 font-medium text-foreground">Opening from GitHub</h3>
+          <h3 className="font-heading text-16 leading-6 font-act text-foreground">Opening from GitHub</h3>
           <button type="button" onClick={() => cancelOpening(p.id)} className={cn(QUIET, "ml-auto")}>
             Cancel
           </button>
         </div>
-        <p role="status" className="text-[0.875rem] leading-5 text-muted-foreground tabular-nums">
+        <p role="status" className="text-13 leading-5 text-muted-foreground tabular-nums">
           {reading ? `Reading ${meta.repo.split("/")[1]}` : `Downloading files · ${o.s === "downloading" ? o.n : 0} of ${o.s === "downloading" ? o.total : 0}`}
         </p>
         <span aria-hidden="true" className="relative h-1 overflow-hidden rounded-[4px] bg-foreground/12">
@@ -104,12 +104,12 @@ function Pick({ p, options }: { p: Project; options: string[] }) {
     <section aria-label="Pick a program" className={CARD}>
       <div className="flex flex-col gap-3 px-4 py-3">
         <div className="flex flex-col gap-1">
-          <h3 className="font-heading text-[1rem] leading-6 font-medium text-foreground">{`This folder has ${options.length} programs`}</h3>
-          <p className="text-[0.9375rem] leading-[1.375rem] text-foreground/80">Pick the one to open. You can open the other one from Programs later.</p>
+          <h3 className="font-heading text-16 leading-6 font-act text-foreground">{`This folder has ${options.length} programs`}</h3>
+          <p className="text-16 leading-[1.375rem] text-foreground/80">Pick the one to open. You can open the other one from Programs later.</p>
         </div>
         <Segmented variant="gradient" aria-label="Program to open" value={picked} onValueChange={(v) => v && setPicked(v)}>
           {options.map((name) => (
-            <SegmentedItem key={name} value={name} className="cursor-pointer font-mono text-[0.8125rem] pointer-coarse:h-11">
+            <SegmentedItem key={name} value={name} className="cursor-pointer font-mono text-13 pointer-coarse:h-11">
               {name}
             </SegmentedItem>
           ))}

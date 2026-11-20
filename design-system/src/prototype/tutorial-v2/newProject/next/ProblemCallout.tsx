@@ -68,13 +68,13 @@ export function ProblemCallout({
     <Callout role="alert" className={cn("animate-in gap-0 fade-in-0 duration-150", className)}>
       <div className={cn("flex gap-3", inline ? "items-center" : "flex-col gap-0")}>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-sm leading-5 font-act text-foreground">
+          <div className="flex items-center gap-1.5 text-13 leading-5 font-act text-foreground">
             <span aria-hidden="true" className="grid size-4 shrink-0 place-items-center">
               <StatusDot variant={tone} />
             </span>
             {title}
           </div>
-          {cause && <p className="pl-[22px] text-[0.8125rem] leading-[1.1875rem] font-read text-muted-foreground">{cause}</p>}
+          {cause && <p className="pl-[22px] text-13 leading-[1.1875rem] font-read text-muted-foreground">{cause}</p>}
         </div>
         {actions && <div className={inline ? "" : "pl-[22px]"}>{actions}</div>}
       </div>
@@ -84,7 +84,7 @@ export function ProblemCallout({
             <DrawerHeader className="px-0">
               <DrawerTitle>{title}</DrawerTitle>
             </DrawerHeader>
-            <div className="relative max-h-60 overflow-auto rounded-lg bg-(--np-peek) py-2 pr-12 pl-3 font-mono text-[0.8125rem] leading-5 whitespace-pre-wrap text-muted-foreground">
+            <div className="relative max-h-60 overflow-auto rounded-lg bg-(--np-peek) py-2 pr-12 pl-3 font-mono text-13 leading-5 whitespace-pre-wrap text-muted-foreground">
               {details}
               <CopyButton value={details} className="absolute top-1 right-1" />
             </div>
@@ -92,7 +92,7 @@ export function ProblemCallout({
         </Drawer>
       )}
       {details && open && !phone && (
-        <div className="relative mt-2 max-h-24 overflow-auto rounded-lg bg-(--np-peek) py-2 pr-10 pl-3 font-mono text-xs leading-[1.125rem] text-muted-foreground">
+        <div className="relative mt-2 max-h-24 overflow-auto rounded-lg bg-(--np-peek) py-2 pr-10 pl-3 font-mono text-13 leading-[1.125rem] text-muted-foreground">
           {details}
           <CopyButton value={details} className="absolute top-1 right-1" />
         </div>

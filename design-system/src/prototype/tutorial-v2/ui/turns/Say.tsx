@@ -18,7 +18,7 @@ const FOLLOW: Record<Follow, () => string> = {
   showMenu: () => "Show me",
   showFix: () => "Show me the fix",
   writeClient: () => "Write it in client.ts",
-  nextTutorial: () => (NEXT_TUTORIAL ? `Next: ${NEXT_TUTORIAL.name}` : "All tutorials"),
+  nextTutorial: () => (NEXT_TUTORIAL ? `Next: ${NEXT_TUTORIAL.name.replace(/ Tutorial$/, "")}` : "All tutorials"),
 }
 
 /** Lines the thread shares with the desktop that point at what a phone doesn't have: an editor to fix
@@ -58,7 +58,7 @@ export function QuoteBox({ quote, quiet = false, phone = false }: { quote: Quote
   return (
     <div className="overflow-hidden rounded-control border border-border bg-surface-well">
       {/* On a phone the head is a thumb's height, so Show in is a target and not a 28px strip */}
-      <div className={cn("flex h-7 items-center gap-2 border-b border-border px-3 text-[0.75rem]", phone && "h-11 pr-1")}>
+      <div className={cn("flex h-7 items-center gap-2 border-b border-border px-3 text-13", phone && "h-11 pr-1")}>
         <span className="font-mono text-muted-foreground">
           {quote.file}:{quote.line}
         </span>
@@ -77,7 +77,7 @@ export function QuoteBox({ quote, quiet = false, phone = false }: { quote: Quote
       </div>
       <div
         className={cn(
-          "px-3 py-1.5 font-mono text-[0.75rem] leading-5 break-words whitespace-pre-wrap text-syntax-plain",
+          "px-3 py-1.5 font-mono text-13 leading-5 break-words whitespace-pre-wrap text-syntax-plain",
           // A bar at the left only on a live error, beside its red ground: on a plain quote it read as a
           // stray thick line (Almaz, 10 Nov)
           error ? "border-l-2 border-error bg-error/10" : quote.tone !== "error" && !block && "bg-(--card-ground)"
@@ -122,7 +122,7 @@ export function FollowButton({ turn, phone = false }: { turn: SayTurn; phone?: b
     else if (f === "nextTutorial") openTutorial(LESSON.next ?? "", LESSON.next ? "step" : "gallery")
   }
   return (
-    <Button variant="outline" size="sm" className={cn("w-fit", phone && "h-11 px-4 text-[0.9375rem]")} disabled={done} onClick={onClick}>
+    <Button variant="outline" size="sm" className={cn("w-fit", phone && "h-11 px-4 text-16")} disabled={done} onClick={onClick}>
       {FOLLOW[f]()}
     </Button>
   )

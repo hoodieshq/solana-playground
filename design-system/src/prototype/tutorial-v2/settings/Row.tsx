@@ -10,7 +10,7 @@ export const usePhone = () => useContext(PhoneCtx)
 
 /** A group's title: Editor, Assistant, Network, Advanced, Account. The page's second tier, as Home's
  * and Tutorials' section heads are: the small grey caption left the page with no shape (Almaz, 10 Nov) */
-export const GROUP_TITLE = "font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground"
+export const GROUP_TITLE = "font-heading text-20 leading-[1.5rem] font-headline text-foreground"
 
 /** A group's rows sit on one panel, as Your projects' rows do: the page's grey card on the lit ground */
 export const GROUP_PANEL = "rounded-panel border border-border bg-surface-panel px-4 py-1.5"
@@ -46,10 +46,10 @@ export function Row({
         className={cn("gap-6 py-2", phone ? "min-h-(--phone-row)" : "min-h-12 [html.touch_&]:min-h-13", help && "py-3", stacked ? "gap-2 py-3" : "items-center! justify-between", className)}
       >
         <div className="flex min-w-0 flex-col">
-          <FieldLabel htmlFor={htmlFor} className={cn("font-act text-foreground", phone ? "text-body" : "text-control leading-5")}>
+          <FieldLabel htmlFor={htmlFor} className={cn("font-act text-foreground", phone ? "text-body" : "text-16 leading-5")}>
             {label}
           </FieldLabel>
-          {help && <p className="text-[0.8125rem] leading-5 font-read text-muted-foreground">{help}</p>}
+          {help && <p className="text-13 leading-5 font-read text-muted-foreground">{help}</p>}
           {!phone && line}
         </div>
         {children !== undefined && <div className={cn("flex shrink-0 items-center gap-2", stacked && "w-full")}>{children}</div>}

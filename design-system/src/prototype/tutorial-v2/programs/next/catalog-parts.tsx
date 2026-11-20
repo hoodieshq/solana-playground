@@ -70,8 +70,8 @@ export function Problem({ title, line, onRetry, retrying, children }: { title: s
     <div role="alert" className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5 py-6">
       <CircleAlert aria-hidden="true" className="mt-0.5 size-4 text-error" />
       <div className="flex flex-col items-start gap-1">
-        <p className="text-[0.9375rem] leading-5 font-act text-foreground">{title}</p>
-        <p className="text-[0.875rem] leading-5 font-read text-muted-foreground">{line}</p>
+        <p className="text-16 leading-5 font-act text-foreground">{title}</p>
+        <p className="text-13 leading-5 font-read text-muted-foreground">{line}</p>
         <div className="mt-2 flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={onRetry} disabled={retrying} className="cursor-pointer">
             Try again

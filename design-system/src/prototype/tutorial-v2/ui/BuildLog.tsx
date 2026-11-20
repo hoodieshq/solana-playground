@@ -67,7 +67,7 @@ export function BuildLog({
       className={
         bare
           ? // A plain string, not cn: cn would read the size next to the colours as one of them
-            `font-mono text-[0.75rem] leading-5 whitespace-pre-wrap wrap-anywhere [&>div]:pl-4 [&>div]:-indent-4 ${className ?? ""}`
+            `font-mono text-13 leading-5 whitespace-pre-wrap wrap-anywhere [&>div]:pl-4 [&>div]:-indent-4 ${className ?? ""}`
           : cn(
               "min-h-0 flex-1 overflow-auto bg-surface-well px-4 py-3 font-mono text-code",
               wrap ? "whitespace-pre-wrap wrap-anywhere" : "whitespace-pre [mask-image:linear-gradient(to_right,#000_calc(100%-1.5rem),transparent)]",

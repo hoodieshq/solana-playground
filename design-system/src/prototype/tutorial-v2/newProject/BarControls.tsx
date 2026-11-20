@@ -65,7 +65,7 @@ export function NewProjectControls() {
         <DropdownMenuRadioGroup value={state} onValueChange={pick}>
           {NEXT_GROUPS.map((g) => (
             <Fragment key={g.group ?? "live"}>
-              {g.group && <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{g.group}</DropdownMenuLabel>}
+              {g.group && <DropdownMenuLabel className="text-13 font-normal text-muted-foreground">{g.group}</DropdownMenuLabel>}
               {g.ids.map((id) => (
                 <DropdownMenuRadioItem key={id} value={id}>
                   {NP_NEXT_STATES[id].label}

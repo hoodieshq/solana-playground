@@ -29,7 +29,7 @@ const TITLES: Record<Sub, string> = { example: "Example program", import: "Impor
 
 // The phone's column, and the upright tablet's 640 (CONSENSUS.md, 6.3), with its 16 px sides
 const COLUMN = "mx-auto w-full max-w-[30rem] [html.portrait_&]:max-w-[42rem]"
-const LABEL = "mt-6 first:mt-0 mb-2 text-[0.8125rem] leading-[1.125rem] font-[380] text-(color:--text-quiet)"
+const LABEL = "mt-6 first:mt-0 mb-2 text-13 leading-[1.125rem] font-[380] text-(color:--text-quiet)"
 const ROW = "flex w-full items-center gap-3 rounded-xl px-2 text-left outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) active:bg-(--np-current)"
 const SLIDE = "absolute inset-0 flex flex-col bg-surface-base transition-transform duration-(--duration-sheet) ease-standard motion-reduce:transition-none"
 
@@ -144,7 +144,7 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
             <div className="relative min-h-0 flex-1 overflow-hidden">
               <section inert={level2} className={cn(SLIDE, level2 && "-translate-x-[30%]")}>
                 <Bar>
-                  <Dialog.Title className="flex-1 text-title font-act">New project</Dialog.Title>
+                  <Dialog.Title className="flex-1 text-20 font-act">New project</Dialog.Title>
                   <Dialog.Close asChild>
                     <Button variant="ghost" size="icon" className="-mr-2.5 size-11" aria-label="Close">
                       <X className="size-5" />
@@ -154,7 +154,7 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                   <div className={cn(COLUMN, "px-4 pt-4 pb-6")}>
                     {hasStorageLine(env) && (
-                      <p id="np-page-storage" className="text-[0.8125rem] leading-[1.125rem] font-read text-muted-foreground">
+                      <p id="np-page-storage" className="text-13 leading-[1.125rem] font-read text-muted-foreground">
                         <StorageLine />
                       </p>
                     )}
@@ -179,7 +179,7 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                     <div className="mt-2">
                       {/* No name here: New project names it for you, and the project's head renames it */}
                       {s.into && (
-                        <p className="flex min-h-(--phone-row) flex-wrap items-center gap-x-3 px-2 text-[0.9375rem] text-muted-foreground">
+                        <p className="flex min-h-(--phone-row) flex-wrap items-center gap-x-3 px-2 text-16 text-muted-foreground">
                           {`Adds files to ${s.into}.`}
                           <button type="button" onClick={() => dispatch({ type: "into" })} className="min-h-12 font-act text-foreground">
                             Make a new project instead
@@ -194,7 +194,7 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                         <span aria-hidden="true" className="grid size-5 shrink-0 place-items-center text-(color:--text-quiet)">
                           <GraduationCap className="size-5" />
                         </span>
-                        <span className="flex-1 text-[0.9375rem] text-muted-foreground">Follow a tutorial</span>
+                        <span className="flex-1 text-16 text-muted-foreground">Follow a tutorial</span>
                       </button>
                     </div>
                   </div>
@@ -206,7 +206,7 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                   <Button variant="ghost" size="icon" className="-ml-2.5 size-11" aria-label="Back" disabled={creating} onClick={back}>
                     <ChevronLeft className="size-6" />
                   </Button>
-                  <h2 className="flex-1 truncate text-title font-act">{TITLES[sub]}</h2>
+                  <h2 className="flex-1 truncate text-20 font-act">{TITLES[sub]}</h2>
                 </Bar>
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                   <div className={cn(COLUMN, "px-4 pt-4 pb-6")}>
@@ -243,7 +243,7 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                     disabled={!main.enabled}
                     aria-busy={busy || undefined}
                     onClick={create}
-                    className={cn("h-12 flex-1 text-[0.9375rem]", busy && "np-busy opacity-100!")}
+                    className={cn("h-12 flex-1 text-16", busy && "np-busy opacity-100!")}
                   >
                     {busy && (
                       <>

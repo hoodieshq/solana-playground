@@ -45,11 +45,11 @@ export function ResumeList({ id, title, items, className }: { id: string; title:
   return (
     <section aria-labelledby={id} className={className}>
       <div className="mb-2.5 flex min-h-9 items-center gap-2">
-        <h2 id={id} className="font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground">
+        <h2 id={id} className="font-heading text-20 leading-[1.5rem] font-headline text-foreground">
           {title}
         </h2>
         {/* How many, as the levels of Tutorials say it */}
-        {items.length > 1 && <span className="rounded-full bg-surface-hover px-2 text-[0.875rem] leading-6 text-muted-foreground tabular-nums">{items.length}</span>}
+        {items.length > 1 && <span className="rounded-full bg-surface-hover px-2 text-13 leading-6 text-muted-foreground tabular-nums">{items.length}</span>}
         {/* The levels' Show all, opening in place */}
         {more && (
           <button
@@ -59,7 +59,7 @@ export function ResumeList({ id, title, items, className }: { id: string; title:
               setOpen(!open)
               setQuery("")
             }}
-            className={cn("-mr-2 ml-auto flex h-9 items-center gap-1 rounded-lg px-2 text-[0.8125rem] text-muted-foreground hover:text-foreground", FOCUS)}
+            className={cn("-mr-2 ml-auto flex h-9 items-center gap-1 rounded-lg px-2 text-13 text-muted-foreground hover:text-foreground", FOCUS)}
           >
             {open ? "Show less" : "Show all"}
             <span
@@ -80,11 +80,11 @@ export function ResumeList({ id, title, items, className }: { id: string; title:
             onChange={(e) => setQuery(e.target.value)}
             placeholder={`Filter ${items.length} by name`}
             aria-label={`Filter ${title.toLowerCase()} by name`}
-            className="min-w-0 flex-1 bg-transparent text-[0.875rem] text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
+            className="min-w-0 flex-1 bg-transparent text-13 text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
           />
         </label>
       )}
-      {q && !shown.length && <p className="py-3 text-[0.875rem] leading-5 text-muted-foreground">Nothing named “{query.trim()}”</p>}
+      {q && !shown.length && <p className="py-3 text-13 leading-5 text-muted-foreground">Nothing named “{query.trim()}”</p>}
       <ul className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
         {shown.map((it) =>
           it.confirm ? (
@@ -106,9 +106,9 @@ export function ResumeList({ id, title, items, className }: { id: string; title:
             >
               {it.cover}
               <div className="min-w-0 flex-1">
-                <p className="truncate font-heading text-[1.0625rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">{it.name}</p>
+                <p className="truncate font-heading text-16 leading-[1.25] font-normal tracking-[-0.015em] text-foreground">{it.name}</p>
                 {/* Green and white once it's done, as the catalog's standing; grey while it's under way */}
-                <p className={cn("mt-1 flex items-center gap-1.5 text-[0.8125rem] leading-[1.125rem]", it.done ? "text-foreground" : "text-muted-foreground")}>
+                <p className={cn("mt-1 flex items-center gap-1.5 text-13 leading-[1.125rem]", it.done ? "text-foreground" : "text-muted-foreground")}>
                   <StatusDot variant={it.failed ? "error" : it.done ? "success" : "idle"} />
                   <span className="truncate">{it.where}</span>
                 </p>

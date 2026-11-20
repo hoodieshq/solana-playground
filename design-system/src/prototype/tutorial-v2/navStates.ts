@@ -85,7 +85,7 @@ const QUIET_FIRST: Health = { tone: "quiet", word: "Devnet", tip: "Devnet is con
 const QUIET_READY: Health = { tone: "quiet", word: "Devnet", tip: "Everything works. Network: Devnet" }
 
 const PROJECTS: ProjectRow[] = [
-  { name: "Hello Anchor", lesson: true, current: true, progress: "2 of 4", steps: { at: 2, of: 4, next: "Build & Deploy" } },
+  { name: "Hello Anchor", lesson: true, current: true, progress: "2 of 4", steps: { at: 2, of: 4, next: "Deploy" } },
   { name: "token-faucet", pinned: true },
   { name: "Lumberjack", lesson: true, progress: "done" },
   { name: "counter", marker: "This browser" },
@@ -170,6 +170,24 @@ export const NAV_STATES = {
     setup: { steps: setup([1]) },
     status: STATUS_FIRST,
     account: { primary: "Sign in", line: "Waiting for GitHub…", cancel: true, session: "waiting" },
+    health: QUIET_FIRST,
+    statusRows: ROWS_FIRST,
+  },
+  "signed-in": {
+    label: "Signed in · just now",
+    projects: SYNCED,
+    setup: { steps: setup([1, 2]) },
+    status: STATUS_FIRST,
+    account: SIGNED_IN,
+    health: QUIET_FIRST,
+    statusRows: ROWS_FIRST,
+  },
+  "signed-in-new": {
+    label: "Signed in · just now, no projects",
+    projects: [],
+    setup: { steps: setup([1, 2]) },
+    status: STATUS_FIRST,
+    account: SIGNED_IN,
     health: QUIET_FIRST,
     statusRows: ROWS_FIRST,
   },
@@ -262,6 +280,31 @@ export function setNavState(id: NavStateId) {
     // Storage off: the pick lasts in this window only
   }
   window.dispatchEvent(new Event(EVENT))
+}
+
+/* Sign in with GitHub, as the prototype plays it (Nikita, 20 Nov: it has to work, it's the client's first
+   step after the tutorial): the waiting state for a moment, then signed in with the projects you had.
+   Cancel goes back to where you were */
+let before: NavStateId = "first-visit"
+let pending: ReturnType<typeof setTimeout> | null = null
+const SIGN_IN_MS = 1600
+
+export function signIn() {
+  const now = read()
+  if (now !== "signing-in") before = now
+  setNavState("signing-in")
+  if (pending) clearTimeout(pending)
+  pending = setTimeout(() => {
+    pending = null
+    const had = NAV_STATES[before].projects
+    setNavState(Array.isArray(had) && had.length === 0 ? "signed-in-new" : "signed-in")
+  }, SIGN_IN_MS)
+}
+
+export function cancelSignIn() {
+  if (pending) clearTimeout(pending)
+  pending = null
+  setNavState(before)
 }
 
 /** Re-reads `get` when the bar picks something: the bar's own window hears its event, the tablet's

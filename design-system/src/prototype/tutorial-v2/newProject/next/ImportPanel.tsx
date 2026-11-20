@@ -72,8 +72,8 @@ function FolderDrop() {
         <FolderUp className="size-[18px]" strokeWidth={1.75} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-[0.875rem] leading-5 font-act text-foreground">Import a folder</span>
-        <span className="text-[0.8125rem] leading-[1.125rem] font-read text-muted-foreground">{touch ? "Choose one from your device." : "Drop it here, or choose one from your computer."}</span>
+        <span className="text-13 leading-5 font-act text-foreground">Import a folder</span>
+        <span className="text-13 leading-[1.125rem] font-read text-muted-foreground">{touch ? "Choose one from your device." : "Drop it here, or choose one from your computer."}</span>
       </span>
       <Button variant="outline" size="sm" onClick={soon} className="shrink-0 [html.touch_&]:h-11">
         Choose folder
@@ -174,7 +174,7 @@ export function ImportPanel({
               onStart()
             }
           }}
-          className="font-mono text-[0.8125rem] md:text-[0.8125rem]"
+          className="font-mono text-13 md:text-13"
         />
         <InputGroupAddon align="inline-end" className="pr-1.5 has-[>button]:mr-0">
           {fetching ? (
@@ -190,7 +190,7 @@ export function ImportPanel({
         </InputGroupAddon>
       </InputGroup>
 
-      <p id="np-url-line" className="mt-1.5 flex min-h-4 items-start gap-2 text-xs leading-4 font-[380]">
+      <p id="np-url-line" className="mt-1.5 flex min-h-4 items-start gap-2 text-13 leading-4 font-[380]">
         {notALink ? (
           <>
             <StatusDot variant="warning" className="mt-[5px]" />
@@ -222,7 +222,7 @@ export function ImportPanel({
 
       {i.state === "choose" && (
         <div className="mt-4 flex flex-col">
-          <p className="text-[0.8125rem] leading-[1.125rem] font-act text-foreground">{`${i.programs.length} programs found. Pick one to import.`}</p>
+          <p className="text-13 leading-[1.125rem] font-act text-foreground">{`${i.programs.length} programs found. Pick one to import.`}</p>
           <RadioGroup.Root aria-label="Program" value={i.picked ?? ""} onValueChange={onPick} onKeyDown={onEnterKey} className="mt-3 flex flex-col gap-1">
             {i.programs.map((p) => {
               const picked = i.picked === p.name
@@ -236,10 +236,10 @@ export function ImportPanel({
                   className="np-pickable np-row -mx-3 flex h-12 shrink-0 items-center gap-2 rounded-xl px-3 text-left [html.phone_&]:h-16 [html.touch_&]:h-[52px]"
                 >
                   <LitPick />
-                  <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem] text-foreground">{p.path}</span>
+                  <span className="min-w-0 flex-1 truncate font-mono text-13 text-foreground">{p.path}</span>
                   {picked && <CheckBadge size={16} />}
                   {/* The framework as a word: its logo at 16 was a blur, and no other cover is a logo now */}
-                  <span className="shrink-0 text-[0.75rem] leading-4 text-muted-foreground">{f.name}</span>
+                  <span className="shrink-0 text-13 leading-4 text-muted-foreground">{f.name}</span>
                 </RadioGroup.Item>
               )
             })}

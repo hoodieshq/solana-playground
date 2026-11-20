@@ -10,7 +10,7 @@ export function Shortcut({ keys, flash = 0, leaving = false, className }: { keys
   return (
     <kbd
       key={flash}
-      className={cn("translate-y-px font-sans text-[0.75rem] font-[440] opacity-60", flash > 0 && (leaving ? "pg-key-leave" : "pg-key-flash"), className)}
+      className={cn("translate-y-px font-sans text-13 font-[440] opacity-60", flash > 0 && (leaving ? "pg-key-leave" : "pg-key-flash"), className)}
       aria-label={`Shortcut ${keys}`}
       // Kept on a busy button only to fade out: the button no longer takes the keys, so it isn't read
       aria-hidden={leaving || undefined}

@@ -37,7 +37,7 @@ export function Tutorial() {
         dispatch(action)
         return
       }
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "e") {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "e") {
         e.preventDefault()
         // The same as the open tab's arrow and Files, which know whether the tree can dock here
         const toggle = document.querySelector<HTMLElement>("[data-files-toggle]")

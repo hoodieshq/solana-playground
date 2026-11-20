@@ -36,7 +36,7 @@ function SendRow({ x }: { x: Sent }) {
         {text}
         {x.via === "test" && <span className="text-subtle"> · from the Call panel</span>}
       </span>
-      <span className="ml-auto shrink-0 font-mono text-[0.75rem] text-subtle" title={x.tx.signature}>
+      <span className="ml-auto shrink-0 font-mono text-13 text-subtle" title={x.tx.signature}>
         {shortKey(x.tx.signature, 4)}
       </span>
     </li>
@@ -90,7 +90,7 @@ function CardMove({
           aria-busy={mine || undefined}
           // The first move is the card's primary, filled; any other is the soft one beside it
           variant={first ? "default" : "ghost"}
-          className={cn("relative shrink-0", ACTION, !first && ACTION_SOFT, phone && cn(PHONE_CTA, "text-[0.9375rem]"))}
+          className={cn("relative shrink-0", ACTION, !first && ACTION_SOFT, phone && cn(PHONE_CTA, "text-16"))}
         >
           <span className={cn(mine && "invisible")}>{label(move.button, defaults)}</span>
           {mine && <Spinner className="absolute inset-0 m-auto size-4" />}
@@ -176,7 +176,7 @@ export function MoveCard({ turn, phone = false }: { turn: ActTurn; phone?: boole
         expect.current = null
         setLeft(left === null ? (until.stop ? Infinity : (until.times ?? 1)) : null)
       }}
-      className={cn("shrink-0 px-3", ACTION, ACTION_SOFT, phone && cn(PHONE_CTA, "text-[0.9375rem]"))}
+      className={cn("shrink-0 px-3", ACTION, ACTION_SOFT, phone && cn(PHONE_CTA, "text-16"))}
     >
       {left !== null ? "Stop" : until.label}
     </Button>
@@ -191,11 +191,11 @@ export function MoveCard({ turn, phone = false }: { turn: ActTurn; phone?: boole
           <Send />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{beat.title}</span>
+          <span className="font-heading text-16 leading-6 font-act text-foreground">{beat.title}</span>
           {/* The running stage and the card's line share one cell, the hidden one keeping its room, so
               the head is as tall as the longer of the two: a one line stage over a two line context made
               the whole card jump on every move (Almaz, 10 Nov) */}
-          <span className="grid text-[0.875rem] leading-5 text-muted-foreground">
+          <span className="grid text-13 leading-5 text-muted-foreground">
             <span role={run ? "status" : undefined} className="[grid-area:1/1]">
               {context}
             </span>

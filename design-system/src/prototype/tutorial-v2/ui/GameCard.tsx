@@ -14,7 +14,7 @@ import { useStore } from "../store"
 // Call panel all show it. It reads the accounts by id, as `lessons/games.ts` lists them
 
 // Plain strings, not cn: cn would read text-caption next to a colour as one and drop it
-const MONO = "font-mono text-[0.75rem] tabular-nums"
+const MONO = "font-mono text-13 tabular-nums"
 const NOTE = "text-caption text-muted-foreground"
 
 /** How long a change shows beside its number: `+0.1`, `−401` */
@@ -49,7 +49,7 @@ const num = (r: Rec | undefined, k: string) => Number(r?.values[k] ?? 0)
 function Delta({ by, text }: { by: number; text: string }) {
   if (!by) return null
   return (
-    <span className={cn("pg-arrive rounded-full px-1.5 font-mono text-[0.6875rem] leading-4 tabular-nums", by > 0 ? "bg-success/10 text-success" : "bg-foreground/[0.06] text-muted-foreground")}>
+    <span className={cn("pg-arrive rounded-full px-1.5 font-mono text-11 leading-4 tabular-nums", by > 0 ? "bg-success/10 text-success" : "bg-foreground/[0.06] text-muted-foreground")}>
       {by > 0 ? "+" : "−"}
       {text}
     </span>
@@ -140,7 +140,7 @@ function Boss({ boss, was, news, live, at, phone }: { boss: Rec; was?: Rec; news
           a small fraction read as a footnote, not as the boss (Almaz, 10 Nov) */}
       <div className="flex flex-col gap-2" aria-label={`${health} of 1000 health`}>
         <div className="flex items-baseline gap-1.5">
-          <span className={cn("font-heading text-[1.5rem] leading-7 font-medium tabular-nums", down ? "text-error" : "text-foreground")}>{health}</span>
+          <span className={cn("font-heading text-28 leading-7 font-act tabular-nums", down ? "text-error" : "text-foreground")}>{health}</span>
           <span className={NOTE}>of 1000 health</span>
           {down && <span className="ml-auto text-caption text-error">Defeated</span>}
         </div>
@@ -179,8 +179,8 @@ function Boss({ boss, was, news, live, at, phone }: { boss: Rec; was?: Rec; news
                   key={slot}
                   className={cn("flex min-w-0 flex-col items-center px-1", phone ? "py-2" : "py-1.5", k > 1 && "border-l border-border", landed && "bg-success/10")}
                 >
-                  <span className={cn("font-mono text-[0.875rem] leading-5 tabular-nums", landed ? "text-success" : "text-foreground")}>{rollOf(slot)}</span>
-                  <span className="truncate font-mono text-[0.6875rem] leading-4 text-subtle tabular-nums">…{String(slot).slice(-3)}</span>
+                  <span className={cn("font-mono text-13 leading-5 tabular-nums", landed ? "text-success" : "text-foreground")}>{rollOf(slot)}</span>
+                  <span className="truncate font-mono text-11 leading-4 text-subtle tabular-nums">…{String(slot).slice(-3)}</span>
                 </li>
               )
             })}
@@ -227,7 +227,7 @@ function Board({ game, o, moves, phone }: { game?: Rec; o?: Rec; moves?: Move[];
               const open = !!move && c === "0" && state === 0
               const cls = cn(
                 // X and O in the heading face: a mono O reads as a zero
-                "absolute grid place-items-center rounded-md border border-border font-heading text-[1.0625rem] font-medium text-foreground",
+                "absolute grid place-items-center rounded-md border border-border font-heading text-20 font-act text-foreground",
                 open ? "bg-surface-raised hover:bg-surface-hover disabled:opacity-60" : "bg-surface-raised/60"
               )
               const style = { left: (i % 3) * step, top: Math.floor(i / 3) * step, width: size, height: size }
@@ -268,7 +268,7 @@ function Board({ game, o, moves, phone }: { game?: Rec; o?: Rec; moves?: Move[];
                     title={w.label}
                     onClick={() => setPicked(w.value)}
                     className={cn(
-                      "h-7 rounded-full border px-3 font-heading text-[0.8125rem] font-medium transition-colors duration-100 pointer-coarse:h-9",
+                      "h-7 rounded-full border px-3 font-heading text-13 font-act transition-colors duration-100 pointer-coarse:h-9",
                       signer === w.value ? "border-border-strong bg-foreground/[0.08] text-foreground" : "border-border text-muted-foreground hover:text-foreground"
                     )}
                   >

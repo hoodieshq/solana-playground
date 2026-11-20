@@ -29,16 +29,16 @@ const HEIGHT = { destination: "h-[1.875rem]", item: "h-[1.875rem]", service: "h-
 /** Two text styles in the whole nav, as Claude's sidebar has: this row style for every place, lesson,
  * project and you, and the group heading's small quiet one (NavGroup). Service rows ("Show all") are
  * the heading's style too */
-const ROW = "text-[0.875rem] leading-5 font-act tracking-[-0.005em] text-foreground"
+const ROW = "text-13 leading-5 font-act tracking-[-0.005em] text-foreground"
 const TYPE = {
   destination: ROW,
   item: ROW,
-  service: "text-[0.75rem] font-act tracking-[0.01em] text-(color:--text-quiet)",
+  service: "text-13 font-act tracking-[0.01em] text-(color:--text-quiet)",
 }
 const TABLET_TYPE = {
-  destination: "text-control font-act tracking-[-0.005em] text-foreground",
-  item: "text-control font-act tracking-[-0.005em] text-foreground",
-  service: "text-[0.75rem] font-act tracking-[0.01em] text-(color:--text-quiet)",
+  destination: "text-16 font-act tracking-[-0.005em] text-foreground",
+  item: "text-16 font-act tracking-[-0.005em] text-foreground",
+  service: "text-13 font-act tracking-[0.01em] text-(color:--text-quiet)",
 }
 
 /** One row of the open nav. A destination, a lesson or a project is 30 high in the one row style, a
@@ -50,7 +50,7 @@ export function NavRow({ kind, glyph, label, meta, current = false, section = fa
   const tablet = useTablet()
   const roomy = useRoomy()
   const [menuOpen, setMenuOpen] = useState(false)
-  const slot = attention ? <span className="text-[0.75rem] font-act tracking-[0.01em] text-warning-ink">{attention}</span> : meta
+  const slot = attention ? <span className="text-13 font-act tracking-[0.01em] text-warning-ink">{attention}</span> : meta
   return (
     <div className="group/row relative" onContextMenu={menu ? (e) => (e.preventDefault(), setMenuOpen(true)) : undefined}>
       <Tip label={tip}>
@@ -107,6 +107,6 @@ export function NavRow({ kind, glyph, label, meta, current = false, section = fa
 export const Meta = ({ children, current = false }: { children: ReactNode; current?: boolean }) => {
   const roomy = useRoomy()
   return (
-    <span className={cn("font-mono tracking-[0.02em] tabular-nums", roomy ? "text-[0.75rem]" : "text-[0.6875rem]", current ? "text-muted-foreground" : "text-(color:--text-quiet)")}>{children}</span>
+    <span className={cn("font-mono tracking-[0.02em] tabular-nums", roomy ? "text-13" : "text-11", current ? "text-muted-foreground" : "text-(color:--text-quiet)")}>{children}</span>
   )
 }

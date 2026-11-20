@@ -45,7 +45,7 @@ export function StepsSheet({ open, onClose, onPick, onStartOver }: { open: boole
                 {/* The kit's disc grey is the panel's own: lifted a step here so it shows */}
                 <StepGlyph i={i} done={done} current={current} className={current ? undefined : "bg-foreground/10"} />
                 {/* The title alone, as the desktop's steps menu lists it: the objective is the step's own heading in the chat */}
-                <span className="min-w-0 flex-1 truncate text-[0.9375rem] text-foreground">{step.title}</span>
+                <span className="min-w-0 flex-1 truncate text-16 text-foreground">{step.title}</span>
                 {(done || current) && <span className="shrink-0 text-caption text-muted-foreground">{done ? "Done" : "Now"}</span>}
               </button>
             )
@@ -58,7 +58,7 @@ export function StepsSheet({ open, onClose, onPick, onStartOver }: { open: boole
                   onClose()
                   onStartOver()
                 }}
-                className={cn(row, "h-12 text-[0.9375rem] text-muted-foreground")}
+                className={cn(row, "h-12 text-16 text-muted-foreground")}
               >
                 <span className="grid size-5 shrink-0 place-items-center">
                   <RotateCcw className="size-4" aria-hidden="true" />

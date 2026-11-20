@@ -33,7 +33,7 @@ const BEAM_CSS = `
   .start-beam:hover:not(:disabled):not(:active)::before { opacity: 1; }
 }`
 
-const GO = "start-beam h-10 font-heading text-[0.9375rem] font-medium tracking-[-0.005em] pointer-coarse:h-11"
+const GO = "start-beam h-10 font-heading text-16 font-act tracking-[-0.005em] pointer-coarse:h-11"
 
 /** The catalog's top, built as the Tutorials gallery's Start here banner: the words on the left, the
  * mark as a voxel sculpture beside them, here telling a deploy. Under 640px wide the sculpture hangs
@@ -66,19 +66,22 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
       <style>{BEAM_CSS}</style>
       <ProgramVoxels corner={!wide} icon={programCoverIcon(FIRST)} />
       <div className={cn("relative", phone ? "p-5" : "p-7")}>
-        {/* The words keep to where the sculpture has faded out, about the left 42% of a wide banner */}
-        <div className="max-w-[19rem] min-w-0">
-          <p className={cn("flex items-center gap-1.5 text-[0.8125rem]", st ? "text-muted-foreground" : "text-brand-periwinkle")}>
-            {st ? <StandingWord s={st} className="text-muted-foreground" /> : "Start here"}
+        {/* The words keep to where the sculpture has faded out, about the left 42% of a wide banner: 22rem
+            holds the line on one row, so the words are three lines at most, as on the Tutorials banner */}
+        <div className="max-w-[22rem] min-w-0">
+          <p className={cn("flex items-center gap-1.5 text-13", st ? "text-muted-foreground" : "text-brand-periwinkle")}>
+            {/* No "Start here": the button says it (Almaz, 20 Nov) */}
+            <span className="tabular-nums">
+              {st && <StandingWord s={st} className="text-muted-foreground" />}
+              {st ? ` · ${p.minutes} min` : `${p.minutes} min`}
+            </span>
           </p>
-          <h2 id={titleId} className="mt-1.5 font-heading text-[1.5rem] font-normal tracking-[-0.015em] text-foreground">
-            {p.name}
+          <h2 id={titleId} className="mt-1.5 font-heading text-20 leading-6 font-normal tracking-[-0.015em] text-foreground">
+            {/* A heading, so the name takes a capital here; the cards keep the program's own lowercase */}
+            {p.name.charAt(0).toUpperCase() + p.name.slice(1)}
           </h2>
-          <p className="mt-2 max-w-[44ch] text-[0.9375rem] leading-[1.35] text-balance text-foreground/78">
-            {native ? "Send it text and read it back on devnet" : "Build it, deploy it and count up on devnet"}
-          </p>
-          <p className="mt-3 text-[0.75rem] leading-4 font-[380] text-muted-foreground/80 tabular-nums">
-            {phone ? `${p.level} · ${p.minutes} min` : `${p.minutes} min · ${p.level}`}
+          <p className="mt-2 max-w-[44ch] text-16 leading-[1.35] text-balance text-foreground/78">
+            {native ? "Send text and read it back" : "Deploy a counter and count up"}
           </p>
           {/* On the phone the button takes the card's width, a thumb's 48, as the Tutorials banner sets it; an
               upright tablet keeps it to 240 */}

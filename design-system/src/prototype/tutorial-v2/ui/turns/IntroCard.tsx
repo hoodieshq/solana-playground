@@ -20,7 +20,7 @@ import { ACTION, ACTION_FILL, HEADING, PHONE_CTA, READ, TITLE } from "../type"
 const LOOP = ["I explain a piece", "You pick an answer", "I write the code", "You build and run it"]
 
 // Deploys go from the learner's own Playground wallet on devnet, topped up from the faucet: no real money
-const COST = "A devnet wallet is set up for you with free test SOL"
+const COST = "A Playground wallet is set up for you with free devnet SOL"
 
 /* The chat's scale (../type): the title at 24, How it goes at 20, the reading text at 16 (the promise,
    the loop) and one grey note at 13 for everything said on the side. The log line is code, so it's
@@ -69,7 +69,7 @@ export function IntroCard({ phone = false }: { phone?: boolean }) {
       <p className={cn(READ, !phone && "mt-6")}>{LESSON.intro}</p>
       {/* The end, as the log will print it, so the promise is a thing you'll see, not a claim. One
           tone: the code face is difference enough */}
-      <p aria-label="What your program prints at the end" className="mt-[9px] rounded-lg bg-foreground/[0.05] px-3 py-2.5 font-mono text-[0.8125rem] leading-[1.5] text-foreground/90">
+      <p aria-label="What your program prints at the end" className="mt-[9px] rounded-lg bg-foreground/[0.05] px-3 py-2.5 font-mono text-13 leading-[1.5] text-foreground/90">
         {LESSON.proof}
       </p>
 

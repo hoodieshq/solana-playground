@@ -52,7 +52,7 @@ export function PlayerCard({
     <div className={cn(!flat && "rounded-control border border-border bg-surface-well px-3 py-2.5", className)}>
       <div className="flex items-center gap-2 text-caption text-muted-foreground">
         <span className="text-foreground">Player account</span>
-        <span className="min-w-0 truncate font-mono text-[0.75rem]" title={LESSON.game?.pda}>
+        <span className="min-w-0 truncate font-mono text-13" title={LESSON.game?.pda}>
           {shortKey(LESSON.game?.pda ?? "", phone ? 4 : 6)}
         </span>
       </div>
@@ -68,13 +68,13 @@ export function PlayerCard({
               />
             ))}
           </span>
-          <span className={cn("font-mono text-[0.8125rem] tabular-nums", empty ? "text-error" : "text-foreground")}>
+          <span className={cn("font-mono text-13 tabular-nums", empty ? "text-error" : "text-foreground")}>
             {energy}/{max}
           </span>
         </div>
         <div className="flex items-center gap-1.5" aria-label={`${wood} wood`}>
           <TreePine aria-hidden="true" className="size-3.5 text-muted-foreground" />
-          <span className="font-mono text-[0.8125rem] text-foreground tabular-nums">{wood}</span>
+          <span className="font-mono text-13 text-foreground tabular-nums">{wood}</span>
           <span className="text-caption text-muted-foreground">wood</span>
         </div>
       </div>

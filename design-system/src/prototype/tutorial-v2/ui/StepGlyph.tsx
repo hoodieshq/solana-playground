@@ -9,7 +9,7 @@ export function StepGlyph({ i, done, current, className }: { i: number; done: bo
     <span
       className={cn(
         // A filled disc with room round the figure, as Vercel numbers its steps: no ring, only tone
-        "relative grid size-5 shrink-0 place-items-center rounded-full text-[0.6875rem] font-act lining-nums tabular-nums leading-none",
+        "relative grid size-5 shrink-0 place-items-center rounded-full text-11 font-act lining-nums tabular-nums leading-none",
         done ? "bg-surface-hover text-muted-foreground" : current ? "bg-foreground/20 text-foreground" : "bg-surface-hover text-subtle",
         className
       )}

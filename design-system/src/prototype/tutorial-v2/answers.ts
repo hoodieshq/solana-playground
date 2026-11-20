@@ -53,7 +53,7 @@ const plain = (t: string) =>
 // The phone has no rail, no editor pane and no keyboard shortcuts: the same places are its Code space and sheets
 const WHERE = /where.*(menu|nav|files?|terminal|everything)|^(the\s+)?(menu|files?|terminal)\??$/i
 const WHERE_DESKTOP: Answer = {
-  text: "Everything's still here. The menu is folded into the icons on the left (⌘B). Files open from the arrow next to the file name (⌘E). The terminal is under the editor (⌘J).",
+  text: "Everything's still here. The menu is folded into the icons on the left (⌘B). Files open from the arrow next to the file name (⌘⇧E). The terminal is under the editor (⌘J).",
   follow: "showMenu",
 }
 const WHERE_PHONE: Answer = {

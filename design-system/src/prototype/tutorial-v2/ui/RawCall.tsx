@@ -45,7 +45,7 @@ export function RawCall({ phone = false }: { phone?: boolean }) {
       <div className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain", phone ? "gap-6 px-4 pt-4 pb-4" : "gap-8 px-6 pt-4 pb-8")}>
         <section aria-label="Request" className="flex w-full max-w-[720px] flex-col gap-4">
           <div className={cn("flex flex-col", phone ? "gap-2 rounded-[12px] bg-foreground/[0.04] p-3" : "mb-2 gap-1")}>
-            <h3 className={cn("font-mono font-medium break-words", phone ? "text-[0.875rem] leading-5" : "text-[0.9375rem] leading-[1.35]")}>
+            <h3 className={cn("font-mono font-act break-words", phone ? "text-13 leading-5" : "text-16 leading-[1.35]")}>
               <span className="text-foreground">{LESSON.program}</span>
               <span className="font-normal text-muted-foreground"> · {shortKey(PROGRAM_ID)}</span>
             </h3>
@@ -74,9 +74,9 @@ export function RawCall({ phone = false }: { phone?: boolean }) {
               data-bwignore
               data-form-type="other"
               aria-label="data, text sent as UTF-8 bytes"
-              className={cn("min-w-0 font-mono", phone ? "h-12 w-full text-base" : "h-10 w-full max-w-[360px] text-[0.8125rem] md:text-[0.8125rem]")}
+              className={cn("min-w-0 font-mono", phone ? "h-12 w-full text-16" : "h-10 w-full max-w-[360px] text-13 md:text-13")}
             />
-            <span aria-live="polite" className="font-mono text-[0.75rem] leading-5 text-muted-foreground">
+            <span aria-live="polite" className="font-mono text-13 leading-5 text-muted-foreground">
               {bytesOf(data)}
             </span>
           </label>

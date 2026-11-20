@@ -12,6 +12,8 @@ import "./tileCover.css"
 
 /** Tiles a side */
 const N = 12
+/** The viewBox's side: the 100 unit grid with a margin round it */
+const VIEW = 138.88
 
 const mix = (a: string, b: string, t: number) => {
   const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
@@ -31,6 +33,12 @@ export function TileCover({ art, sweep: [from, to], className }: { art: string[]
   const lit = art.flatMap((row, y) => [...row].flatMap((c, x) => (c === "#" ? [[x, y]] : [])))
   const mid = (i: number) => (Math.min(...lit.map((t) => t[i])) + Math.max(...lit.map((t) => t[i]))) / 2
   const [dx, dy] = lit.length ? [0, 1].map((i) => ((N - 1) / 2 - mid(i)) * pitch) : [0, 0]
+  // One optical size for every picture (Nikita, 20 Nov: in a 56px tile they ran from 33×23 to 33×36):
+  // each is scaled to 32px tall at 56, a wide one held to 40px across, so a flat coin and a tall anchor
+  // read as the same weight. VIEW units a pixel at 56: the box is VIEW units across
+  const span = (i: number) => (lit.length ? (Math.max(...lit.map((t) => t[i])) - Math.min(...lit.map((t) => t[i]))) * pitch + tile : 1)
+  const unit = VIEW / 56
+  const fit = Math.min((32 * unit) / span(1), (40 * unit) / span(0))
   return (
     <span
       aria-hidden="true"
@@ -39,7 +47,8 @@ export function TileCover({ art, sweep: [from, to], className }: { art: string[]
       {/* The grid's margin is in the picture's own box: a padding in per cent is measured off the parent's
           width, and the picture shrank to a dot in a wide row. The lit tiles throw a little of their own
           colour, as a lamp does */}
-      <svg data-tile-cover viewBox="-19.44 -19.44 138.88 138.88" style={{ filter: `drop-shadow(0 0 3px color-mix(in srgb, ${to} 45%, transparent))` }} className="block size-full">
+      <svg data-tile-cover viewBox={`-19.44 -19.44 ${VIEW} ${VIEW}`} style={{ filter: `drop-shadow(0 0 3px color-mix(in srgb, ${to} 45%, transparent))` }} className="block size-full">
+        <g transform={`translate(50 50) scale(${fit}) translate(-50 -50)`}>
         {Array.from({ length: N * N }, (_, k) => {
           const x = k % N
           const y = Math.floor(k / N)
@@ -58,6 +67,7 @@ export function TileCover({ art, sweep: [from, to], className }: { art: string[]
             />
           )
         })}
+        </g>
       </svg>
     </span>
   )

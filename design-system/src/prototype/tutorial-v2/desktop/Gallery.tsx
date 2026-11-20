@@ -123,7 +123,7 @@ export function Gallery() {
 export function TutorialsBody({ phone = false, className }: { phone?: boolean; className?: string }) {
   return (
     <div className={cn("flex w-full flex-col gap-4 duration-200 animate-in fade-in slide-in-from-bottom-1.5 motion-reduce:animate-none", className)}>
-      <h1 className={cn("flex items-center font-heading text-[1.75rem] font-normal tracking-[-0.015em] text-foreground", phone ? "mb-1 h-11" : "mb-4 min-h-8")}>Tutorials</h1>
+      <h1 className={cn("flex items-center font-heading text-28 font-normal tracking-[-0.015em] text-foreground", phone ? "mb-1 h-11" : "mb-2 leading-8")}>Tutorials</h1>
       <StartHereBanner layout={phone ? "phone" : "desktop"} />
       <TutorialsInProgress />
       <TutorialLevels list={CATALOG} />

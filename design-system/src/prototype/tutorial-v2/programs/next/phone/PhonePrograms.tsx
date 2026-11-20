@@ -22,7 +22,7 @@ import { MoreMenu, ProjectName } from "../shell/GuideColumn"
 import { OpeningCard } from "../shell/Opening"
 import { ManageProjects, FullNotice } from "../shell/Quota"
 import { LIT_CSS, ReadNotice, onReadOnlyKey, useLit } from "../shell/Read"
-import { StageBar, StageNote } from "../shell/Stages"
+import { InteractTab, StageAction, StageTrack } from "../shell/Stages"
 import { baseName, changedFiles, onReveal, reveal, statusOf } from "../shell/util"
 import { TreeList, errorIn } from "../shell/Workspace"
 
@@ -113,6 +113,22 @@ function PhoneProject({ id }: { id: string }) {
   if (!p) return null
   const onAsk = space === "ask"
 
+  // No code yet (Home's Build your own): the talk alone, under a head with the way back
+  if (p.draft)
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <header className="flex h-phone-head shrink-0 items-center gap-1 border-b border-border pr-3 pl-1.5 [html.portrait_&]:pr-8 [html.portrait_&]:pl-[22px]">
+          <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Back to Programs" onClick={() => go({ at: "catalog" })}>
+            <ChevronLeft className="size-6" />
+          </Button>
+          <span className="min-w-0 truncate pl-0.5 font-heading text-16 leading-5 font-act text-foreground">{p.name}</span>
+        </header>
+        <section aria-label="Assistant" className="flex min-h-0 flex-1 flex-col [html.portrait_&>*]:px-[max(2rem,calc((100%-40rem)/2))]">
+          <AskThread p={p} phone />
+        </section>
+      </div>
+    )
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* The tutorial's head: back, the name, then the project's ⋯ and the way across */}
@@ -120,8 +136,8 @@ function PhoneProject({ id }: { id: string }) {
         <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Back to Programs" onClick={() => go({ at: "catalog" })}>
           <ChevronLeft className="size-6" />
         </Button>
-        <ProjectName p={p} className="min-w-0 truncate pl-0.5 font-heading text-[0.9375rem] leading-5 font-medium text-foreground" />
-        {p.example && !p.read && !p.opening && <span className="ml-1 shrink-0 rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-[0.75rem] leading-4 text-muted-foreground">Example</span>}
+        <ProjectName p={p} className="min-w-0 truncate pl-0.5 font-heading text-16 leading-5 font-act text-foreground" />
+        {p.example && !p.read && !p.opening && <span className="ml-1 shrink-0 rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-13 leading-4 text-muted-foreground">Example</span>}
         <span className="flex-1" />
         <MoreMenu p={p} />
         <Button
@@ -129,7 +145,7 @@ function PhoneProject({ id }: { id: string }) {
           onClick={() => setSpace(onAsk ? "code" : "ask")}
           data-keep-notice
           aria-label={onAsk ? "Back to the code" : "Ask the assistant"}
-          className={cn("relative ml-1 h-9 shrink-0 gap-1.5 rounded-[10px] px-3 text-[0.875rem] font-act pointer-coarse:h-9 after:absolute after:-inset-1 after:content-['']", ACTION_SOFT)}
+          className={cn("relative ml-1 h-9 shrink-0 gap-1.5 rounded-[10px] px-3 text-13 font-act pointer-coarse:h-9 after:absolute after:-inset-1 after:content-['']", ACTION_SOFT)}
         >
           {onAsk ? <Code className="size-4" aria-hidden="true" /> : <AssistantMark strokeWidth={1.75} />}
           {onAsk ? "Code" : "Ask"}
@@ -141,7 +157,7 @@ function PhoneProject({ id }: { id: string }) {
         <div style={{ transform: onAsk ? "translateX(-50%)" : undefined }} className="flex w-[200%] shrink-0 transition-transform duration-300 ease-standard motion-reduce:transition-none">
           <CodeSpace p={p} active={!onAsk} jump={jump} onFiles={() => setFiles(true)} onAsk={() => setSpace("ask")} />
           {/* The phone's 16 at the sides; an upright tablet keeps the chat to a 40rem measure, as the tutorial does */}
-          <section aria-label="Assistant" inert={!onAsk} className="flex w-1/2 min-w-0 flex-col [html.portrait_&>*]:px-[max(2rem,calc((100%-40rem)/2))]">
+          <section aria-label="Assistant" inert={!onAsk} className="flex w-1/2 min-w-0 flex-col overflow-hidden [html.portrait_&>*]:px-[max(2rem,calc((100%-40rem)/2))]">
             <AskThread p={p} phone />
           </section>
         </div>
@@ -191,11 +207,12 @@ function CodeSpace({ p, active, jump, onFiles, onAsk }: { p: Project; active: bo
   const status = statusOf(p)
 
   return (
-    <section aria-label="Code" inert={!active} className="flex w-1/2 min-w-0 flex-col bg-(--code-ground)">
+    // Clipped to its half: a long log or code line ran past it, and its last letter stood at the assistant's left edge (Nikita, 20 Nov: a stray "t")
+    <section aria-label="Code" inert={!active} className="flex w-1/2 min-w-0 flex-col overflow-hidden bg-(--code-ground)">
       {!p.opening && (
-        <div className="flex shrink-0 flex-col gap-1.5 border-b border-border bg-surface-base px-2.5 pt-2 pb-2.5 [html.portrait_&]:px-6">
-          <StageBar p={p} />
-          <StageNote p={p} className="px-2" />
+        <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface-base px-4 py-2.5 [html.portrait_&]:px-8">
+          <StageTrack p={p} className="min-w-0 flex-1" />
+          <StageAction p={p} className="h-9" />
         </div>
       )}
       <div className={cn("flex h-12 shrink-0 items-center gap-1 border-b border-border bg-surface-base pr-4 pl-2 [html.portrait_&]:pr-8 [html.portrait_&]:pl-6", p.opening && "hidden")}>
@@ -213,6 +230,8 @@ function CodeSpace({ p, active, jump, onFiles, onAsk }: { p: Project; active: bo
             </span>
           </button>
         )}
+        <span className="flex-1" />
+        <InteractTab p={p} className="h-11 rounded-lg px-3" />
       </div>
       {/* The notices pinned under the Code row, full width, so no line of code moves under the finger */}
       <ReadNotice p={p} phone onAsk={onAsk} />
@@ -235,6 +254,7 @@ function CodeSpace({ p, active, jump, onFiles, onAsk }: { p: Project; active: bo
             jump={jump}
             written={lit.written}
             arrive={lit.arrive}
+            wrap
           />
         </div>
       )}

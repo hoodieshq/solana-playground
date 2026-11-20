@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
 
+import { signIn } from "../../navStates"
 import { GitHubMark } from "../../newProject/next/SourceRail"
 import { AssistantMark } from "../../ui/AssistantMark"
 import { soon } from "../Catalog"
@@ -37,13 +38,13 @@ function Mark({ i, state }: { i: number; state: "todo" | "done" | "warn" }) {
 export function SetupSteps({ setup }: { setup: SetupView }) {
   const [view, setView] = useState<"steps" | "Assistant" | "Network">("steps")
   if (view !== "steps") return <Choose view={view} onBack={() => setView("steps")} />
-  const opens = (i: number) => (i === 0 ? () => setView("Assistant") : i === 1 ? () => setView("Network") : soon)
+  const opens = (i: number) => (i === 0 ? () => setView("Assistant") : i === 1 ? () => setView("Network") : i === 2 ? signIn : soon)
   return (
     <div className="flex flex-col">
       <div className="flex flex-col gap-2.5 px-2 pt-1.5 pb-2.5">
         <div className="flex items-baseline justify-between">
-          <span className="font-heading text-[0.9375rem] leading-5 font-medium text-foreground">Get set up</span>
-          <span className="text-[0.75rem] leading-4 text-muted-foreground tabular-nums">{`${setup.done} of ${setup.total}`}</span>
+          <span className="font-heading text-16 leading-5 font-act text-foreground">Get set up</span>
+          <span className="text-13 leading-4 text-muted-foreground tabular-nums">{`${setup.done} of ${setup.total}`}</span>
         </div>
         {/* One bar a step, lit in one sweep of the brand's light as far as you've got */}
         <span aria-hidden="true" className="flex gap-1">
@@ -64,16 +65,16 @@ export function SetupSteps({ setup }: { setup: SetupView }) {
               <div className="flex min-h-10 items-center gap-2.5 px-2 py-1.5">
                 <Mark i={i} state="done" />
                 {/* The name whole, what it's set to in the room that's left */}
-                <span className="shrink-0 text-[0.8125rem] leading-[1.125rem] font-act text-muted-foreground">{step.label}</span>
-                <span className="min-w-0 flex-1 truncate text-right text-[0.75rem] leading-4 font-label text-muted-foreground">{step.value}</span>
+                <span className="shrink-0 text-13 leading-[1.125rem] font-act text-muted-foreground">{step.label}</span>
+                <span className="min-w-0 flex-1 truncate text-right text-13 leading-4 font-label text-muted-foreground">{step.value}</span>
               </div>
             )
           const words = (
             <>
               <Mark i={i} state={step.state} />
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="text-[0.8125rem] leading-[1.125rem] font-act text-foreground">{step.label}</span>
-                <span className={cn("text-[0.75rem] leading-4 font-label", step.state === "warn" ? "text-warning-ink" : "text-muted-foreground")}>{step.state === "todo" ? step.hint : step.value}</span>
+                <span className="text-13 leading-[1.125rem] font-act text-foreground">{step.label}</span>
+                <span className={cn("text-13 leading-4 font-label", step.state === "warn" ? "text-warning-ink" : "text-muted-foreground")}>{step.state === "todo" ? step.hint : step.value}</span>
               </span>
             </>
           )

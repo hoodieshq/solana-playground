@@ -37,7 +37,7 @@ function NavStatePicker() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuRadioGroup value={id} onValueChange={(v) => setNavState(v as NavStateId)}>
-          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">As the product draws it</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-13 font-normal text-muted-foreground">As the product draws it</DropdownMenuLabel>
           {NAV_IDS.map((k) => (
             <DropdownMenuRadioItem key={k} value={k}>
               {NAV_STATES[k].label}
@@ -73,7 +73,7 @@ function AirdropPicker() {
           ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Once, on the first deploy or read mode call. Reset to see it again</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-13 font-normal text-muted-foreground">Once, on the first deploy or read mode call. Reset to see it again</DropdownMenuLabel>
       </DropdownMenuContent>
     </DropdownMenu>
   )

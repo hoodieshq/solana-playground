@@ -50,13 +50,13 @@ export function ImportSteps({ steps, tone = "warning" }: { steps: Step[]; tone?:
             )}
             <span
               className={cn(
-                "truncate text-[0.8125rem] leading-[1.125rem]",
+                "truncate text-13 leading-[1.125rem]",
                 s.status === "running" || s.status === "done" ? "font-act text-foreground" : "font-[380] text-muted-foreground"
               )}
             >
               {s.label}
             </span>
-            {s.detail && <span className="truncate font-mono text-xs text-(color:--text-quiet)">{s.detail}</span>}
+            {s.detail && <span className="truncate font-mono text-13 text-(color:--text-quiet)">{s.detail}</span>}
           </div>
         ))}
       </div>

@@ -11,7 +11,9 @@ import { Spinner } from "@/components/ui/spinner"
 import { StatusDot } from "@/components/ui/status-dot"
 import { cn } from "@/lib/utils"
 
+import { PRIMARY_KEYS } from "../../../desktop/keys"
 import { highlight } from "../../../ui/CodeView"
+import { openExplorer } from "../../../ui/explorer"
 import { ACTION, ACTION_FILL, ACTION_SOFT, FOCUS, secs } from "../../../ui/type"
 import { WALLET_KEY, fakeKey, type Ix } from "../../data"
 import { CALL_MS, ask, behind, busy, call, deploy, firstIx, ixsOf, onChain, setPane, setValue, uploadIdl, valuesFor, type Project, type Turn } from "../../store"
@@ -34,8 +36,8 @@ const PART = "flex flex-col gap-3 border-t border-border px-4 py-3"
 // A foot holding a primary button stays on the card's ground under its hairline: on the grey the purple
 // read as pasted on (Almaz, 6 Nov). Grey is for the bars of quiet actions only
 const FOOT = "flex flex-wrap items-center gap-3 border-t border-border px-4 py-3"
-const LABEL = "flex items-baseline gap-1.5 text-[0.8125rem] leading-5 font-medium text-muted-foreground"
-const COUNT = "text-[0.75rem] font-normal text-muted-foreground/70 tabular-nums"
+const LABEL = "flex items-baseline gap-1.5 text-13 leading-5 font-act text-muted-foreground"
+const COUNT = "text-13 font-normal text-muted-foreground/70 tabular-nums"
 /* The panel reads its own width (a phone's sheet, a tablet's pane), not the window's: under 560 a label
    goes over its field and an account's value under its name */
 const ROW = "grid grid-cols-1 gap-x-4 gap-y-1.5 @min-[560px]/call:grid-cols-[12rem_minmax(0,1fr)]"
@@ -47,10 +49,10 @@ const TRIPLE = "grid grid-cols-[minmax(0,1fr)_5rem_minmax(0,1fr)] gap-x-3 @min-[
  * gives way to its chips */
 const ACCOUNT_ROW = "grid min-h-8 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 py-1.5 @min-[560px]/call:grid-cols-[10rem_8.5rem_minmax(0,1fr)] @min-[560px]/call:py-0"
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
-const CHIP = "inline-flex h-[18px] shrink-0 items-center rounded-[5px] px-1.5 text-[0.75rem] leading-4"
+const CHIP = "inline-flex h-[18px] shrink-0 items-center rounded-[5px] px-1.5 text-13 leading-4"
 const TYPE_CHIP = cn(CHIP, "bg-surface-raised font-mono text-syntax-type")
 const ROLE = cn(CHIP, "border border-border text-muted-foreground")
-const NOTE = "text-[0.875rem] leading-5 text-muted-foreground"
+const NOTE = "text-13 leading-5 text-muted-foreground"
 
 /** The compute budget a transaction gets by default, for "4,518 of 200,000" */
 const BUDGET = 200_000
@@ -124,8 +126,20 @@ export function CallPanel({ p }: { p: Project }) {
         </Segmented>
         {/* An IDL uploaded by hand doesn't follow the code: after an upgrade the form may list what the program
             no longer takes. Said here, where it matters, not in the upload dialog (Almaz, 18 Nov) */}
+        {/* What you're calling (Spec 03): the program's id with Copy and Explorer. The bar's chip has the id
+            too, but it goes on a narrow bar, and here is where you look for it after a call */}
+        {view === "form" && !idlBehind && chain && (
+          <p className="ml-auto flex min-w-0 items-center gap-1 text-13 leading-4 text-muted-foreground">
+            <span className="hidden shrink-0 @min-[480px]/call:inline">Program</span>
+            <code className="truncate font-mono text-foreground">{shortKey(chain.programId)}</code>
+            <CopyButton value={chain.programId} label="Copy program id" className="size-6 shrink-0" />
+            <Button variant="ghost" size="xs" className="shrink-0 text-foreground/90" onClick={openExplorer}>
+              Explorer
+            </Button>
+          </p>
+        )}
         {view === "form" && idlBehind && (
-          <p className="ml-auto flex min-w-0 items-center gap-1 text-[0.75rem] leading-4 text-muted-foreground">
+          <p className="ml-auto flex min-w-0 items-center gap-1 text-13 leading-4 text-muted-foreground">
             <span className="truncate">Upgraded since this IDL was uploaded</span>
             <Button variant="ghost" size="xs" className="shrink-0 text-foreground/90" onClick={() => setGuide(true)}>
               Update IDL
@@ -149,7 +163,7 @@ export function CallPanel({ p }: { p: Project }) {
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="flex w-full max-w-[720px] flex-col gap-4 px-4 pt-4 pb-10 @min-[560px]/call:px-6">
           {behind(p) && chain && (
-            <div className="flex min-h-10 items-center gap-2.5 rounded-panel border border-border bg-surface-panel px-4 py-2 text-[0.8125rem] leading-5">
+            <div className="flex min-h-10 items-center gap-2.5 rounded-panel border border-border bg-surface-panel px-4 py-2 text-13 leading-5">
               <StatusDot variant="warning" />
               <span className="min-w-0 flex-1 text-foreground/90">The code changed since the last deploy. Calls go to the deployed version.</span>
               <button type="button" onClick={() => deploy(p.id)} disabled={busy(p)} className={QUIET}>
@@ -187,8 +201,8 @@ export function CallPanel({ p }: { p: Project }) {
             />
           ) : (
             <section aria-label="IDL JSON" className={CARD}>
-              <div className="flex h-10 items-center px-4 font-mono text-[0.8125rem] text-muted-foreground">{`${programOf(p)}.json`}</div>
-              <div tabIndex={0} aria-label="IDL JSON, read only" className={cn("max-h-[calc(100dvh-16rem)] overflow-auto border-t border-border bg-surface-well py-2 font-mono text-[0.75rem] leading-[1.6] outline-none", FOCUS)}>
+              <div className="flex h-10 items-center px-4 font-mono text-13 text-muted-foreground">{`${programOf(p)}.json`}</div>
+              <div tabIndex={0} aria-label="IDL JSON, read only" className={cn("max-h-[calc(100dvh-16rem)] overflow-auto border-t border-border bg-surface-well py-2 font-mono text-13 leading-[1.6] outline-none", FOCUS)}>
                 {json.split("\n").map((line, i) => (
                   <div key={i} className="flex">
                     <span className="w-10 shrink-0 pr-3 text-right text-syntax-comment select-none">{i + 1}</span>
@@ -245,11 +259,11 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
       }}
     >
       <div className={HEAD}>
-        <h3 className="font-mono text-[0.9375rem] leading-[1.35] font-medium break-words">
+        <h3 className="font-mono text-16 leading-[1.35] font-act break-words">
           <span className="font-normal text-muted-foreground">{programOf(p)}.</span>
           <span className="text-syntax-function">{ix.name}</span>
         </h3>
-        <p className="text-[0.875rem] leading-5 text-pretty text-foreground/80">{ix.line}</p>
+        <p className="text-13 leading-5 text-pretty text-foreground/80">{ix.line}</p>
         {!ix.args.length && !ix.accounts.length && <p className={NOTE}>No arguments. Signed by your wallet.</p>}
       </div>
 
@@ -262,7 +276,7 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
             return (
               <div key={a.name} className={cn(ROW, "items-start")}>
                 <span className="flex min-w-0 items-center gap-1.5 @min-[560px]/call:pt-2">
-                  <span title={a.name} className="truncate font-mono text-[0.8125rem] leading-5 text-foreground">
+                  <span title={a.name} className="truncate font-mono text-13 leading-5 text-foreground">
                     {a.name}
                   </span>
                   <span className={TYPE_CHIP}>{a.type}</span>
@@ -270,10 +284,10 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
                 <span className="flex min-w-0 flex-col gap-1">
                   {a.type === "bool" ? (
                     <Segmented aria-label={a.name} value={value === "false" ? "false" : "true"} onValueChange={(v) => v && setValue(id, ix.name, a.name, v)} className="h-9">
-                      <SegmentedItem value="true" className="cursor-pointer font-mono text-[0.8125rem]">
+                      <SegmentedItem value="true" className="cursor-pointer font-mono text-13">
                         true
                       </SegmentedItem>
-                      <SegmentedItem value="false" className="cursor-pointer font-mono text-[0.8125rem]">
+                      <SegmentedItem value="false" className="cursor-pointer font-mono text-13">
                         false
                       </SegmentedItem>
                     </Segmented>
@@ -295,14 +309,14 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
                       data-1p-ignore
                       aria-label={`${a.name}, ${a.type}`}
                       aria-invalid={!!shown || undefined}
-                      className="h-9 font-mono text-[0.8125rem] tabular-nums md:text-[0.8125rem]"
+                      className="h-9 font-mono text-13 tabular-nums md:text-13"
                     />
                   )}
                   {/* One line under it at most: what's wrong, or the example once the value moved off it */}
                   {shown ? (
-                    <span className="text-[0.75rem] leading-4 text-error">{shown}</span>
+                    <span className="text-13 leading-4 text-error">{shown}</span>
                   ) : value !== a.example && a.type !== "bool" ? (
-                    <span className="text-[0.75rem] leading-4 text-muted-foreground">
+                    <span className="text-13 leading-4 text-muted-foreground">
                       Example <span className="font-mono">{a.example}</span>
                     </span>
                   ) : null}
@@ -325,14 +339,14 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
               const key = roles.signer ? WALLET_KEY : fakeKey(`${p.id}:${name}`)
               return (
                 <div key={name} className={ACCOUNT_ROW}>
-                  <code title={name} className="truncate font-mono text-[0.8125rem] text-foreground">
+                  <code title={name} className="truncate font-mono text-13 text-foreground">
                     {name}
                   </code>
                   <span className="flex items-center gap-1.5">
                     {roles.signer && <span className={ROLE}>signer</span>}
                     {roles.writable && <span className={ROLE}>writable</span>}
                   </span>
-                  <span className="col-span-2 flex min-w-0 items-center gap-2 text-[0.8125rem] @min-[560px]/call:col-span-1">
+                  <span className="col-span-2 flex min-w-0 items-center gap-2 text-13 @min-[560px]/call:col-span-1">
                     <span className="shrink-0 text-foreground">{roles.signer ? "Your wallet" : "Derived"}</span>
                     <code title={key} className="truncate font-mono text-muted-foreground">
                       {shortKey(key)}
@@ -343,7 +357,7 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
             })}
           </div>
           {many && (
-            <button type="button" aria-expanded={allAccounts} onClick={() => setAllAccounts(!allAccounts)} className={cn(QUIET, "self-start text-[0.8125rem]")}>
+            <button type="button" aria-expanded={allAccounts} onClick={() => setAllAccounts(!allAccounts)} className={cn(QUIET, "self-start text-13")}>
               {allAccounts ? "Show less" : `Show ${ix.accounts.length - ACCOUNTS_FIRST} more`}
               <ChevronDown aria-hidden="true" className={cn("size-3.5 transition-transform duration-150 motion-reduce:transition-none", allAccounts && "rotate-180")} />
             </button>
@@ -358,8 +372,9 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
               {sending && <Spinner />}
               {sending ? "Calling" : `Call ${ix.name}`}
             </Button>
-            <span aria-hidden="true" className={cn("text-[0.75rem] text-muted-foreground tabular-nums", !(running && !sending) && "pointer-coarse:hidden")}>
-              {running && !sending ? "Another run is going" : "⌘↵"}
+            <span aria-hidden="true" className={cn("text-13 text-muted-foreground tabular-nums", !(running && !sending) && "pointer-coarse:hidden [html.phone_&]:hidden")}>
+              {/* A phone has no keyboard to press it on, even when the frame is shown on a desktop (Nikita, 20 Nov) */}
+              {running && !sending ? "Another run is going" : PRIMARY_KEYS}
             </span>
             {changed && (
               <button
@@ -369,7 +384,7 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
                   setTried(false)
                   setTouched(new Set())
                 }}
-                className={cn(QUIET, "ml-auto text-[0.8125rem]")}
+                className={cn(QUIET, "ml-auto text-13")}
               >
                 Reset to example
               </button>
@@ -380,7 +395,7 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
             <Button variant="ghost" disabled={running} onClick={() => deploy(id)} className={cn(ACTION, ACTION_SOFT)}>
               Deploy
             </Button>
-            <span className="text-[0.8125rem] text-muted-foreground">Not on devnet yet. Deploy the program to call it.</span>
+            <span className="text-13 text-muted-foreground">Not on devnet yet. Deploy the program to call it.</span>
           </>
         )}
       </div>
@@ -398,7 +413,7 @@ function latestFor(p: Project, ix: string) {
 
 function Facts({ rows }: { rows: [string, ReactNode][] }) {
   return (
-    <dl className="flex flex-col border-t border-border px-4 py-2 text-[0.8125rem] tabular-nums">
+    <dl className="flex flex-col border-t border-border px-4 py-2 text-13 tabular-nums">
       {rows.map(([k, v]) => (
         <div key={k} className="grid min-h-8 grid-cols-[7rem_minmax(0,1fr)] items-center gap-3">
           <dt className="text-muted-foreground">{k}</dt>
@@ -414,7 +429,7 @@ function Logs({ lines, bright }: { lines: string[]; bright?: (line: string) => b
   return (
     <div className={PART}>
       <span className={LABEL}>Logs</span>
-      <div className="max-h-48 overflow-auto rounded-control border border-border bg-surface-well px-3 py-2.5 font-mono text-[0.8125rem] leading-5 break-words">
+      <div className="max-h-48 overflow-auto rounded-control border border-border bg-surface-well px-3 py-2.5 font-mono text-13 leading-5 break-words">
         {lines.map((l, i) => (
           <p key={i} className={(bright ?? ((x) => x.startsWith("Program log: ")))(l) ? "text-foreground" : "text-muted-foreground"}>
             {shortKeys(l)}
@@ -429,9 +444,9 @@ function StatusHead({ icon, title, meta, right }: { icon: ReactNode; title: stri
   return (
     <div className="flex h-12 items-center gap-2 px-4">
       {icon}
-      <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{title}</span>
-      {meta && <span className="min-w-0 truncate text-[0.875rem] text-muted-foreground">{meta}</span>}
-      {right && <span className="ml-auto shrink-0 text-[0.8125rem] text-muted-foreground">{right}</span>}
+      <span className="font-heading text-16 leading-6 font-act text-foreground">{title}</span>
+      {meta && <span className="min-w-0 truncate text-13 text-muted-foreground">{meta}</span>}
+      {right && <span className="ml-auto shrink-0 text-13 text-muted-foreground">{right}</span>}
     </div>
   )
 }
@@ -473,7 +488,7 @@ function Response({ p, ix }: { p: Project; ix: Ix }) {
             rows={[
               ["Signature", <code className="font-mono">{shortKey(result.sig)}</code>],
               ["Compute units", `${result.cu.toLocaleString("en-US")} of ${BUDGET.toLocaleString("en-US")}`],
-              ["Fee", `${result.fee} test SOL`],
+              ["Fee", `${result.fee} devnet SOL`],
               ...(Object.keys(result.args).length
                 ? ([
                     [
@@ -549,9 +564,9 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
                 ) : (
                   <IxTitle p={p} ix={ix} />
                 )}
-                <p className="text-[0.875rem] leading-5 text-pretty text-foreground/80">{ix.line}</p>
+                <p className="text-13 leading-5 text-pretty text-foreground/80">{ix.line}</p>
               </div>
-              <button type="button" onClick={() => onOpen(ix.name)} className={cn(QUIET, "shrink-0 pt-0.5 text-[0.8125rem]")}>
+              <button type="button" onClick={() => onOpen(ix.name)} className={cn(QUIET, "shrink-0 pt-0.5 text-13")}>
                 Open in form
                 <ArrowRight aria-hidden="true" className="size-3.5" />
               </button>
@@ -561,8 +576,8 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
                 <div className={PART}>
                   <span className={LABEL}>Arguments</span>
                   {ix.args.length ? (
-                    <div className="flex flex-col text-[0.8125rem]">
-                      <div className={cn(TRIPLE, "pb-1 text-[0.75rem] text-muted-foreground")}>
+                    <div className="flex flex-col text-13">
+                      <div className={cn(TRIPLE, "pb-1 text-13 text-muted-foreground")}>
                         <span>Name</span>
                         <span>Type</span>
                         <span>Example</span>
@@ -586,8 +601,8 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
                 <div className={PART}>
                   <span className={LABEL}>Accounts</span>
                   {ix.accounts.length ? (
-                    <div className="flex flex-col text-[0.8125rem]">
-                      <div className={cn(PAIR, "pb-1 text-[0.75rem] text-muted-foreground")}>
+                    <div className="flex flex-col text-13">
+                      <div className={cn(PAIR, "pb-1 text-13 text-muted-foreground")}>
                         <span>Name</span>
                         <span>Role</span>
                       </div>
@@ -615,14 +630,14 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
           </section>
         )
       })}
-      <p className="text-[0.8125rem] leading-5 text-muted-foreground">Generated when the program builds. A new deploy updates this view and the form.</p>
+      <p className="text-13 leading-5 text-muted-foreground">Generated when the program builds. A new deploy updates this view and the form.</p>
     </>
   )
 }
 
 function IxTitle({ p, ix }: { p: Project; ix: Ix }) {
   return (
-    <h3 className="min-w-0 truncate font-mono text-[0.9375rem] leading-[1.35] font-medium">
+    <h3 className="min-w-0 truncate font-mono text-16 leading-[1.35] font-act">
       <span className="font-normal text-muted-foreground">{programOf(p)}.</span>
       <span className="text-syntax-function">{ix.name}</span>
     </h3>
@@ -643,8 +658,8 @@ function NoIdl({ p }: { p: Project }) {
         <EmptyMedia className="mb-2.5 grid size-12 place-items-center rounded-panel bg-surface-raised text-muted-foreground">
           <FileQuestion className="size-6" />
         </EmptyMedia>
-        <EmptyTitle className="text-[1.125rem] leading-6">No IDL yet</EmptyTitle>
-        <EmptyDescription className="text-[0.875rem] leading-5 text-balance">The call form is read from an IDL, and Playground can't build one yet. Build it locally, then upload it.</EmptyDescription>
+        <EmptyTitle className="text-20 leading-6">No IDL yet</EmptyTitle>
+        <EmptyDescription className="text-13 leading-5 text-balance">The call form is read from an IDL, and Playground can't build one yet. Build it locally, then upload it.</EmptyDescription>
       </EmptyHeader>
       <div className="flex flex-wrap justify-center gap-2">
         {/* The first is the way on, filled; the second is for someone who has the file already */}

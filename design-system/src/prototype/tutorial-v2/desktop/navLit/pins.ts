@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
+
+import { emit } from "../../ui/events"
 
 /** Pins made from a row's menu, by name, laid over the nav state's own: true pinned, false unpinned.
  * Kept in this browser, so a pin survives a reload and a state switch */
@@ -34,4 +37,13 @@ export function usePins() {
     }
   }, [])
   return pins
+}
+
+/** Pin to sidebar from a lesson's or a project's ⋯. In a lesson or a project the nav is folded to its
+ * rail, where a pin showed nothing but the toast (Nikita, 20 Nov): pinning opens the nav, so the row is
+ * seen landing in Pinned */
+export function pinToSidebar(name: string, on: boolean) {
+  setPinned(name, on)
+  toast(on ? "Pinned to the sidebar" : "Unpinned from the sidebar")
+  if (on) emit("nav:open")
 }

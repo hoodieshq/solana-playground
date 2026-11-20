@@ -62,7 +62,7 @@ export const LANDINGS: Record<Extract<NextStateId, `landing-${string}`>, OpenPro
   "landing-hint": { name: "anchor-project-2", framework: "anchor", source: "starter", openFile: "src/lib.rs" },
   "landing-express": { name: "anchor-project-2", framework: "anchor", source: "starter", openFile: "src/lib.rs", firstRun: true, build: true },
   "landing-import": { name: "counter-2", framework: "anchor", source: "import", openFile: "README.md" },
-  "landing-describe": { name: "anchor-project-2", framework: "anchor", source: "describe", prompt: VOTE },
+  "landing-describe": { name: "anchor-project-2", framework: "anchor", source: "describe", prompt: VOTE, draft: true },
 }
 
 export const isLanding = (id: NextStateId): id is keyof typeof LANDINGS => id in LANDINGS

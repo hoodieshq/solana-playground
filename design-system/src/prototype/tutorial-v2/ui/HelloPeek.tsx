@@ -19,7 +19,8 @@ export function HelloSource({ before, className, inline = false, said }: { befor
   // The program's own file: lib.rs, or a Seahorse lesson's Python, where `print` is what logs
   const FILE = LIB
   const word = FILE.endsWith(".py") ? "print" : "msg!"
-  const lib = s.files[FILE] ?? ""
+  // The code on devnet, which said the line: the file as it is now may have changed since the deploy
+  const lib = s.deployedLib ?? s.files[FILE] ?? ""
   // The msg! that wrote this line, when the program has more than one
   const line = msgLine(lib, said)
   const rows = lib.split("\n")

@@ -721,8 +721,9 @@ export const LUMBERJACK: Lesson = {
   proofLine: (_tx, s) => `Your player has ${s.player?.wood ?? 0} wood on devnet, and its energy comes back every 30 seconds with no transaction to do it.`,
   // The next Intermediate one. Battle Coins goes where the original Lumberjack points: a game that gives
   // its players a token of its own
-  next: "battle-coins",
-  nextLine: "Battle Coins is a good next one: your game mints a token of its own with metadata, rewards players with it and burns it to heal them.",
+  // The ladder's next, as for Hello Anchor
+  next: "zero-copy",
+  nextLine: "Zero Copy is a good next one: an account too big to copy into memory, read and written in place.",
   steps: STEPS,
   files: { [LIB]: "", [CLIENT]: "" },
   preview: LIB_S4,

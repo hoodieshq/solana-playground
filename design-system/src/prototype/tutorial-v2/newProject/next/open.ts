@@ -38,21 +38,14 @@ export function land(o: OpenProject, ignoreDone = false) {
   openProject(o)
 }
 
-const FILLER = new Set(["a", "an", "the", "that", "which", "with", "for", "of", "to", "and", "my", "me", "i", "want", "build", "make", "write", "create", "program", "please"])
-
-/** A project's name from a description, as Spec 15 asks: its first three words that say something, lower
- * case, joined by hyphens. "A tip jar that splits tips" becomes tip-jar-splits */
-export function nameFrom(text: string) {
-  const words = text.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter((w) => w && !FILLER.has(w))
-  return words.slice(0, 3).join("-") || "anchor-project"
-}
-
-/** Home's field: a new Anchor project, made with no dialog, opened with the words sent to its assistant.
- * The words are the request, as a first message to Claude or ChatGPT is */
+/** Home's field: the words sent to the assistant, as a first message to Claude or ChatGPT is, in a draft
+ * with no code. The project is made when the assistant writes it */
 export async function describeCreate(text: string, env: Env) {
-  const name = freeName(nameFrom(text), env)
+  // No code yet: a draft, where the assistant asks what to build before it writes anything (Almaz, 20 Nov).
+  // Its id only; the name comes from what it turns into
+  const name = freeName("new-program", env)
   await wait(700)
-  land({ name, framework: "anchor", source: "describe", prompt: text })
+  land({ name, framework: "anchor", source: "describe", prompt: text, draft: true })
 }
 
 /** Home's "Run the Anchor starter": the default Anchor project, made with no dialog, then Build */

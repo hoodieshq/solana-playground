@@ -68,7 +68,8 @@ export function useFirstLight(forced: NextStateId | undefined, preset: Preset | 
     if (g !== gen.current) return
     const st = now.current
     const name = st.into ?? finalName(st, env)
-    if (st.source === "describe" && !st.into) return finish({ name, framework: st.framework, source: "describe", prompt: st.describe.text.trim() })
+    // A draft, as from Home's field: the assistant asks before it writes (Almaz, 20 Nov). A typed name is kept
+    if (st.source === "describe" && !st.into) return finish({ name, framework: st.framework, source: "describe", prompt: st.describe.text.trim(), draft: true, named: st.name.touched && !!st.name.value.trim() })
     finish({ name, framework: st.framework, source: "starter", openFile: frameworkOf(st.framework).main, ...(express && { firstRun: true, build: true }) })
   }
 

@@ -210,7 +210,7 @@ export function primary(s: FirstLightState, env: Env): { label: string; enabled:
     }
     case "describe":
       if (!s.describe.text.trim()) return { label: "Write a description", enabled: false }
-      return { label: "Create and send to assistant", enabled: nameOk && !describeUnavailable(env) }
+      return { label: "Send to assistant", enabled: nameOk && !describeUnavailable(env) }
     case "import": {
       const i = s.import
       if (!env.online || i.state === "empty") return { label: "Paste a repo link", enabled: false }

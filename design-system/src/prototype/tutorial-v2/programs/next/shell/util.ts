@@ -58,10 +58,14 @@ export function failLive(p: Project, t: Turn) {
 /** Whether a turn is the feed's last, so its buttons may be the one primary */
 export const isLast = (p: Project, t: Turn) => p.feed[p.feed.length - 1] === t
 
+/** A deploy under way: its stage and where it is in them, "Writing buffer · 2 of 5" (Spec 03). No "Deploying"
+ * in front: one stage is called that, and it read "Deploying · Deploying" */
+export const deployingText = (d: { stages: string[]; stage: number }) => `${d.stages[d.stage]} · ${d.stage + 1} of ${d.stages.length}`
+
 /** The console strip's words and dot for where the project is (ux-architecture.md 3.6.6) */
 export function statusOf(p: Project): { dot: "idle" | "running" | "success" | "warning" | "error"; text: string } {
   if (p.build.s === "running") return { dot: "running", text: p.build.slow ? `Still compiling ${p.name}` : `Compiling ${p.name}` }
-  if (p.deploy.s === "running") return { dot: "running", text: `Deploying · ${p.deploy.stages[p.deploy.stage]}` }
+  if (p.deploy.s === "running") return { dot: "running", text: deployingText(p.deploy) }
   if (p.calling) return { dot: "running", text: p.calling.ix === "client.ts" ? "Running client.ts" : p.read ? `Calling ${p.calling.ix} on devnet` : `Calling ${p.calling.ix}` }
   if (p.read) {
     const r = lastResult(p)
@@ -76,7 +80,8 @@ export function statusOf(p: Project): { dot: "idle" | "running" | "success" | "w
   if (!r) return { dot: "idle", text: "Ready · Devnet" }
   switch (r.k) {
     case "build-ok":
-      return { dot: "success", text: p.idl ? `Build successful · IDL: ${r.ixs} ${r.ixs === 1 ? "instruction" : "instructions"}` : "Build successful" }
+      // Spec 13's last result: "Built in 3.4 s"
+      return { dot: "success", text: `Built in ${(r.took / 1000).toFixed(1)} s` }
     case "build-fail":
       return r.kind === "compile" ? { dot: "error", text: `Build failed · line ${r.line}` } : { dot: "error", text: "Build didn't start · the build server didn't answer" }
     case "deploy-ok":

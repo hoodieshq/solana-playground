@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { toast } from "sonner"
 import { ChevronLeft, Ellipsis } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -13,7 +12,7 @@ import { Conversation, type Jump } from "../ui/Conversation"
 import { StartOverDialog } from "../ui/StartOverDialog"
 import { StepBar } from "../ui/StepBar"
 import { Column } from "./Column"
-import { setPinned, usePins } from "./navLit/pins"
+import { pinToSidebar, usePins } from "./navLit/pins"
 
 /** The chat column, top to bottom (spec 4.3): the head with the way back to Tutorials, the title and
  * ⋯; the step bar, whose segments are anchors into the conversation; the conversation; the chips
@@ -29,7 +28,7 @@ export function ChatColumn({ jump, onPick, viewing, onViewing }: { jump: Jump; o
           <ChevronLeft className="size-4" />
           Tutorials
         </Button>
-        <h1 className="ml-2 min-w-0 flex-1 truncate text-[0.875rem] text-foreground">{LESSON.card.name}</h1>
+        <h1 className="ml-2 min-w-0 flex-1 truncate text-13 text-foreground">{LESSON.card.name}</h1>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-sm" aria-label="More" className="text-muted-foreground">
@@ -39,10 +38,7 @@ export function ChatColumn({ jump, onPick, viewing, onViewing }: { jump: Jump; o
           <DropdownMenuContent align="end" className="min-w-48">
             {/* As the program's ⋯: the nav keeps only what you pin */}
             <DropdownMenuItem
-              onSelect={() => {
-                setPinned(LESSON.card.name, !pinned)
-                toast(pinned ? "Unpinned from the sidebar" : "Pinned to the sidebar")
-              }}
+              onSelect={() => pinToSidebar(LESSON.card.name, !pinned)}
             >
               {pinned ? "Unpin from sidebar" : "Pin to sidebar"}
             </DropdownMenuItem>

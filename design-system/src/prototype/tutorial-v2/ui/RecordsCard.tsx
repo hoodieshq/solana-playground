@@ -19,7 +19,7 @@ const sol = (n: number) => `${n.toFixed(4)} SOL`
 
 // Plain strings, not cn: cn would read text-caption next to a colour as one and drop it
 // 16 a line, so a row's address, seeds and fields stand at one even step (Almaz, 10 Nov)
-const MONO = "font-mono text-[0.75rem] leading-4 tabular-nums"
+const MONO = "font-mono text-13 leading-4 tabular-nums"
 const NOTE = "text-caption text-muted-foreground"
 
 /** How long a change shows as one: the tint of a new row, the old value struck beside the new */
@@ -87,7 +87,7 @@ function Delta({ value, was }: { value: string; was?: string }) {
   const by = Number(value) - Number(was)
   if (!by) return null
   return (
-    <span className={cn("pg-arrive rounded-full px-1.5 font-mono text-[0.6875rem] leading-4 tabular-nums", by > 0 ? "bg-success/10 text-success" : "bg-foreground/[0.06] text-muted-foreground")}>
+    <span className={cn("pg-arrive rounded-full px-1.5 font-mono text-11 leading-4 tabular-nums", by > 0 ? "bg-success/10 text-success" : "bg-foreground/[0.06] text-muted-foreground")}>
       {by > 0 ? "+" : "−"}
       {Math.abs(by)}
     </span>
@@ -175,7 +175,7 @@ export function MoveInputs({
             data-bwignore
             data-form-type="other"
             aria-label={f.label}
-            className={cn("min-w-0", f.kind !== "text" && "font-mono", phone ? "h-12 text-base" : "h-9 text-[0.8125rem] md:text-[0.8125rem]")}
+            className={cn("min-w-0", f.kind !== "text" && "font-mono", phone ? "h-12 text-16" : "h-9 text-13 md:text-13")}
           />
         </label>
       ))}
@@ -226,7 +226,7 @@ function RowMoves({ row, moves, phone, head }: { row: Rec; moves: Move[]; phone:
                 onClick={() => (m.fields ? setOpen(on ? null : m) : go(m))}
                 className={cn(
                   "grid place-items-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-foreground/[0.06] hover:text-foreground disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none",
-                  Icon ? (phone ? "size-9" : "size-7") : cn("px-2 font-act text-[0.8125rem]", phone ? "h-9" : "h-7"),
+                  Icon ? (phone ? "size-9" : "size-7") : cn("px-2 font-act text-13", phone ? "h-9" : "h-7"),
                   m.button === "Delete" && "hover:text-error",
                   on && "bg-foreground/[0.06] text-foreground"
                 )}
@@ -300,7 +300,7 @@ function Row({
           title={name}
           className={cn(
             "leading-5",
-            i === 0 ? "min-w-0 flex-1 truncate text-[0.8125rem] text-foreground" : cn("shrink-0 whitespace-nowrap", figure(v) ? "font-mono text-[0.8125rem] tabular-nums" : "text-caption text-muted-foreground")
+            i === 0 ? "min-w-0 flex-1 truncate text-13 text-foreground" : cn("shrink-0 whitespace-nowrap", figure(v) ? "font-mono text-13 tabular-nums" : "text-caption text-muted-foreground")
           )}
         >
           {value(i)}
@@ -333,12 +333,12 @@ function Row({
         <>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4">
             <div className="flex min-w-0 flex-col gap-1">
-              <span className="truncate font-act text-[0.8125rem] leading-5 text-foreground">{look.label}</span>
+              <span className="truncate font-act text-13 leading-5 text-foreground">{look.label}</span>
               <span className="flex min-w-0 leading-4">{pda}</span>
             </div>
             {look.fields[0] && (
               <div className="flex flex-col items-end gap-1 text-right">
-                <span className="font-mono text-[1rem] leading-5 tabular-nums">
+                <span className="font-mono text-16 leading-5 tabular-nums">
                   {/* A whole number's change is the delta under it; a dollar amount's, its old one struck */}
                   <Value value={look.fields[0][1]} was={before?.fields[0]?.[1]} fresh={fresh} struck={!/^-?\d+$/.test(look.fields[0][1])} />
                 </span>
@@ -378,7 +378,7 @@ function Row({
           ].map((line) => (
             <div key={line.name} className="flex h-6 items-center justify-between gap-4">
               <dt className={`shrink-0 ${NOTE} leading-5`}>{line.name}</dt>
-              <dd className={cn("min-w-0 truncate text-right font-mono text-[0.75rem] leading-5 tabular-nums", line.quiet ? "text-muted-foreground" : "text-foreground")}>{line.value}</dd>
+              <dd className={cn("min-w-0 truncate text-right font-mono text-13 leading-5 tabular-nums", line.quiet ? "text-muted-foreground" : "text-foreground")}>{line.value}</dd>
             </div>
           ))}
         </dl>

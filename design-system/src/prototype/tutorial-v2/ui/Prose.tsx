@@ -75,7 +75,7 @@ export function Prose({ text, chip = CHIP, ink = "text-foreground", small = fals
     const code = (
       <code
         key={i}
-        className={`${flow} rounded-[4px] ${chip} ${small ? "px-[3px] pt-px pb-[2px] font-mono text-[12px] leading-4" : large ? "px-1 pt-[5px] pb-[2px] font-mono text-[14px] leading-4" : "px-1 pt-[3px] pb-[3px] font-mono text-[14px] leading-4"} font-[350] ${ink} ${stop ? "mr-[2px]" : ""}`}
+        className={`${flow} rounded-[4px] ${chip} ${small ? "px-[3px] pt-px pb-[2px] font-mono text-13 leading-4" : large ? "px-1 pt-[5px] pb-[2px] font-mono text-13 leading-4" : "px-1 pt-[3px] pb-[3px] font-mono text-13 leading-4"} font-[350] ${ink} ${stop ? "mr-[2px]" : ""}`}
       >
         {all[i]}
       </code>

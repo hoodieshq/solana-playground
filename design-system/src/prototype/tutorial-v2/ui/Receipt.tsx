@@ -193,7 +193,7 @@ export function Receipt({
         {/* What the program said: the reason the step was worth doing, so it leads */}
         <p
           {...at(i++)}
-          className="mt-2 font-mono text-[0.9375rem] text-foreground"
+          className="mt-2 font-mono text-16 text-foreground"
         >
           {tx.said}
         </p>
@@ -203,7 +203,7 @@ export function Receipt({
         {/* Who paid: the part a newcomer to Solana doesn't expect */}
         <div {...at(i++)} className="mt-3 border-t border-border pt-3">
           <p className="text-foreground">
-            You paid <span className="font-medium">{TX_FEE}</span>
+            You paid <span className="font-act">{TX_FEE}</span>
           </p>
           <p className="text-muted-foreground">
             Devnet SOL, free test money · confirmed in {TX_CONFIRMED}
@@ -270,7 +270,7 @@ export function Receipt({
         {/* Honest about the numbers, at the foot, without a warning's weight */}
         <p
           {...at(i++)}
-          className="mt-2 text-[0.6875rem] text-muted-foreground/70"
+          className="mt-2 text-11 text-muted-foreground/70"
         >
           Example values in this prototype
         </p>
@@ -384,7 +384,7 @@ export function PrintedReceipt({
           </dl>
           <p
             {...at(i++)}
-            className="mt-3 font-sans text-[0.6875rem] text-muted-foreground"
+            className="mt-3 font-sans text-11 text-muted-foreground"
           >
             Example values in this prototype
           </p>

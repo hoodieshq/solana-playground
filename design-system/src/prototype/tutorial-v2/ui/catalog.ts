@@ -5,36 +5,35 @@ import { playable } from "../lessons"
 /** What the gallery says about a tutorial. The description is the tutorial's own, from the
  * Playground repo: client/public/tutorials/<slug>/data.json, and for the three hello tutorials,
  * which have no data.json there, client/src/tutorials/<slug>/<slug>.ts. `parts` is the number of
- * pages in its pages folder, `by` its authors from the same file */
+ * pages in its pages folder, `by` its authors from the same file. The long ones are cut to one
+ * line in the same plain voice (Nikita, 20 Nov) */
 type About = { description: string; parts: number; by?: string }
 
 const ABOUT: Record<string, About> = {
-  "hello-anchor": { description: "Hello world program with Anchor framework.", parts: 4, by: "acheron" },
-  "hello-solana": { description: "Hello world program with Native Solana/Rust.", parts: 3, by: "acheron" },
-  "counter-pda-tutorial": { description: "Create a simple counter that will store the number of times is called.", parts: 10, by: "cleon" },
+  "hello-anchor": { description: "Your first Anchor program.", parts: 4, by: "acheron" },
+  "hello-solana": { description: "Your first native Rust program.", parts: 3, by: "acheron" },
+  "counter-pda-tutorial": { description: "A counter that keeps how many times it was called.", parts: 10, by: "cleon" },
   "tiny-adventure": {
-    description: "Create a very simple on chain game. Moving a character left and right. Will be connected to Unity Game Engine later on.",
+    description: "A tiny on-chain game: move a character left and right.",
     parts: 2,
     by: "Jonas Hahn",
   },
   "tiny-adventure-two": { description: "Giving out SOL rewards to players.", parts: 4, by: "Jonas Hahn" },
-  "expense-tracker": { description: "Learn how to create an expense tracker app and understand PDAs", parts: 5, by: "Bolt / Syed Aabis Akhtar" },
-  "bank-simulator": { description: "Learn on-chain automation by creating bank program with interest returns.", parts: 5, by: "Bolt / Syed Aabis Akhtar" },
+  "expense-tracker": { description: "An expense tracker that stores each entry at a PDA.", parts: 5, by: "Bolt / Syed Aabis Akhtar" },
+  "bank-simulator": { description: "A bank that pays interest on its own schedule.", parts: 5, by: "Bolt / Syed Aabis Akhtar" },
   "battle-coins": {
-    description:
-      "Learn to create a token mint with metadata, mint tokens, and burn tokens. Defeat enemies to earn tokens and restore your health by burning tokens.",
+    description: "Mint tokens by beating enemies, burn them to heal.",
     parts: 7,
     by: "Jonas Hahn and John",
   },
   "boss-battle": {
-    description:
-      "How to use XORShift random number generator in an onchain game. Spawn and attack an enemy boss, dealing pseudo-random damage utilizing the current slot as a source of randomness.",
+    description: "Fight a boss with random damage from the current slot.",
     parts: 5,
     by: "Jonas Hahn and John",
   },
   lumberjack: { description: "How to build an energy system on chain.", parts: 3, by: "Jonas Hahn" },
   "spl-token-vault": {
-    description: "Learn how to create and SPL token with meta data and icon using metaplex sdk and saving it in an anchor program.",
+    description: "An SPL token with metadata and an icon, kept in a vault.",
     parts: 7,
     by: "Jonas Hahn",
   },

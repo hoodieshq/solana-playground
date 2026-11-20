@@ -192,7 +192,7 @@ const STEPS: Step[] = [
   },
   {
     id: "deploy",
-    title: "Build & Deploy",
+    title: "Deploy",
     short: "Deploy",
     objective: "Deploy the program to devnet",
     learned: "Deploying with free devnet SOL",
@@ -505,14 +505,16 @@ export const HELLO_ANCHOR: Lesson = {
   minutes: 10,
   by: "acheron",
   program: "hello_anchor",
-  line: "Write, deploy and call your first program",
+  line: "Write, deploy and call a program",
   intro: "You'll write a small Solana program, put it live on devnet and call it with your name.",
   proof: "Program log: Hello, your name!",
   badge: "First Anchor program",
   headline: "You built and called your first Solana program",
   proofLine: (tx) => `\`${tx.said}\` came back from devnet, in a transaction your wallet signed.`,
-  next: "counter-pda-tutorial",
-  nextLine: "Counter PDA Tutorial is a good next one: it stores a number on chain and changes it, so you meet accounts for real.",
+  // The ladder's next (host.tsx LADDER), as Home and Tutorials put it (Nikita, 20 Nov: the finish sent you
+  // to Counter PDA while both pages said Lumberjack)
+  next: "lumberjack",
+  nextLine: "Lumberjack is a good next one: an energy system on chain that refills over time, so you meet state that changes between calls.",
   steps: STEPS,
   files: { [LIB]: "", [CLIENT]: "" },
   preview: LIB_NAMED,

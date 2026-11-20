@@ -121,7 +121,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
         <ModalHeader className="pb-3.5">
           <ModalTitle className="leading-[1.625rem] font-normal">New project</ModalTitle>
           {hasStorageLine(env) && (
-            <ModalDescription className="truncate text-[0.8125rem] leading-[1.125rem]">
+            <ModalDescription className="truncate text-13 leading-[1.125rem]">
               <StorageLine />
             </ModalDescription>
           )}
@@ -170,7 +170,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
 
         <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-border bg-foreground/[0.03] px-6 py-3">
           {s.into ? (
-            <p className="flex h-10 items-center gap-3 text-[0.8125rem] text-muted-foreground">
+            <p className="flex h-10 items-center gap-3 text-13 text-muted-foreground">
               {`Adds files to ${s.into}.`}
               <button type="button" onClick={() => dispatch({ type: "into" })} className="font-act text-foreground hover:underline">
                 Make a new project instead
@@ -184,7 +184,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
               type="button"
               disabled={busy}
               onClick={toTutorials}
-              className="group/tut -ml-2 flex h-10 items-center gap-2 rounded-lg px-2 text-[0.8125rem] leading-5 text-muted-foreground outline-none transition-colors duration-100 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none [html.touch_&]:h-11"
+              className="group/tut -ml-2 flex h-10 items-center gap-2 rounded-lg px-2 text-13 leading-5 text-muted-foreground outline-none transition-colors duration-100 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none [html.touch_&]:h-11"
             >
               <GraduationCap aria-hidden="true" strokeWidth={1.75} className="size-4 shrink-0" />
               Follow a tutorial

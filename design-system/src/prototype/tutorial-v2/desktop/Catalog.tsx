@@ -52,7 +52,7 @@ export function CatalogSearch({ label, query, onQuery, icon = true, className }:
 export function NoMatch({ label, query, onClear }: { label: string; query: string; onClear: () => void }) {
   return (
     <div className="flex flex-col items-start gap-2 py-6">
-      <p className="text-control text-foreground">{`No ${label} match “${query.trim()}”`}</p>
+      <p className="text-16 text-foreground">{`No ${label} match “${query.trim()}”`}</p>
       <Button variant="outline" size="sm" onClick={onClear}>
         Clear search
       </Button>

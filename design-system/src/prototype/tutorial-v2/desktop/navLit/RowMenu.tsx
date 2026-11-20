@@ -50,7 +50,7 @@ export function RowMenu({ row, open, onOpenChange }: { row: RowMenuFor; open: bo
           <Fragment key={g[0].label}>
             {i > 0 && <DropdownMenuSeparator />}
             {g.map((it) => (
-              <DropdownMenuItem key={it.label} variant={it.danger ? "destructive" : "default"} onSelect={it.run ?? soon} className="h-[1.875rem] text-[0.8125rem] font-label">
+              <DropdownMenuItem key={it.label} variant={it.danger ? "destructive" : "default"} onSelect={it.run ?? soon} className="h-[1.875rem] text-13 font-label">
                 {it.label}
                 <Kbd className="ml-auto">{it.key}</Kbd>
               </DropdownMenuItem>

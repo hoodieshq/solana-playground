@@ -55,12 +55,12 @@ function Card({ t }: { t: Entry }) {
           a second banner */}
       <div className="min-w-0">
         {/* The framework alone: the author and the progress beside it made the line a list of facts */}
-        <p className="text-[0.75rem] leading-4 text-muted-foreground">{t.framework}</p>
-        <h3 className="mt-1 line-clamp-2 font-heading text-[1.125rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
+        <p className="text-13 leading-4 text-muted-foreground">{t.framework}</p>
+        <h3 className="mt-1 line-clamp-2 font-heading text-16 leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
           {name}
           {/* How far a lesson under way is, beside its name, a tier under it */}
           {started && done > 0 && (
-            <span className="ml-2 align-baseline font-sans text-[0.75rem] leading-none tracking-normal text-muted-foreground tabular-nums">
+            <span className="ml-2 align-baseline font-sans text-13 leading-none tracking-normal text-muted-foreground tabular-nums">
               {done} of {steps}
             </span>
           )}
@@ -92,7 +92,7 @@ function Card({ t }: { t: Entry }) {
           6 under the name. Lines fill to the edge, plain wrapping: balanced, a line broke in half at the
           card's width, and pretty pulled a second word down to keep "framework." company, leaving the first
           line short with room beside it */}
-      <p className="col-span-2 col-start-2 mt-1.5 line-clamp-2 text-[0.8125rem] leading-[1.4] text-foreground/78">{t.description}</p>
+      <p className="col-span-2 col-start-2 mt-1.5 line-clamp-2 text-13 leading-[1.4] text-foreground/78">{t.description}</p>
     </div>
   )
 }
@@ -113,19 +113,19 @@ export function TutorialLevels({ list }: { list: Entry[] }) {
             <div className="mb-2.5 flex min-h-9 items-center gap-2">
               {/* A step under the banner's lesson name and over the cards': page 28, banner 24, section 20,
                   card 18. At 24 and 500 it stood as tall as the banner and nearly as the page's title */}
-              <h2 id={id} className="font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground">
+              <h2 id={id} className="font-heading text-20 leading-[1.5rem] font-headline text-foreground">
                 {g.level}
               </h2>
               {/* The count on a grey chip, as the first Oak had it: as plain grey text beside the heading it
                   went unnoticed, and Almaz looked for it (10 Nov) */}
-              <span className="rounded-full bg-surface-hover px-2 text-[0.875rem] leading-6 text-muted-foreground tabular-nums">{g.items.length}</span>
+              <span className="rounded-full bg-surface-hover px-2 text-13 leading-6 text-muted-foreground tabular-nums">{g.items.length}</span>
               {/* Opens in place, so it points down, not on to another page */}
               {more && (
                 <button
                   type="button"
                   aria-expanded={open}
                   onClick={() => setOpened((o) => (open ? o.filter((l) => l !== g.level) : [...o, g.level]))}
-                  className={cn("-mr-2 ml-auto flex h-9 items-center gap-1 rounded-lg px-2 text-[0.8125rem] text-muted-foreground hover:text-foreground", FOCUS)}
+                  className={cn("-mr-2 ml-auto flex h-9 items-center gap-1 rounded-lg px-2 text-13 text-muted-foreground hover:text-foreground", FOCUS)}
                 >
                   {open ? "Show less" : "Show all"}
                   <span

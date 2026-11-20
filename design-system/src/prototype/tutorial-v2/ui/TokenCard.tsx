@@ -17,14 +17,14 @@ import { whole } from "../lessons/tokens"
 // and its address under it on the left, its number and a note under it on the right. So the addresses
 // stand in one column and the numbers in another
 
-const MONO = "font-mono text-[0.75rem] tabular-nums"
+const MONO = "font-mono text-13 tabular-nums"
 const NOTE = "text-caption text-muted-foreground"
 
 /** What a move changed, beside the number it changed: `+1` in green, `−1` muted */
 function Delta({ by, decimals }: { by: number; decimals: number }) {
   if (!by) return null
   return (
-    <span className={cn("pg-arrive rounded-full px-1.5 font-mono text-[0.6875rem] leading-4 tabular-nums", by > 0 ? "bg-success/10 text-success" : "bg-foreground/[0.06] text-muted-foreground")}>
+    <span className={cn("pg-arrive rounded-full px-1.5 font-mono text-11 leading-4 tabular-nums", by > 0 ? "bg-success/10 text-success" : "bg-foreground/[0.06] text-muted-foreground")}>
       {by > 0 ? "+" : "−"}
       {whole(Math.abs(by), decimals)}
     </span>
@@ -82,7 +82,7 @@ function Row({
   return (
     <div className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4", className)}>
       <div className="flex min-w-0 flex-col gap-1">
-        <span className="truncate font-act text-[0.8125rem] leading-5 text-foreground">{name}</span>
+        <span className="truncate font-act text-13 leading-5 text-foreground">{name}</span>
         {/* The address keeps its room; the quiet words after it give way first */}
         <span className="flex min-w-0 items-baseline gap-1.5 leading-4">
           {addressAs ?? (
@@ -109,7 +109,7 @@ function Row({
 
 /** A number on the right: mono, in the text's colour */
 const Num = ({ children, moved }: { children: ReactNode; moved?: boolean }) => (
-  <span className={cn("font-mono text-[0.8125rem] text-foreground tabular-nums", moved && "pg-arrive")}>{children}</span>
+  <span className={cn("font-mono text-13 text-foreground tabular-nums", moved && "pg-arrive")}>{children}</span>
 )
 
 /** The lesson's own account over the token: its number (Faucet Seahorse's price) or a meter of ten
@@ -127,7 +127,7 @@ function Strip({ strip, phone }: { strip: NonNullable<TokenView["strip"]>; phone
           <span key={i} className={cn("h-1 w-2.5 rounded-full transition-colors duration-300 motion-reduce:transition-none", i < cells ? "bg-brand-green" : "bg-foreground/10")} />
         ))}
       </span>
-      <span className={cn("font-mono text-[0.8125rem] tabular-nums", empty ? "text-error" : "text-foreground")}>
+      <span className={cn("font-mono text-13 tabular-nums", empty ? "text-error" : "text-foreground")}>
         {m.value}/{m.max}
       </span>
     </span>

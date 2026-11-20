@@ -73,7 +73,7 @@ const STEPS: Record<Method, Step[]> = {
 function Command({ lines }: { lines: string[] }) {
   return (
     <CodeBlock className="relative mt-2.5 bg-surface-well">
-      <CodeBlockContent className="pr-11 text-[0.75rem] leading-5">
+      <CodeBlockContent className="pr-11 text-13 leading-5">
         {lines.map((l) => (
           <code key={l} className="block whitespace-pre-wrap [overflow-wrap:anywhere]">
             {l}
@@ -107,7 +107,7 @@ export function IdlGuide({ p, open, onOpenChange }: { p: Project; open: boolean;
               tabs (Almaz, 18 Nov: the 28 thumb was small for the dialog's one choice) */}
           <Segmented variant="boxed" aria-label="IDL build method" value={method} onValueChange={(v) => v && setMethod(v as Method)} className="flex w-full bg-foreground/[0.05]">
             {(["docker", "local"] as const).map((m) => (
-              <SegmentedItem key={m} value={m} className="flex-1 rounded-lg text-sm leading-5 data-[state=on]:bg-foreground/[0.11] [html.touch_&]:h-10">
+              <SegmentedItem key={m} value={m} className="flex-1 rounded-lg text-13 leading-5 data-[state=on]:bg-foreground/[0.11] [html.touch_&]:h-10">
                 {m === "docker" ? "Docker" : "Local toolchain"}
               </SegmentedItem>
             ))}
@@ -117,11 +117,11 @@ export function IdlGuide({ p, open, onOpenChange }: { p: Project; open: boolean;
           {steps.map((s, i) => (
             <li key={s.title} className="grid grid-cols-[1rem_minmax(0,1fr)] gap-x-2.5">
               {/* A plain numeral on the title's own line: six grey discs down the side were louder than the steps */}
-              <span aria-hidden="true" className="text-[0.875rem] leading-5 text-muted-foreground tabular-nums">
+              <span aria-hidden="true" className="text-13 leading-5 text-muted-foreground tabular-nums">
                 {i + 1}
               </span>
               <div className="min-w-0">
-                <p className="text-[0.875rem] leading-5 font-medium text-foreground">{s.title}</p>
+                <p className="text-13 leading-5 font-act text-foreground">{s.title}</p>
                 {s.kind === "command" && s.note && <p className="mt-1 text-caption text-muted-foreground">{s.note}</p>}
                 {s.kind === "command" && <Command lines={s.lines} />}
                 {s.kind === "download" && (

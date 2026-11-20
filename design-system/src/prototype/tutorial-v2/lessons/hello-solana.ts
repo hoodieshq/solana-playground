@@ -215,7 +215,7 @@ const STEPS: Step[] = [
   },
   {
     id: "deploy",
-    title: "Build & Deploy",
+    title: "Deploy",
     short: "Deploy",
     objective: "Deploy the program to devnet",
     learned: "Deploying with free devnet SOL",

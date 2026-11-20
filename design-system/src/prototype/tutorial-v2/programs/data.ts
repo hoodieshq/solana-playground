@@ -736,4 +736,7 @@ export function fakeKey(seed: string, length = 44) {
   return out
 }
 
-export const WALLET_KEY = fakeKey("playground-wallet")
+/** The Playground wallet, the one the account menu and the wallet chip show (7xKX…gAsU): the deploy log
+ * signed with a key of its own, NntWXC…, and the two never matched (Nikita, 20 Nov) */
+export const WALLET_KEY = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"
+export const shortKey = (k: string) => `${k.slice(0, 4)}…${k.slice(-4)}`

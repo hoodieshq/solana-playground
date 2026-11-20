@@ -60,7 +60,7 @@ export function ProgramsControls() {
           {/* Today: the programs draw in read mode. Later: in build mode, as when Native builds */}
           {[false, true].map((later) => (
             <div key={String(later)}>
-              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{later ? "Later: when Native builds" : "Today"}</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-13 font-normal text-muted-foreground">{later ? "Later: when Native builds" : "Today"}</DropdownMenuLabel>
               {IDS.filter((id) => LATER.has(id) === later).map((id) => (
                 <DropdownMenuRadioItem key={id} value={id}>
                   {PROG_STATES[id]}

@@ -96,7 +96,7 @@ export function YourPrograms() {
         confirm:
           asking === p.id ? (
             <>
-              <span className="min-w-0 flex-1 text-[0.875rem] leading-5 text-foreground">{deleteQuestion(p)}</span>
+              <span className="min-w-0 flex-1 text-13 leading-5 text-foreground">{deleteQuestion(p)}</span>
               <Button variant="ghost" size="sm" onClick={() => setAsking(null)} className="pointer-coarse:h-11">
                 Cancel
               </Button>
@@ -106,7 +106,7 @@ export function YourPrograms() {
                 autoFocus
                 onClick={() => {
                   setAsking(null)
-                  deleteProject(p.name)
+                  deleteProject(p)
                   toast(`Deleted ${p.name}`)
                 }}
                 className="pointer-coarse:h-11"

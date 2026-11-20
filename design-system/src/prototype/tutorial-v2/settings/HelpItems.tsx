@@ -12,7 +12,7 @@ import { HELP_LINKS } from "./links"
 import { openShortcuts } from "./open"
 
 /** The submenu's row, the account menu's own without a glyph: 32 high and 13px, 44 under a finger */
-const ITEM = "h-8 px-2 text-[0.8125rem] font-label [html.touch_&]:h-11 [html.phone_&]:h-11"
+const ITEM = "h-8 px-2 text-13 font-label [html.touch_&]:h-11 [html.phone_&]:h-11"
 
 /** Help, in place of the account menu's Docs (CONSENSUS 4.1). Two docs, the shortcuts (where there's a
  * keyboard), Report a bug. On Desktop and Tablet 1152 a submenu beside the menu, as Claude's Learn more

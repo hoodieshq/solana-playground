@@ -12,7 +12,7 @@ import { Workspace } from "./shell/Workspace"
  * the stages, the files beside the editor, the console under it, the assistant at the side for
  * questions. ⌘↵ runs the next stage from anywhere but the composer; ⌘⇧B builds,
  * and in read mode flashes the Read only chip, since there is nothing to build.
- * ⌘J is the console's own key, ⌘E the workspace's */
+ * ⌘J is the console's own key, ⌘⇧E and ⌘L the workspace's */
 export function Shell({ id }: { id: string }) {
   const p = useProject(id)
 
@@ -21,7 +21,8 @@ export function Shell({ id }: { id: string }) {
       if (!(e.metaKey || e.ctrlKey)) return
       const target = e.target instanceof HTMLElement ? e.target : null
       const now = getPrograms().projects[id]
-      if (!now) return
+      // A draft has no code: nothing to run or build
+      if (!now || now.draft) return
       if (e.key === "Enter") {
         if (e.repeat || target?.closest('[data-slot="composer"]')) return
         e.preventDefault()

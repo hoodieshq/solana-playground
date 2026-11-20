@@ -45,7 +45,7 @@ function OptionText({ ask, i, ruled = false }: { ask: Ask; i: number; ruled?: bo
     </code>
   ) : (
     // A plain string: cn would drop the size token next to a text colour. Set as the text is, 16/24
-    <span className={ruled ? "text-[1rem] leading-[1.5rem] text-muted-foreground" : "text-[1rem] leading-[1.5rem] text-foreground"}>
+    <span className={ruled ? "text-16 leading-[1.5rem] text-muted-foreground" : "text-16 leading-[1.5rem] text-foreground"}>
       <Prose text={ask.options[i]} {...READ_CODE} />
     </span>
   )
@@ -77,7 +77,7 @@ function Clipped({ ask }: { ask: Ask }) {
     <span
       className={cn(
         "flex min-w-0 shrink flex-wrap items-center overflow-hidden",
-        ask.code ? "h-6 font-mono text-[14px] leading-6 text-foreground" : "h-6 gap-x-[0.25em] text-[1rem] leading-[1.5rem] text-foreground"
+        ask.code ? "h-6 font-mono text-13 leading-6 text-foreground" : "h-6 gap-x-[0.25em] text-16 leading-[1.5rem] text-foreground"
       )}
     >
       {/* Code keeps its spaces at the ends of its pieces and also breaks before a `.`, as the options
@@ -122,7 +122,7 @@ function Settled({ ask, t }: { ask: Ask; t: AskTurn }) {
           >
             {/* The badge in a slot one line of the option tall (24, code's or words'), so it centres on the first line */}
             <span className="grid h-6 shrink-0 place-items-center">
-              <span className="grid size-6 place-items-center rounded-sm bg-muted text-[0.75rem] font-act text-muted-foreground tabular-nums">{i + 1}</span>
+              <span className="grid size-6 place-items-center rounded-sm bg-muted text-13 font-act text-muted-foreground tabular-nums">{i + 1}</span>
             </span>
             <span className="min-w-0 flex-1">
               <span className="block leading-[1.5rem]">
@@ -161,7 +161,7 @@ function AskRecord({ ask, t, phone }: { ask: Ask; t: AskTurn; phone: boolean }) 
         )}
       >
         {/* Four records down the thread each say which question they answer */}
-        <span className="shrink-0 font-label text-[0.75rem] text-subtle tabular-nums">{ask.n ? `Q${ask.n}` : "Fix"}</span>
+        <span className="shrink-0 font-label text-13 text-subtle tabular-nums">{ask.n ? `Q${ask.n}` : "Fix"}</span>
         {/* Green only for an answer the learner gave: a skipped question was passed by, not got right */}
         {t.done === "right" || t.done === "typed" ? (
           <Check strokeWidth={2.5} className="size-3.5 shrink-0 text-success" aria-hidden="true" />
@@ -284,7 +284,7 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
     >
       {/* Practicum's quiz question, 18/26, a step over the 16px text before it: the question is what you
           answer, so it reads as the card's own title, not one more line of the explanation */}
-      <h3 id={titleId} className={cn(HEADING, "mb-3 text-[1.125rem] leading-[1.625rem]")}>
+      <h3 id={titleId} className={cn(HEADING, "mb-3 text-20 leading-[1.625rem]")}>
         <Prose text={ask.question} {...READ_CODE} large />
       </h3>
       <div role="group" aria-labelledby={titleId} className={cn("flex flex-col gap-2", busy && "pointer-events-none opacity-50")}>
@@ -323,7 +323,7 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
                 className={cn(
                   // One line of the option tall, code's or words', so the mark sits on the first line's middle
                   // whether it wraps or not: 24 for both now. As wide as the right pick's square, the ring 1px inside it
-                  "grid h-6 w-[1.125rem] shrink-0 place-items-center rounded-sm text-[0.75rem] font-act lining-nums tabular-nums",
+                  "grid h-6 w-[1.125rem] shrink-0 place-items-center rounded-sm text-13 font-act lining-nums tabular-nums",
                   isRight ? "text-success-foreground" : wrong ? "text-error" : "text-muted-foreground group-hover/opt:text-foreground group-focus-visible/opt:text-foreground"
                 )}
               >
@@ -358,7 +358,7 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
                     // tutor's word on the option, not more of it. A plain string: cn would drop text-caption
                     className={`${phone ? "mt-2.5" : "mt-2"} block animate-in text-caption leading-5 text-foreground/80 duration-150 fade-in slide-in-from-top-1 motion-reduce:animate-none`}
                   >
-                    <span className="font-medium text-foreground">Not quite.</span> <Prose text={ask.why[i]!} {...READ_CODE} small />
+                    <span className="font-act text-foreground">Not quite.</span> <Prose text={ask.why[i]!} {...READ_CODE} small />
                   </span>
                 )}
               </span>

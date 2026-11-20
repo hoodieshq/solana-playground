@@ -12,8 +12,11 @@ export const MENU_KEYS = mac ? "⌘B" : "Ctrl B"
 /** ⌘J, Ctrl+J off a Mac: opens and closes the terminal */
 export const TERMINAL_KEYS = mac ? "⌘J" : "Ctrl J"
 
-/** ⌘E, Ctrl+E off a Mac: the file tree */
-export const FILES_KEYS = mac ? "⌘E" : "Ctrl E"
+/** ⌘L, Ctrl+L off a Mac: the assistant beside a project's code, as Cursor opens its chat */
+export const ASSISTANT_KEYS = mac ? "⌘L" : "Ctrl L"
+
+/** ⌘⇧E, Ctrl+Shift+E off a Mac: the file tree, as VS Code and Cursor open the Explorer (Nikita, 20 Nov) */
+export const FILES_KEYS = mac ? "⌘⇧E" : "Ctrl Shift E"
 
 /** ⌥↑ and ⌥↓: the previous and next step's divider */
 export const STEP_KEYS = mac ? "⌥↑ ⌥↓" : "Alt ↑ Alt ↓"

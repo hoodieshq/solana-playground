@@ -77,7 +77,7 @@ export function DescribePanel({
           <DropdownMenu>
             <DropdownMenuTrigger
               disabled={off || sending}
-              className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-[0.8125rem] font-act text-foreground outline-none hover:bg-(--np-hover) focus-visible:ring-2 focus-visible:ring-ring [html.phone_&]:h-9 [html.touch_&]:h-9"
+              className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-13 font-act text-foreground outline-none hover:bg-(--np-hover) focus-visible:ring-2 focus-visible:ring-ring [html.phone_&]:h-9 [html.touch_&]:h-9"
             >
               {f.name}
               <ChevronDown aria-hidden="true" className="size-3 text-muted-foreground" />
@@ -107,7 +107,7 @@ export function DescribePanel({
           "mt-3 flex flex-wrap items-center gap-2 [html.phone_&]:-mx-4 [html.phone_&]:flex-nowrap [html.phone_&]:overflow-x-auto [html.phone_&]:px-4 [html.phone_&]:[scrollbar-width:none]",
         )}
       >
-        <span className="mr-1 shrink-0 text-[0.8125rem] leading-[1.125rem] text-(color:--text-quiet)">Try</span>
+        <span className="mr-1 shrink-0 text-13 leading-[1.125rem] text-(color:--text-quiet)">Try</span>
         {DESCRIBE_CHIPS.map((c) => (
           <button
             key={c.label}
@@ -121,7 +121,7 @@ export function DescribePanel({
                 box?.setSelectionRange(box.value.length, box.value.length)
               })
             }}
-            className="h-7 rounded-lg border border-border px-2.5 text-[0.8125rem] font-[380] text-muted-foreground outline-none hover:bg-(--np-hover) hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none [html.phone_&]:h-9 [html.phone_&]:shrink-0 [html.touch_&]:h-9"
+            className="h-7 rounded-lg border border-border px-2.5 text-13 font-[380] text-muted-foreground outline-none hover:bg-(--np-hover) hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none [html.phone_&]:h-9 [html.phone_&]:shrink-0 [html.touch_&]:h-9"
           >
             {c.label}
           </button>

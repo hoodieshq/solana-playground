@@ -52,7 +52,7 @@ function IdlView({ json, name, count, phone }: { json: string; name: string; cou
         <div
           tabIndex={0}
           aria-label="IDL JSON, read only"
-          className="min-h-0 flex-1 overflow-auto overscroll-contain bg-surface-well py-2.5 font-mono text-[0.75rem] leading-[1.6] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+          className="min-h-0 flex-1 overflow-auto overscroll-contain bg-surface-well py-2.5 font-mono text-13 leading-[1.6] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
         >
           {json.split("\n").map((line, i) => (
             // On a phone a line wraps instead of scrolling sideways: the program's address was cut at the edge
@@ -102,7 +102,7 @@ export function CallResponse({ result, sending, phone }: { result: ResultTurn | 
     return (
       <div className="flex items-center gap-2">
         <Spinner className="size-4 text-muted-foreground" />
-        <span className="font-heading text-[0.9375rem] font-medium text-foreground">Sending</span>
+        <span className="font-heading text-16 font-act text-foreground">Sending</span>
       </div>
     )
   return result?.tx ? <Confirmed key={result.id} turn={result} phone={phone} /> : null
@@ -142,7 +142,7 @@ function Confirmed({ turn, phone }: { turn: ResultTurn; phone: boolean }) {
           above already names the call, and here it was its fifth mention on one sheet */}
       <div {...row(0)} className="flex items-center gap-2">
         {tx.error ? <CircleX className="size-4 shrink-0 text-error" aria-hidden="true" /> : <Check className="size-4 shrink-0 text-success" aria-hidden="true" />}
-        <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{tx.error ? "Failed" : "Confirmed"}</span>
+        <span className="font-heading text-16 leading-6 font-act text-foreground">{tx.error ? "Failed" : "Confirmed"}</span>
       </div>
       {/* What came back. No border: the fill sets the program's words apart, and the source of a msg! line
           sits beside the words it explains */}
@@ -271,7 +271,7 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
   const FIELD = phone ? "flex flex-col gap-2" : "flex items-center gap-4"
   const FIELD_NAME = phone ? "flex items-baseline gap-2" : "flex w-36 min-w-0 shrink-0 items-baseline gap-2"
   const heading = (
-    <h3 className={cn("font-mono font-medium break-words", phone ? "text-[0.875rem] leading-5" : "text-[0.9375rem] leading-[1.35]")}>
+    <h3 className={cn("font-mono font-act break-words", phone ? "text-13 leading-5" : "text-16 leading-[1.35]")}>
       <span className="font-normal text-muted-foreground">{LESSON.program}.</span>
       {/* No syntax colour on the phone: a green name at the top competed with the result's green check */}
       <span className={phone ? "text-foreground" : "text-syntax-function"}>{ix.name}</span>
@@ -285,7 +285,7 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
         <label key={a.name} className={cn(FIELD, s.idlNew && "animate-rise", sending && "pointer-events-none opacity-60")}>
           <span className={FIELD_NAME}>
             <span className="truncate font-mono text-code text-foreground">{a.name}</span>
-            <span className="font-mono text-[0.75rem] text-subtle">{a.type}</span>
+            <span className="font-mono text-13 text-subtle">{a.type}</span>
             {s.idlNew && !LESSON.memory && !LESSON.records && <Tag variant="neutral">New</Tag>}
           </span>
           <Input
@@ -312,8 +312,8 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
             data-form-type="other"
             aria-label={`${a.name}, ${a.type}`}
             // A value that goes into the call, so in the code face, at its label's 13px; 16px on a phone, or
-            // iOS zooms the field. A bracket size, since cn drops text-code next to the field's md:text-sm
-            className={cn("min-w-0 font-mono", phone ? "h-12 w-full text-base" : "h-10 flex-1 text-[0.8125rem] md:text-[0.8125rem]")}
+            // iOS zooms the field. A bracket size, since cn drops text-code next to the field's md:text-13
+            className={cn("min-w-0 font-mono", phone ? "h-12 w-full text-16" : "h-10 flex-1 text-13 md:text-13")}
           />
         </label>
       ))}
@@ -367,7 +367,7 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
                 document.getElementById(`call-tab-${next}`)?.focus()
               }}
               className={cn(
-                "h-7 rounded-[7px] px-3 text-[0.8125rem] font-act transition-colors duration-100 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:h-10",
+                "h-7 rounded-[7px] px-3 text-13 font-act transition-colors duration-100 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:h-10",
                 view === v ? "bg-foreground/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground",
                 phone && "px-4 pointer-coarse:h-11"
               )}
@@ -440,9 +440,9 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
                   <div className="flex flex-col gap-2 rounded-[12px] bg-foreground/[0.04] p-3">
                     {heading}
                       <div className="flex flex-col gap-0.5 border-t border-border pt-2">
-                        <p className="text-[0.75rem] leading-4 text-muted-foreground">In code</p>
+                        <p className="text-13 leading-4 text-muted-foreground">In code</p>
                         {/* It breaks after a dot, never inside a name: anywhere left ".rpc(" on one line and ")" alone on the next */}
-                        <code className="font-mono text-[0.8125rem] leading-5 break-words text-foreground/60">
+                        <code className="font-mono text-13 leading-5 break-words text-foreground/60">
                           {line.split(".").map((part, i) => (
                             <span key={i}>
                               {i > 0 && "."}

@@ -60,7 +60,7 @@ export function ItemTile({ kind, letter, at = 0, of = 4, done = false, notch = f
         kind === "empty" && "shadow-[inset_0_0_0_1px_var(--border-strong)]"
       )}
     >
-      {kind === "project" && <span className="font-mono text-[0.625rem] leading-none font-semibold">{letter?.toUpperCase()}</span>}
+      {kind === "project" && <span className="font-mono text-11 leading-none font-act">{letter?.toUpperCase()}</span>}
       {kind === "lesson" &&
         (done ? (
           // Finished: every band lit with the gaps closed, and a check on top

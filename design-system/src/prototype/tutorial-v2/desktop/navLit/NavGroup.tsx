@@ -42,7 +42,7 @@ export function NavGroup({ label, children }: { label: GroupName; children: Reac
         onClick={toggle}
         aria-expanded={!folded}
         className={cn(
-          "group/head flex w-fit items-end gap-1 rounded-md px-2 pb-0.5 text-left text-[0.75rem] leading-4 font-act tracking-[0.01em] text-(color:--text-quiet) hover:text-muted-foreground",
+          "group/head flex w-fit items-end gap-1 rounded-md px-2 pb-0.5 text-left text-13 leading-4 font-act tracking-[0.01em] text-(color:--text-quiet) hover:text-muted-foreground",
           FOCUS,
           tablet ? "h-9" : "h-6"
         )}

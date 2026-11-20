@@ -1,18 +1,22 @@
-import { useEffect, useRef, useState } from "react"
-import { X } from "lucide-react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { Check, X } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+import { ASSISTANT_KEYS } from "../../../desktop/keys"
+import { useChoices } from "../../../desktop/navLit/choices"
+import { useEnv } from "../../../newProject/next/model"
 import { AssistantMark } from "../../../ui/AssistantMark"
 import { LANDING_CHIPS } from "../../read"
 import { Prose } from "../../../ui/Prose"
+import { ApplyCardView } from "../../../ui/turns/ApplyCard"
 import { READ, READ_CODE, reducedMotion } from "../../../ui/type"
-import { firstIx, metaOf, onChain, type Project, type Turn } from "../../store"
+import { busy, FIX_ASK, firstIx, metaOf, onChain, openFile, settleFix, type Project, type Turn } from "../../store"
 import { Ask } from "./GuideColumn"
-import { nextStageOf } from "./Stages"
+import { PanelHide } from "./parts"
+import { nextStageOf, stageHint } from "./Stages"
 import { Assistant, User } from "./Talk"
-import { baseName, failLive, firstChanged, mainFile } from "./util"
+import { baseName, failLive, firstChanged, mainFile, reveal } from "./util"
 
 /* The assistant beside the code (the client, 17 Nov): it answers what you ask and never leads. An empty
    column said nothing (Almaz, 18 Nov), so it keeps one short note by the composer. The note doesn't name
@@ -58,9 +62,12 @@ function codeNote(p: Project): string {
 function briefOf(p: Project): Brief {
   const meta = metaOf(p)
   if (p.opening) return { text: `Bringing ${p.name} in from GitHub.`, ask: [] }
+  if (p.draft) return { text: "", ask: [] }
   if (p.read) return { text: codeNote(p), ask: LANDING_CHIPS }
+  // While a run is going, the note says so: "It answered" before the call had come back said the opposite
+  if (busy(p)) return { text: `${stageHint(p) ?? "Running"}. The terminal shows each step as it goes.`, ask: [] }
   const fail = [...p.feed].reverse().find((t): t is Extract<Turn, { k: "build-fail" }> => t.k === "build-fail")
-  if (fail && failLive(p, fail)) return { text: `The compiler stopped at ${baseName(fail.file ?? mainFile(p))} line ${fail.line}. I can explain the error.`, ask: ["Explain the error"] }
+  if (fail && failLive(p, fail)) return { text: `The compiler stopped at ${baseName(fail.file ?? mainFile(p))} line ${fail.line}. I can explain the error or fix it.`, ask: ["Explain the error", FIX_ASK] }
   if (p.deployFailed) return { text: "Nothing reached devnet, and the build is still good.", ask: ["Is it safe to deploy?"] }
   const next = nextStageOf(p)
   const chain = onChain(p)
@@ -83,8 +90,11 @@ function briefOf(p: Project): Brief {
       const ix = meta?.ixs.find((x) => x.name === firstIx(p))
       return { text: ix ? `\`${ix.name}\` is the one to call first. ${ix.line}` : "The form is drawn from the IDL: pick an instruction and fill in its accounts.", ask: ["What should I read first?"] }
     }
-    default:
-      return { text: "It answered, and the logs are in the terminal. Deploy again after a change and the address stays the same.", ask: ["What should I read first?"] }
+    default: {
+      // Only after a call: the note names it and stops there
+      const ix = [...p.feed].reverse().find((t): t is Extract<Turn, { k: "call-ok" }> => t.k === "call-ok")?.ix
+      return { text: ix ? `Called \`${ix}\`. Logs are in the terminal.` : "Live on devnet.", ask: ["What should I read first?"] }
+    }
   }
 }
 
@@ -139,12 +149,29 @@ function followOf(p: Project, asked: string): string[] {
 /** The chips over the field: the last answer's own, what it leads to, the moment's, then the pool. One
  * already asked isn't offered again until they have all been; the next step can always be asked, since
  * its answer moves with the project */
-function chipsOf(p: Project, turns: ReturnType<typeof chat>, moment: string[]): string[] {
-  const last = turns[turns.length - 1]
+/** Questions about a failed build: offered only while it still fails (Nikita, 20 Nov: after the deploy
+ * it was still going over the error) */
+const ABOUT_FAIL = new Set(["Explain the error", FIX_ASK, "Show me the line", "Why does Rust need this?"])
+
+function chipsOf(p: Project, turns: Talk[], moment: string[]): string[] {
+  // No code yet: only the answers to the assistant's own question
+  if (p.draft) {
+    const last = turns[turns.length - 1]
+    return last?.k === "assistant" ? (last.chips ?? []) : []
+  }
+  const all = chipsFor(p, turns, moment)
+  const fail = [...p.feed].reverse().find((t) => t.k === "build-fail")
+  return fail && failLive(p, fail) ? all : all.filter((c) => !ABOUT_FAIL.has(c))
+}
+
+function chipsFor(p: Project, said: Talk[], moment: string[]): string[] {
+  const turns = said.filter((t): t is Extract<Talk, { k: "user" | "assistant" }> => t.k === "user" || t.k === "assistant")
+  const last = said[said.length - 1]
   if (last?.k === "user") return []
   const asked = turns.filter((t) => t.k === "user").map((t) => t.text)
   const lastAsked = asked[asked.length - 1]
-  const all = [...new Set([...(last?.k === "assistant" ? (last.chips ?? []) : []), ...(lastAsked ? followOf(p, lastAsked) : []), ...moment, ...poolOf(p)])]
+  const answer = turns[turns.length - 1]
+  const all = [...new Set([...(answer?.k === "assistant" ? (answer.chips ?? []) : []), ...(lastAsked ? followOf(p, lastAsked) : []), ...moment, ...poolOf(p)])]
   const fresh = all.filter((c) => !asked.includes(c))
   const list = fresh.length >= 2 ? fresh : all.filter((c) => c !== lastAsked)
   return p.read || turns.length === 0 ? list : [...list.slice(0, 2), NEXT_STEP, ...list.slice(2)]
@@ -153,20 +180,61 @@ function chipsOf(p: Project, turns: ReturnType<typeof chat>, moment: string[]): 
 // Answers that finished typing, and those already there when a project opened: coming back finds them whole
 const typed = new Set<string>()
 
-/** Your questions and their answers. A line the assistant posted on its own (a faucet note after a failed
- * run) stays out: here it only speaks when asked */
-function chat(p: Project) {
-  const out: Extract<Turn, { k: "user" | "assistant" }>[] = []
-  let asked = false
+/** The runs the thread notes as they finish */
+type Event = Extract<Turn, { k: "build-ok" | "build-fail" | "deploy-ok" | "deploy-fail" | "call-ok" | "call-fail" | "run-ok" }>
+const EVENTS = new Set<Turn["k"]>(["build-ok", "build-fail", "deploy-ok", "deploy-fail", "call-ok", "call-fail", "run-ok"])
+type Talk = Extract<Turn, { k: "user" | "assistant" | "fix" }> | Event
+
+/** Your questions, their answers and fixes, and once you are talking, a line for each run as it finishes:
+ * the chat follows the project, so an answer about an error doesn't stand as the last word after the
+ * deploy went through (Nikita, 20 Nov). A line the assistant posted on its own (a faucet note after a
+ * failed run) stays out: here it only speaks when asked */
+function chat(p: Project): Talk[] {
+  const out: Talk[] = []
+  let waiting = 0
   for (const t of p.feed) {
     if (t.k === "user") {
       out.push(t)
-      asked = true
+      waiting++
     } else if (t.k === "assistant") {
-      if (asked) out.push(t)
-    } else if (t.k !== "act") asked = false
+      if (waiting > 0) {
+        out.push(t)
+        waiting--
+      }
+    } else if (t.k === "fix" || (EVENTS.has(t.k) && out.length > 0)) out.push(t as Talk)
   }
   return out
+}
+
+/** What a finished run did, in a few words */
+function eventText(t: Event): string {
+  switch (t.k) {
+    case "build-ok":
+      return "Build passed"
+    case "build-fail":
+      return t.kind === "compile" ? `Build failed at ${baseName(t.file ?? "")}:${t.line}` : "The build server didn't answer"
+    case "deploy-ok":
+      return t.upgrade ? "Upgraded on devnet" : "Deployed to devnet"
+    case "deploy-fail":
+      return "Deploy failed"
+    case "call-ok":
+      return `Called ${t.ix}`
+    case "call-fail":
+      return `${t.ix} failed`
+    case "run-ok":
+      return "client.ts ran"
+  }
+}
+
+/** A run's line in the thread: a mark and its words, quieter than an answer */
+function EventLine({ t }: { t: Event }) {
+  const ok = t.k.endsWith("-ok")
+  return (
+    <p className="flex items-center gap-2 text-13 leading-5 text-muted-foreground">
+      {ok ? <Check aria-hidden="true" strokeWidth={2.5} className="size-3.5 text-success" /> : <X aria-hidden="true" strokeWidth={2.5} className="size-3.5 text-error" />}
+      {eventText(t)}
+    </p>
+  )
 }
 
 /** The thread and the composer, with no head: the desktop's panel adds one, the phone's space has the bar */
@@ -198,6 +266,24 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
               <div key={`${t.k}-${t.id}`} className={t.k === "user" && i > 0 ? "mt-[9px]" : undefined}>
                 {t.k === "user" ? (
                   <User t={t} />
+                ) : t.k === "fix" ? (
+                  <ApplyCardView
+                    {...t}
+                    fix
+                    onApply={() => {
+                      settleFix(p.id, t.id, "applied")
+                      openFile(p.id, t.file)
+                      reveal(t.file, t.line, { lit: true })
+                    }}
+                    onKeep={() => settleFix(p.id, t.id, "kept")}
+                    onUndo={() => settleFix(p.id, t.id, "undone")}
+                    onReview={() => {
+                      openFile(p.id, t.file)
+                      reveal(t.file, t.line)
+                    }}
+                  />
+                ) : t.k !== "assistant" ? (
+                  <EventLine t={t} />
                 ) : (
                   <Assistant
                     t={t}
@@ -219,17 +305,42 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
   )
 }
 
+/** "Assistant · GLM 5.3 Flash": which model answers (Spec 04, 4.14), plain "Assistant" while none is on. A
+ * long name ends in "…" at 12rem and shows in full on hover, only when it was cut */
+function ModelHead() {
+  const env = useEnv()
+  const { model } = useChoices()
+  const name = useRef<HTMLSpanElement>(null)
+  const [cut, setCut] = useState(false)
+  useLayoutEffect(() => {
+    const el = name.current
+    setCut(!!el && el.scrollWidth > el.clientWidth)
+  }, [model, env.assistant])
+  return (
+    <h2 className="flex min-w-0 flex-1 items-center gap-1.5 text-13 font-act text-foreground">
+      Assistant
+      {env.assistant !== "off" && (
+        <>
+          <span aria-hidden="true" className="text-subtle">·</span>
+          <span ref={name} title={cut ? model : undefined} className="max-w-[12rem] min-w-0 truncate font-normal text-muted-foreground">
+            {model}
+          </span>
+        </>
+      )}
+    </h2>
+  )
+}
+
 export function AskPanel({ p, onClose, className }: { p: Project; onClose: () => void; className?: string }) {
+  // The head as every panel's: its name, and Hide with the panel's own key (Nikita, 20 Nov)
   return (
     <aside aria-label="Assistant" className={className}>
       {/* No rule under the head (Almaz, 18 Nov: one line too many). The column's own left edge frames it, and
           the thread starts a clear step below */}
       <div className="flex h-10 shrink-0 items-center gap-2 pr-1.5 pl-5">
         <AssistantMark strokeWidth={1.75} className="text-muted-foreground" />
-        <h2 className="flex-1 text-[0.8125rem] font-act text-foreground">Assistant</h2>
-        <Button variant="ghost" size="icon-sm" aria-label="Close the assistant" onClick={onClose} className="text-muted-foreground">
-          <X />
-        </Button>
+        <ModelHead />
+        <PanelHide what="the assistant" keys={ASSISTANT_KEYS} onClick={onClose} />
       </div>
       <AskThread p={p} />
     </aside>

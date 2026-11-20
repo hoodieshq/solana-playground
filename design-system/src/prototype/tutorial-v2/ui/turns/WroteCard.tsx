@@ -13,12 +13,30 @@ type WroteTurn = Extract<Turn, { kind: "wrote" }>
 /** "lines 5 to 13", "line 10" */
 export const range = (lines: number[]) => (lines.length === 0 ? "" : lines.length === 1 ? `line ${lines[0]}` : `lines ${lines[0]} to ${lines[lines.length - 1]}`)
 
+/** The written lines where the file has them now: found by the lines' own text, nearest to where they were
+ * written. As written when the text isn't there any more */
+function movedLines(code: string, turn: WroteTurn): number[] {
+  const rows = code.split("\n").map((r) => r.trim())
+  const want = (turn.preview ?? []).map((r) => r.trim())
+  const first = turn.lines[0]
+  if (!first || want.length === 0 || want.every((r) => r === "")) return turn.lines
+  let best = -1
+  for (let i = 0; i + want.length <= rows.length; i++)
+    if (want.every((r, k) => rows[i + k] === r) && (best === -1 || Math.abs(i + 1 - first) < Math.abs(best + 1 - first))) best = i
+  if (best === -1) return turn.lines
+  const shift = best + 1 - first
+  return turn.lines.map((n) => n + shift)
+}
+
 /** A file the assistant touched, and the way back to the lines: the whole card opens the tab, brings
  * the lines into view and lights them again. On a phone, where the editor is a swipe away, its first
  * three lines show here; on desktop the editor beside the chat already shows them, so the card is one
  * row: the file and the lines. On a phone the created file's row is a thumb's height */
-export function WroteCard({ turn, phone = false }: { turn: WroteTurn; phone?: boolean }) {
+export function WroteCard({ turn: written, phone = false }: { turn: WroteTurn; phone?: boolean }) {
   const { s, dispatch } = useStore()
+  // Where the lines are now: a block written later above them moves them down, and every Lumberjack step 1
+  // card said "lines 8 to …" for code at 9, 21 and 35 (Nikita, 20 Nov)
+  const turn = { ...written, lines: movedLines(s.files[written.file] ?? "", written) }
   const name = baseName(turn.file)
   const show = () => dispatch({ type: "reveal", file: turn.file, lines: turn.lines })
 
@@ -36,7 +54,7 @@ export function WroteCard({ turn, phone = false }: { turn: WroteTurn; phone?: bo
         <FilePlus2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="shrink-0 text-caption text-muted-foreground">Created</span>
         {/* The path gives way on a narrow row, never the tag. On a phone there's no tag: Created already says it */}
-        <span className="min-w-0 truncate font-mono text-[0.75rem] text-foreground">{turn.file}</span>
+        <span className="min-w-0 truncate font-mono text-13 text-foreground">{turn.file}</span>
         {!phone && <Tag className="ml-auto shrink-0">New file</Tag>}
       </button>
     )
@@ -61,16 +79,16 @@ export function WroteCard({ turn, phone = false }: { turn: WroteTurn; phone?: bo
         {/* The file's name alone: the numbers under it already say which lines, and the whole card opens
             them, so the corner arrow went: it was a second sign for what the card already does */}
         <span className="flex h-8 items-center px-3">
-          <span className="min-w-0 truncate font-mono text-[0.75rem] text-foreground">{turn.file}</span>
-          {!phone && <span className="ml-auto shrink-0 pl-3 text-[0.75rem] text-subtle">{range(turn.lines)}</span>}
+          <span className="min-w-0 truncate font-mono text-13 text-foreground">{turn.file}</span>
+          {!phone && <span className="ml-auto shrink-0 pl-3 text-13 text-subtle">{range(turn.lines)}</span>}
         </span>
-        {turn.appended && <span className="block border-t border-border px-3 py-1.5 text-[0.75rem] text-warning-ink">I put it at the end: your own lines are kept.</span>}
+        {turn.appended && <span className="block border-t border-border px-3 py-1.5 text-13 text-warning-ink">I put it at the end: your own lines are kept.</span>}
         {/* The code on the card's own ground, one shade for the whole card. Two columns: the numbers start
             12 in, under the file's name, and hold still; only the code beside them scrolls sideways, as
             Practicum's listings do, instead of breaking (declare_id!'s id wrapped under the line's start).
             Numbers kept still by sticking inside the scroller painted over the card's edge by a hair */}
         {phone && (
-          <span className="flex pb-2 font-mono text-[0.75rem] leading-5">
+          <span className="flex pb-2 font-mono text-13 leading-5">
             <span aria-hidden="true" className="w-[1.625rem] shrink-0 pl-3 text-left text-subtle tabular-nums select-none">
               {shown.map((n) => (
                 <span key={n} className="block">
@@ -97,7 +115,7 @@ export function WroteCard({ turn, phone = false }: { turn: WroteTurn; phone?: bo
             column holds the left edge, and the words sit on the code's in the interface face. In mono on the
             numbers' edge "8 more lines" read as line 8; indented alone to the code it floated off */}
         {phone && more > 0 && (
-          <span className="-mt-1 flex pb-2 text-[0.75rem] leading-5 text-subtle">
+          <span className="-mt-1 flex pb-2 text-13 leading-5 text-subtle">
             <span aria-hidden="true" className="w-[1.625rem] shrink-0 pl-3 font-mono select-none">
               ⋯
             </span>

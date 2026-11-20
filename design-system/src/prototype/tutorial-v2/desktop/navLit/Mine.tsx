@@ -169,7 +169,7 @@ export function Mine({ lessons, projects, upNext, onStartFirst, onPick }: Props)
                     glyph={ring(0, upNext.of, tablet)}
                     label={upNext.name}
                     name={`Up next: ${upNext.name}, ${upNext.of} steps`}
-                    meta={<span className="text-[0.75rem] font-act tracking-[0.01em] text-(color:--text-quiet)">Up next</span>}
+                    meta={<span className="text-13 font-act tracking-[0.01em] text-(color:--text-quiet)">Up next</span>}
                     tip={`${upNext.of} steps`}
                     onClick={upNext.onOpen}
                   />,
@@ -184,7 +184,7 @@ export function Mine({ lessons, projects, upNext, onStartFirst, onPick }: Props)
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
                       placeholder="Filter by name"
-                      className="min-w-0 flex-1 bg-transparent text-[0.75rem] text-foreground outline-none placeholder:text-(color:--text-quiet)"
+                      className="min-w-0 flex-1 bg-transparent text-13 text-foreground outline-none placeholder:text-(color:--text-quiet)"
                     />
                   </label>,
                 ]

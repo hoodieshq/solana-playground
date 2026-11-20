@@ -166,9 +166,9 @@ export function readAnswer(meta: ProgramMeta, text: string): string {
   if (t.includes("signer"))
     return "A signer is a wallet that approved the transaction. The instruction changes something that wallet owns, so the program checks the signature before it writes."
   if (t.includes("who pays"))
-    return "The wallet that sends the transaction pays: the rent that keeps an account open, and the fee. On devnet that's test SOL."
+    return "The wallet that sends the transaction pays: the rent that keeps an account open, and the fee. On devnet that's devnet SOL."
   if (t.includes("log")) return "The log is what the program printed with `msg!` while it ran, plus Solana's own lines: which program was invoked, how many compute units it used, and whether it succeeded."
-  if (t.includes("fee")) return "The fee pays the validators for processing the transaction: about 0.000005 test SOL for one signature. It's paid even when the call fails."
+  if (t.includes("fee")) return "The fee pays the validators for processing the transaction: about 0.000005 devnet SOL for one signature. It's paid even when the call fails."
   if (t === "call" || t.includes("call it") || t.includes("can i call"))
     return meta.devnetId
       ? `Solana runs ${meta.name} on devnet, but calling it from Playground comes later. For now you read it and ask about any line.`

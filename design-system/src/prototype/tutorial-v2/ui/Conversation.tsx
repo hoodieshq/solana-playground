@@ -412,9 +412,9 @@ export function Conversation({
           type="button"
           onClick={toLive}
           className={cn(
-            "absolute bottom-3 left-1/2 z-10 flex h-7 -translate-x-1/2 animate-menu-in items-center gap-1 rounded-full border border-border-strong bg-surface-raised pr-3 pl-2.5 text-[0.75rem] font-act text-foreground shadow-panel",
+            "absolute bottom-3 left-1/2 z-10 flex h-7 -translate-x-1/2 animate-menu-in items-center gap-1 rounded-full border border-border-strong bg-surface-raised pr-3 pl-2.5 text-13 font-act text-foreground shadow-panel",
             // A thumb's height on a phone, where it's the way back to the card that waits
-            phone && "h-11 pr-4 pl-3.5 text-[0.8125rem]"
+            phone && "h-11 pr-4 pl-3.5 text-13"
           )}
         >
           {liveAbove ? <ArrowUp className="size-3.5" aria-hidden="true" /> : <ArrowDown className="size-3.5" aria-hidden="true" />}

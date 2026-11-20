@@ -51,7 +51,7 @@ export function NameField({
       spellCheck={false}
       enterKeyHint="go"
       // Focus as Claude Code's fields: the edge lightens a step, no thick halo round it
-      className={cn(phone ? "text-[1rem]!" : "text-control!", "read-only:text-muted-foreground focus-visible:border-foreground/35 focus-visible:ring-0", className)}
+      className={cn(phone ? "text-16!" : "text-16!", "read-only:text-muted-foreground focus-visible:border-foreground/35 focus-visible:ring-0", className)}
     />
   )
 }

@@ -20,7 +20,7 @@ function Choice({ id, value, options, onChange }: { id: string; value: string; o
   const phone = usePhone()
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger id={id} className={cn(phone ? "h-12! w-full text-[1rem]" : "w-44 [html.touch_&]:h-11!")}>
+      <SelectTrigger id={id} className={cn(phone ? "h-12! w-full text-16" : "w-44 [html.touch_&]:h-11!")}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent position="popper" align="end">
@@ -86,9 +86,9 @@ export function Advanced({ open: initial }: { open: boolean }) {
                 placeholder="0"
                 value={s.priorityFeeCustom}
                 onChange={(e) => setSetting("priorityFeeCustom", e.target.value.replace(/\D/g, ""))}
-                className={cn("font-mono tabular-nums", phone ? "text-[1rem]" : "text-[0.8125rem]")}
+                className={cn("font-mono tabular-nums", phone ? "text-16" : "text-13")}
               />
-              <InputGroupAddon align="inline-end" className="text-[0.75rem] font-normal">
+              <InputGroupAddon align="inline-end" className="text-13 font-normal">
                 micro-lamports
               </InputGroupAddon>
             </InputGroup>
@@ -132,7 +132,7 @@ export function Advanced({ open: initial }: { open: boolean }) {
               />
             ) : (
               <div className={cn("flex min-h-5 items-center gap-2", !phone && "justify-end")}>
-                <span className="min-w-0 truncate font-mono text-[0.75rem] leading-5 text-muted-foreground">{maskUrl(s.buildServerUrl)}</span>
+                <span className="min-w-0 truncate font-mono text-13 leading-5 text-muted-foreground">{maskUrl(s.buildServerUrl)}</span>
                 <Button variant="quiet" size="xs" onClick={() => setServerField(true)} className="shrink-0">
                   Change
                 </Button>

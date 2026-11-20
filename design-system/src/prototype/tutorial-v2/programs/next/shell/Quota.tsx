@@ -27,7 +27,7 @@ export function FullNotice({ p, phone = false }: { p: Project; phone?: boolean }
     <div
       role="status"
       className={cn(
-        "flex items-start gap-2 text-[0.8125rem] leading-[1.125rem] text-foreground/80 animate-in fade-in-0 duration-[120ms]",
+        "flex items-start gap-2 text-13 leading-[1.125rem] text-foreground/80 animate-in fade-in-0 duration-[120ms]",
         phone ? "min-h-11 border-b border-border bg-surface-raised py-2.5 pr-2 pl-4 [html.portrait_&]:pl-8" : "max-w-[360px] rounded-[10px] border border-border-strong bg-surface-raised py-2 pr-1.5 pl-3 shadow-md"
       )}
     >
@@ -36,7 +36,7 @@ export function FullNotice({ p, phone = false }: { p: Project; phone?: boolean }
         <p>
           Your projects are full ({LIMIT} of {LIMIT}). Changing {p.name} saves it as a project. Delete one first.
         </p>
-        <Button variant="ghost" onClick={openManage} className={cn("h-8 px-3 text-[0.8125rem] font-act pointer-coarse:h-11", ACTION_SOFT)}>
+        <Button variant="ghost" onClick={openManage} className={cn("h-8 px-3 text-13 font-act pointer-coarse:h-11", ACTION_SOFT)}>
           Manage projects
         </Button>
       </div>
@@ -58,29 +58,29 @@ export function ManageProjects() {
   const rows = [
     ...Object.values(projects)
       .filter((p) => !p.read && !p.example && !p.opening)
-      .map((p) => ({ name: p.name, at: p.createdAt })),
-    ...account,
+      .map((p) => ({ id: p.id, name: p.name, at: p.createdAt })),
+    ...account.map((a) => ({ id: undefined as string | undefined, ...a })),
   ]
   const row = touch ? "min-h-14" : "min-h-11"
   const body = (
     <div className="flex min-h-0 flex-col gap-3">
       <Meter variant="cells" tone="neutral" value={rows.length} max={LIMIT} aria-label="Projects used">
         <MeterTrack className="flex-1" />
-        <MeterValue className="text-[0.8125rem] text-muted-foreground tabular-nums">
+        <MeterValue className="text-13 text-muted-foreground tabular-nums">
           {rows.length} of {LIMIT}
         </MeterValue>
       </Meter>
       <ul className="-mx-1 flex min-h-0 flex-col overflow-y-auto">
         {rows.map((r) =>
-          asking === r.name ? (
-            <li key={r.name} className={cn("flex flex-wrap items-center gap-2 rounded-lg bg-surface-hover px-2 py-1.5", row)}>
-              <span className="min-w-0 flex-1 text-[0.875rem] text-foreground">Delete {r.name}? Its files go too.</span>
+          asking === (r.id ?? r.name) ? (
+            <li key={r.id ?? r.name} className={cn("flex flex-wrap items-center gap-2 rounded-lg bg-surface-hover px-2 py-1.5", row)}>
+              <span className="min-w-0 flex-1 text-13 text-foreground">Delete {r.name}? Its files go too.</span>
               <Button
                 variant="destructive"
                 size="sm"
                 className="pointer-coarse:h-11"
                 onClick={() => {
-                  deleteProject(r.name)
+                  deleteProject(r)
                   setAsking(null)
                 }}
               >
@@ -91,10 +91,10 @@ export function ManageProjects() {
               </Button>
             </li>
           ) : (
-            <li key={r.name} className={cn("flex items-center gap-3 px-2", row)}>
-              <span className="min-w-0 flex-1 truncate font-act text-[0.875rem] text-foreground">{r.name}</span>
-              <span className="shrink-0 text-[0.8125rem] text-muted-foreground">{ago(r.at)}</span>
-              <Button variant="ghost" size="icon-sm" aria-label={`Delete ${r.name}`} onClick={() => setAsking(r.name)} className="text-muted-foreground pointer-coarse:size-11">
+            <li key={r.id ?? r.name} className={cn("flex items-center gap-3 px-2", row)}>
+              <span className="min-w-0 flex-1 truncate font-act text-13 text-foreground">{r.name}</span>
+              <span className="shrink-0 text-13 text-muted-foreground">{ago(r.at)}</span>
+              <Button variant="ghost" size="icon-sm" aria-label={`Delete ${r.name}`} onClick={() => setAsking(r.id ?? r.name)} className="text-muted-foreground pointer-coarse:size-11">
                 <Trash2 />
               </Button>
             </li>

@@ -16,7 +16,7 @@ const HEAP = 32 * KB
 const LABEL = "flex items-center gap-2 text-caption text-muted-foreground [&>svg]:size-3.5"
 // Mono at 12 sits level with the 13px sans labels: mono's wider, taller letters at 13 read as 16 and
 // outweighed the bars. The values lead by colour, the labels are muted
-const VALUE = "text-right font-mono text-[0.75rem] whitespace-nowrap tabular-nums"
+const VALUE = "text-right font-mono text-13 whitespace-nowrap tabular-nums"
 
 /** An account's bytes as 10 KB blocks, the size realloc adds at a time, filled up to its size. Green,
  * as Lumberjack's energy: the v2 theme keeps purple neutral */
@@ -88,7 +88,7 @@ export function MemoryCard({
     <div className={cn("flex flex-col gap-2", !flat && "rounded-control border border-border bg-surface-well px-3 py-2.5", className)}>
       <div className="flex items-center gap-2 text-caption text-muted-foreground">
         <span className="font-act text-foreground">{zero ? "Big map · zero copy" : "Map account"}</span>
-        <span className="min-w-0 truncate font-mono text-[0.75rem]" title={pda}>
+        <span className="min-w-0 truncate font-mono text-13" title={pda}>
           {shortKey(pda ?? "", phone ? 4 : 6)}
         </span>
       </div>
@@ -116,7 +116,7 @@ export function MemoryCard({
       </div>
       {painted !== undefined && (
         <p className="text-caption text-muted-foreground">
-          <span className="font-mono text-[0.75rem] text-foreground">{JSON.stringify(text)}</span> at byte <span className="font-mono text-[0.75rem] text-foreground">{painted.toLocaleString("en-US")}</span>
+          <span className="font-mono text-13 text-foreground">{JSON.stringify(text)}</span> at byte <span className="font-mono text-13 text-foreground">{painted.toLocaleString("en-US")}</span>
           {painted > HEAP && <span className="text-subtle"> · past the 32 KB a copy could hold</span>}
         </p>
       )}

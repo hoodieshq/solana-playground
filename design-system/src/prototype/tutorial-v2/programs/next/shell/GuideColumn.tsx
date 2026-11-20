@@ -10,12 +10,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Kbd } from "@/components/ui/kbd"
 import { cn } from "@/lib/utils"
 
-import { FILES_KEYS, MENU_KEYS, PRIMARY_KEYS, TERMINAL_KEYS } from "../../../desktop/keys"
+import { ASSISTANT_KEYS, FILES_KEYS, MENU_KEYS, PRIMARY_KEYS, TERMINAL_KEYS } from "../../../desktop/keys"
 import { ChipRow } from "../../../ui/ChipRow"
 import { openExplorer } from "../../../ui/explorer"
 import { launch } from "../../../ui/turns/YouPill"
 import { showFailLine } from "./Talk"
-import { setPinned, usePins } from "../../../desktop/navLit/pins"
+import { pinToSidebar, usePins } from "../../../desktop/navLit/pins"
 import { ask, build, busy, deleteProject, deploy, go, ixsOf, metaOf, onChain, renameProject, type Project } from "../../store"
 import { BUILD_KEYS } from "./Stages"
 import { copyText, onFocusComposer } from "./util"
@@ -26,6 +26,7 @@ const SHORTCUTS = [
   { group: "In the project", what: "Build", keys: BUILD_KEYS },
   { group: "Panels", what: "Terminal", keys: TERMINAL_KEYS },
   { group: "Panels", what: "Files", keys: FILES_KEYS },
+  { group: "Panels", what: "Assistant", keys: ASSISTANT_KEYS },
   { group: "Panels", what: "Nav", keys: MENU_KEYS },
 ]
 
@@ -40,11 +41,11 @@ export function ShortcutsDialog({ open, onOpenChange, read = false }: { open: bo
         <div className="flex flex-col gap-4">
           {["In the project", "Panels"].map((group) => (
             <section key={group} aria-label={group}>
-              <h3 className="mb-1 text-[0.75rem] leading-4 text-muted-foreground">{group}</h3>
+              <h3 className="mb-1 text-13 leading-4 text-muted-foreground">{group}</h3>
               <dl className="flex flex-col">
                 {SHORTCUTS.filter((k) => k.group === group && !(read && k.what === "Build")).map((k) => (
                   <div key={k.what} className="flex h-8 items-center justify-between gap-4">
-                    <dt className="text-[0.875rem] leading-[1.125rem] text-foreground/80">{k.what}</dt>
+                    <dt className="text-13 leading-[1.125rem] text-foreground/80">{k.what}</dt>
                     <dd className="flex gap-1">
                       {k.keys.split(" ").map((key) => (
                         <Kbd key={key}>{key}</Kbd>
@@ -96,7 +97,7 @@ export const deletable = (p: Project) => !p.read && !p.example && !p.opening
 
 /** Delete and back to the list, with a line saying it's gone */
 export function removeProject(p: Project) {
-  deleteProject(p.name)
+  deleteProject(p)
   go({ at: "catalog" })
   toast(`Deleted ${p.name}`)
 }
@@ -179,10 +180,7 @@ export function MoreMenu({ p, onKeys }: { p: Project; onKeys?: () => void }) {
         {!p.opening && (
           <>
             <DropdownMenuItem
-              onSelect={() => {
-                setPinned(p.name, !pinned)
-                toast(pinned ? "Unpinned from the sidebar" : "Pinned to the sidebar")
-              }}
+              onSelect={() => pinToSidebar(p.name, !pinned)}
             >
               {pinned ? "Unpin from sidebar" : "Pin to sidebar"}
             </DropdownMenuItem>
@@ -277,8 +275,8 @@ export function Ask({ p, phone = false, chips = [] }: { p: Project; phone?: bool
             if (!v) setTall(false)
             else if (!tall && (v.includes("\n") || e.target.scrollHeight > 46)) setTall(true)
           }}
-          placeholder={p.read ? "Ask about this program" : `Ask about ${p.name}`}
-          aria-label={p.read ? "Ask about this program" : `Ask about ${p.name}`}
+          placeholder={p.read ? "Ask about this program" : p.draft ? "Reply, or say what to build" : `Ask about ${p.name}`}
+          aria-label={p.read ? "Ask about this program" : p.draft ? "Reply to the assistant" : `Ask about ${p.name}`}
           enterKeyHint="send"
           className={cn("leading-[22px] placeholder:text-muted-foreground/80!", !tall && "min-h-10 pt-2.5 pb-2.5", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
         />

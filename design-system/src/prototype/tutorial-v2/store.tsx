@@ -46,6 +46,7 @@ import { deployedArgs, idlLine, idlOf, idlShape, signature } from "./idl"
 import { Runner } from "./runner"
 import { resetSettings } from "./settings/bar"
 import { clearTabState } from "./tabStorage"
+import { markBuilt } from "./desktop/navLit/firstBuild"
 
 export type Screen = "home" | "gallery" | "programs" | "step" | "finish"
 /** Only whether something runs. What is offered comes from the live card (spec 9.1) */
@@ -382,6 +383,14 @@ const libTarget = (s: State) => libTargetOf(STEPS[libStep(s)])!
 export const deployChanged = (s: State) => s.deployedLib !== null && !sameCode(s.files[LIB], s.deployedLib)
 
 /** Lines a write lit, from the diff: the block's own lines, without the blank one that sets it apart */
+/** Written lines without the blank ones at either end */
+function solidRun(lines: number[], code: string) {
+  const rows = code.split("\n")
+  const solid = lines.filter((l) => (rows[l - 1] ?? "").trim() !== "")
+  if (solid.length === 0) return []
+  return lines.filter((l) => l >= solid[0] && l <= solid[solid.length - 1])
+}
+
 function litLines(before: string, after: string) {
   let n = 0
   const added: number[] = []
@@ -462,10 +471,12 @@ function now(s: State, turn: Body): State {
 }
 
 /** A file written, with the editor's tint and the +N on its tab */
-function write(s: State, file: string, code: string, from?: string): { s: State; lines: number[]; preview: string[] } {
+function write(s: State, file: string, code: string, from?: string, placed?: number[]): { s: State; lines: number[]; preview: string[] } {
   // Once deployed, lib.rs carries the program's address: no lesson block written later takes it back
   if (file === LIB && s.deployedLib !== null) code = withId(code, PROGRAM_ID)
-  const lines = litLines(s.files[file] ?? "", code)
+  // Where a block went, when the writer knows: a diff matched a written `}` or blank line to an old one and
+  // every Lumberjack step 1 card read "lines 8 to …" for lines 9, 21 and 35 (Nikita, 20 Nov)
+  const lines = placed?.length ? solidRun(placed, code) : litLines(s.files[file] ?? "", code)
   const rows = code.split("\n")
   return {
     preview: lines.slice(0, 3).map((n) => rows[n - 1] ?? ""),
@@ -519,7 +530,7 @@ function tick(s: State): State {
   const placed = insertBlock(before, head.block, ref, start)
   // Lines of the learner's own that the step's code doesn't know: then the block went at the end
   const own = before.split("\n").some((l) => uncomment(l).trim() !== "" && !holds(ref, l) && !holds(start, l))
-  const w = write(next, head.file, placed.code, head.from)
+  const w = write(next, head.file, placed.code, head.from, placed.lines)
   return now(w.s, { kind: "wrote", step: head.step, file: head.file, lines: w.lines, added: w.lines.length, preview: w.preview, appended: own, from: head.from })
 }
 
@@ -723,6 +734,7 @@ function stage(s: State): State {
     const log = buildLog(s.files[LIB])
     let next = idle(closeAct({ ...built(s), log, error: null }))
     next = now(next, { kind: "result", step: s.step, act: "build", ok: true, log, took, args: signature(deployedArgs(s.files[LIB])), src: s.files[LIB] })
+    markBuilt()
     // A build that passes on its own resolves every open question of the step, typed by hand
     if (s.step === 0 && !s.passed[0]) {
       next = { ...next, thread: next.thread.map((t) => (t.kind === "ask" && t.step === 0 && t.done === null ? { ...t, done: "typed" } : t)), cursor: setAt(next.cursor, 0, { at: 99, fail: next.cursor[0].fail }) }

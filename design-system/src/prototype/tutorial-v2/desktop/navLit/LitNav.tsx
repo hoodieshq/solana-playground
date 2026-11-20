@@ -27,6 +27,7 @@ import { healthWith, useChoices } from "./choices"
 import { setPinned as setPin, usePins } from "./pins"
 import { FOCUS, HOVER, IN_TABLET_FRAME, RoomyCtx, TabletCtx, Tip } from "./parts"
 import { HealthDot, RailButton } from "./Rail"
+import { useBuiltOnce } from "./firstBuild"
 import { setupOf } from "./setup"
 import { SetupSteps } from "./SetupRow"
 import { StatusChip } from "./StatusChip"
@@ -299,7 +300,9 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
         { name: cardOf(nextSlug).name.replace(/ Tutorial$/, ""), of: LESSONS[nextSlug]?.steps.length ?? 4, onOpen: go(openByName(cardOf(nextSlug).name)) }
       : undefined
 
-  const setup = setupOf(state, choices)
+  // Get set up waits for the first green build (Spec 06)
+  const builtOnce = useBuiltOnce()
+  const setup = builtOnce ? setupOf(state, choices) : null
   const notSynced = rows === "loading" ? 0 : rows.filter((p) => p.marker === "Not synced").length
   const wallet = state.account?.session === "in" && (!state.setup || state.setup.steps[3]?.state === "done")
 
@@ -392,7 +395,7 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
               {/* Beta until the full release (Grigory, 19 Nov), as the brand file has it: an outlined tag on the
                   line of "Playground", whose status it is (on the line of "Solana" it read as Solana Beta). Set as
                   text beside the lockup, not drawn into it: at 28 high the drawn one's letters came out 4px */}
-              <span className="ml-2 translate-y-[6px] rounded-full border border-current px-1.5 font-heading text-[0.625rem] leading-[0.875rem] font-semibold tracking-[0.06em] text-muted-foreground">
+              <span className="ml-2 translate-y-[6px] rounded-full border border-current px-1.5 font-heading text-11 leading-[0.875rem] font-act tracking-[0.06em] text-muted-foreground">
                 BETA
               </span>
             </button>
@@ -410,7 +413,7 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
               kind="destination"
               glyph={<LitIcon name="search" />}
               label="Search"
-              meta={sheet ? undefined : <span className="text-[0.75rem] font-act tracking-[0.01em] text-(color:--text-quiet)">⌘K</span>}
+              meta={sheet ? undefined : <span className="text-13 font-act tracking-[0.01em] text-(color:--text-quiet)">⌘K</span>}
               tip={stateId === "many-projects" ? "Search projects, lessons and actions" : undefined}
               // In a sheet the menu stays under the search, so closing search goes back to it
               onClick={sheet ? () => setSearchOpen(true) : go(() => setSearchOpen(true))}

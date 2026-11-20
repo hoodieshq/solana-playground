@@ -102,7 +102,7 @@ function GrowRow({ g }: { g: Grow }) {
       <span className={cn("min-w-0 truncate", g.ok ? "text-foreground" : "text-error")}>
         {!g.ok ? `Out of memory · ${kb(g.heap)} copy, 32 KB heap` : g.heap === 0 ? `${kb(g.size)} · read in place, nothing copied` : `${kb(g.size)} · copy in heap ${kb(g.heap)} of 32`}
       </span>
-      <span className="ml-auto shrink-0 font-mono text-[0.75rem] text-subtle" title={g.tx.signature}>
+      <span className="ml-auto shrink-0 font-mono text-13 text-subtle" title={g.tx.signature}>
         {shortKey(g.tx.signature, 4)}
       </span>
     </li>
@@ -120,7 +120,7 @@ function ChopRow({ c }: { c: Chop }) {
           ? `${c.refilled > 0 ? `+${c.refilled} energy while you were away · ` : ""}+1 wood · ${c.energy} energy left`
           : `NotEnoughEnergy · error 6000${c.wait !== undefined ? ` · next energy in ${clock(c.wait)}` : ""}`}
       </span>
-      <span className="ml-auto shrink-0 font-mono text-[0.75rem] text-subtle" title={c.tx.signature}>
+      <span className="ml-auto shrink-0 font-mono text-13 text-subtle" title={c.tx.signature}>
         {shortKey(c.tx.signature, 4)}
       </span>
     </li>
@@ -249,7 +249,7 @@ function OneAct({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
       disabled={disabled || !!run}
       onClick={go}
       aria-busy={!!run || undefined}
-      className={cn("relative shrink-0", ACTION, phone ? cn(PHONE_CTA, "text-[0.9375rem]") : !call && "self-start")}
+      className={cn("relative shrink-0", ACTION, phone ? cn(PHONE_CTA, "text-16") : !call && "self-start")}
     >
       {/* Running, the label holds the width and a spinner sits over it */}
       <span className={cn(run && "invisible")}>{words.button}</span>
@@ -277,15 +277,15 @@ function OneAct({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
           line subtitle doesn't shrink to the stage's one line and back (Almaz, 10 Nov) */}
       <span className="grid min-w-0">
         <span className="flex flex-col [grid-area:1/1]">
-          <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{words.title}</span>
-          <span role={run ? "status" : undefined} className="text-[0.875rem] leading-5 text-muted-foreground">
+          <span className="font-heading text-16 leading-6 font-act text-foreground">{words.title}</span>
+          <span role={run ? "status" : undefined} className="text-13 leading-5 text-muted-foreground">
             {context}
           </span>
         </span>
         {run && (
           <span aria-hidden="true" className="invisible flex flex-col [grid-area:1/1]">
-            <span className="font-heading text-[1rem] leading-6 font-medium">{words.title}</span>
-            <span className="text-[0.875rem] leading-5">
+            <span className="font-heading text-16 leading-6 font-act">{words.title}</span>
+            <span className="text-13 leading-5">
               <Prose text={words.context} {...READ_CODE} small />
             </span>
           </span>
@@ -318,7 +318,7 @@ function OneAct({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
             size="lg"
             variant="ghost"
             onClick={() => setAuto(!auto)}
-            className={cn("shrink-0 px-3", ACTION_SOFT, phone && cn(PHONE_CTA, "text-[0.9375rem]"))}
+            className={cn("shrink-0 px-3", ACTION_SOFT, phone && cn(PHONE_CTA, "text-16"))}
           >
             {auto ? "Stop" : big ? "Grow to 40 KB" : turn.act === "grow" ? "Grow until out of memory" : "Chop until out of energy"}
           </Button>
@@ -333,7 +333,7 @@ function OneAct({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
       )}
       {/* A program with no IDL gets the name as bytes: the card shows them as they'll travel */}
       {call && LESSON.raw && (
-        <p aria-live="polite" className="font-mono text-[0.75rem] leading-5 text-muted-foreground">
+        <p aria-live="polite" className="font-mono text-13 leading-5 text-muted-foreground">
           data: {bytesOf(s.draft.trim())}
         </p>
       )}

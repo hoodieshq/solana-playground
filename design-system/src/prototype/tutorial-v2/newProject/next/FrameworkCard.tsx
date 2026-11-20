@@ -24,8 +24,8 @@ export function FrameworkCard({ f, picked, dim, compact }: { f: FrameworkInfo; p
         <LitPick />
         <ProjectCover framework={f.id} />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-base leading-[1.375rem] font-act text-foreground">{f.name}</span>
-          <span id={`np-who-${f.id}`} className="line-clamp-2 text-[0.8125rem] leading-[1.125rem] font-read text-muted-foreground">
+          <span className="text-16 leading-[1.375rem] font-act text-foreground">{f.name}</span>
+          <span id={`np-who-${f.id}`} className="line-clamp-2 text-13 leading-[1.125rem] font-read text-muted-foreground">
             {`${f.language} · ${f.who}`}
           </span>
         </span>
@@ -49,12 +49,12 @@ export function FrameworkCard({ f, picked, dim, compact }: { f: FrameworkInfo; p
         {picked && <CheckBadge />}
       </span>
       <span className="mt-auto flex w-full min-w-0 items-center gap-2 pt-3">
-        <span className="truncate text-base leading-6 font-act text-foreground">{f.name}</span>
+        <span className="truncate text-16 leading-6 font-act text-foreground">{f.name}</span>
         {/* A tag, as the project head's Example: quiet text beside the name read as the start of the line
             under it (Almaz, 10 Nov). "TypeScript client" already says its language */}
-        {!f.name.includes(f.language) && <span className="shrink-0 rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-[0.75rem] leading-4 text-muted-foreground">{f.language}</span>}
+        {!f.name.includes(f.language) && <span className="shrink-0 rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-13 leading-4 text-muted-foreground">{f.language}</span>}
       </span>
-      <span id={`np-who-${f.id}`} className="mt-1 line-clamp-2 text-[0.8125rem] leading-[1.1875rem] font-read text-muted-foreground">
+      <span id={`np-who-${f.id}`} className="mt-1 line-clamp-2 text-13 leading-[1.1875rem] font-read text-muted-foreground">
         {f.who}
       </span>
     </RadioGroup.Item>
@@ -70,11 +70,11 @@ export function TutorialCard({ disabled, onOpen }: { disabled?: boolean; onOpen:
       <ProjectCover framework="tutorial" className="size-12 rounded-[10px]" />
       {/* The arrow after the name, not in the corner: there it read as one more state of the pick, where
           the picked card has its check (Almaz, 11 Nov) */}
-      <span className="mt-auto flex w-full items-center gap-1.5 pt-3 text-base leading-6 font-act text-foreground">
+      <span className="mt-auto flex w-full items-center gap-1.5 pt-3 text-16 leading-6 font-act text-foreground">
         <span className="truncate">Follow a tutorial</span>
         <ArrowRight aria-hidden="true" strokeWidth={1.75} className="size-4 shrink-0 text-muted-foreground transition-transform duration-100 group-hover/tut:translate-x-0.5 motion-reduce:transition-none" />
       </span>
-      <span className="mt-1 line-clamp-2 text-[0.8125rem] leading-[1.1875rem] font-read text-muted-foreground">New to Solana? Build your first program step by step.</span>
+      <span className="mt-1 line-clamp-2 text-13 leading-[1.1875rem] font-read text-muted-foreground">New to Solana? Build your first program step by step.</span>
     </button>
   )
 }

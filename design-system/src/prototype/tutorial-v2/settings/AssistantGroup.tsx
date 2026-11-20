@@ -36,10 +36,10 @@ export function AssistantGroup({ scene }: { scene: Scene }) {
   const model = useModel(!!scene.notAnswering)
   const [choosing, setChoosing] = useState(false)
   const [confirm, setConfirm] = useState(!!scene.confirmDelete)
-  const value = <span className="truncate text-caption text-muted-foreground">{model.value}</span>
+  const value = <span className="truncate text-caption font-label text-muted-foreground">{model.value}</span>
   // As quiet as the Status popover's own actions
   // Pulled out by its own padding, so its word ends on the line the switches end on
-  const tap = cn("-mr-2.5 text-muted-foreground hover:text-foreground", phone && "h-9")
+  const tap = cn("-mr-2.5 text-caption font-act text-muted-foreground hover:text-foreground", phone && "h-9")
 
   return (
     <div className="flex flex-col">
@@ -47,7 +47,7 @@ export function AssistantGroup({ scene }: { scene: Scene }) {
         label="Model"
         line={
           model.line && (
-            <span className="flex items-center gap-2 text-[0.8125rem] leading-5 font-read text-muted-foreground">
+            <span className="flex items-center gap-2 text-13 leading-5 font-read text-muted-foreground">
               <StatusDot variant="warning" />
               {model.line}
             </span>
@@ -77,7 +77,7 @@ export function AssistantGroup({ scene }: { scene: Scene }) {
         (confirm ? (
           // The product clears the chat on delete, so it asks here instead of offering an Undo
           <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-6 gap-y-1 py-2 [html.touch_&]:min-h-13">
-            <p className={phone ? "text-body" : "text-control leading-5"}>{`Delete your ${c.key} key? The chat on screen clears.`}</p>
+            <p className={phone ? "text-body" : "text-16 leading-5"}>{`Delete your ${c.key} key? The chat on screen clears.`}</p>
             <div className="flex shrink-0 gap-1">
               <Button variant="ghost" size="sm" autoFocus onClick={() => setConfirm(false)} className={cn(tap, "mr-0")}>
                 Cancel

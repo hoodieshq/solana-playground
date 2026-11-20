@@ -55,7 +55,7 @@ export function WalletChip({ sol }: { sol: number }) {
         <button
           type="button"
           aria-label={`Playground wallet ${shortKey(WALLET, 4)} on devnet, ${fmt(balance)}`}
-          className="flex h-6 shrink-0 items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-6 shrink-0 items-center gap-1.5 rounded-md px-1.5 text-13 text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Wallet className="size-3.5" />
           <span className="font-mono">{shortKey(WALLET, 4)}</span>
@@ -67,12 +67,12 @@ export function WalletChip({ sol }: { sol: number }) {
         {/* The wallet: what it is, how much it holds, its address. Devnet is a tag, since it's a state */}
         <div className="p-4">
           <div className="flex items-center justify-between">
-            <span className="text-[0.8125rem] font-act text-foreground">Playground wallet</span>
+            <span className="text-13 font-act text-foreground">Playground wallet</span>
             <Tag>Devnet</Tag>
           </div>
-          <p className="mt-3 text-2xl leading-none font-act tabular-nums text-foreground">{fmt(balance)}</p>
+          <p className="mt-3 text-28 leading-none font-act tabular-nums text-foreground">{fmt(balance)}</p>
           <div className="mt-1.5 flex h-4 items-center gap-0.5">
-            <span className="font-mono text-[0.75rem] text-muted-foreground">{shortKey(WALLET, 6)}</span>
+            <span className="font-mono text-13 text-muted-foreground">{shortKey(WALLET, 6)}</span>
             <CopyButton value={WALLET} label="Copy address" className="-my-1" />
           </div>
         </div>
@@ -82,8 +82,8 @@ export function WalletChip({ sol }: { sol: number }) {
         <div className="flex flex-col gap-3 p-4">
           {ask === "refused" && (
             <>
-              <p className="text-[0.8125rem] font-act text-foreground">The faucet is at its limit</p>
-              <ol className="flex flex-col gap-1.5 text-[0.75rem] leading-4 text-foreground/80">
+              <p className="text-13 font-act text-foreground">The faucet is at its limit</p>
+              <ol className="flex flex-col gap-1.5 text-13 leading-4 text-foreground/80">
                 {[
                   "Open the web faucet and sign in with GitHub (an account with a public repo)",
                   `Confirm the airdrop. Your address and ${AIRDROP_SOL} SOL are filled in`,
@@ -98,12 +98,12 @@ export function WalletChip({ sol }: { sol: number }) {
             </>
           )}
           {(ask === "away" || ask === "checking") && (
-            <p className="flex items-center gap-2 text-[0.8125rem] text-muted-foreground">
+            <p className="flex items-center gap-2 text-13 text-muted-foreground">
               <Spinner className="size-3.5" />
               {ask === "away" ? "Waiting for SOL from the web faucet…" : "Checking the balance…"}
             </p>
           )}
-          {ask === "got" && <p className="text-[0.8125rem] text-success">{`Got ${AIRDROP_SOL} SOL. You're ready to deploy`}</p>}
+          {ask === "got" && <p className="text-13 text-success">{`Got ${AIRDROP_SOL} SOL. You're ready to deploy`}</p>}
 
           {(ask === "idle" || ask === "asking") && (
             <Button className="w-full" disabled={ask === "asking"} onClick={request}>

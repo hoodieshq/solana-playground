@@ -2,7 +2,7 @@ import { useStore } from "../store"
 import { FileTreeList } from "../ui/FileTreeList"
 
 /** The tree docked beside the editor: 256px, as wide as the popover was so a file and its note fit, laid out at its width and clipped while it opens, as
- * the nav moves, so nothing rewraps. The open tab's arrow, Files and ⌘E close it again */
+ * the nav moves, so nothing rewraps. The open tab's arrow, Files and ⌘⇧E close it again */
 export function DockedTree() {
   const { s, dispatch } = useStore()
   const open = s.tree === "docked"

@@ -52,7 +52,8 @@ export type SetupView = { steps: (SetupStep & { hint: string })[]; done: number;
 export function setupOf(state: NavState, c: Choices): SetupView | null {
   if (!state.setup) return null
   // A model connected or a network picked in Status finishes that step here too
-  const doneByChoice = (i: number) => (i === 0 && c.connected) || (i === 1 && c.picked)
+  // A step is done wherever it was done (Spec 06): signed in from the account menu counts as well
+  const doneByChoice = (i: number) => (i === 0 && c.connected) || (i === 1 && c.picked) || (i === 2 && state.account?.session === "in")
   const steps = state.setup.steps.map((s, i) => {
     const st = s.state === "todo" && doneByChoice(i) ? "done" : s.state
     return {

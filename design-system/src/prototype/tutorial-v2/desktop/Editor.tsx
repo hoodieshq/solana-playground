@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -10,7 +10,8 @@ import { highlight } from "../ui/CodeView"
  * one after another each time `arrive` changes (on the write, and on Show in). `landing` is where an
  * open question's answer will go: a dashed purple edge, with a ghost line on an empty one that isn't
  * part of the file. `jump` scrolls a line to a third of the height and can put the caret there.
- * `error` is the line a failed build points at, with a wavy line under the token the compiler named;
+ * `wrap` soft wraps long lines, for the phone, where a line cut off at the edge can't be read; a wrapped
+ * line's number keeps to its first row. `error` is the line a failed build points at, with a wavy line under the token the compiler named;
  * `lit` lights it while its compiler line is hovered. `chip` floats over the code's top right */
 export type EditorError = { line: number; column?: number; span?: number }
 
@@ -29,6 +30,7 @@ export function Editor({
   label,
   jump = null,
   chip,
+  wrap = false,
 }: {
   code: string
   onChange?: (code: string) => void
@@ -44,6 +46,7 @@ export function Editor({
   label: string
   jump?: { line: number; at: number; caret?: boolean; top?: boolean } | null
   chip?: ReactNode
+  wrap?: boolean
 }) {
   const lines = code.split("\n")
   // A ghost line below the end of the file: the rows up to it show, numbered, but aren't text
@@ -70,9 +73,11 @@ export function Editor({
       el.setSelectionRange(at, at)
     }
     const height = parseFloat(getComputedStyle(el).lineHeight)
-    const top = jump.top ? 0 : Math.max(0, (jump.line - 1) * height - scroller.clientHeight / 3)
+    // A wrapped line above takes more than one row: the line's own row says where it starts
+    const row = pre.current?.children[jump.line - 1] as HTMLElement | undefined
+    const y = row ? row.offsetTop : (jump.line - 1) * height
+    const top = jump.top ? 0 : Math.max(0, y - scroller.clientHeight / 3)
     // No move if the line is already in the middle part of the view
-    const y = (jump.line - 1) * height
     const inView = y >= scroller.scrollTop + 16 && y <= scroller.scrollTop + scroller.clientHeight - 48
     if (!jump.top && inView) return
     scroller.scrollTo({ top, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
@@ -139,6 +144,18 @@ export function Editor({
 
   const order = (n: number) => written.indexOf(n)
 
+  // Wrapped, a line can take several rows: each number stands as tall as its line, read off the code
+  const [tall, setTall] = useState<number[] | null>(null)
+  useLayoutEffect(() => {
+    const el = pre.current
+    if (!wrap || !el) return setTall(null)
+    const measure = () => setTall(Array.from(el.children, (c) => (c as HTMLElement).offsetHeight))
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [wrap, code, extra])
+
   return (
     // min-w-0, or the editor grows to its longest line and the page scrolls sideways on a narrow
     // workspace (a portrait tablet), instead of the code scrolling inside its own column
@@ -160,16 +177,16 @@ export function Editor({
         )}
       >
         {/* 58px before the code, numbers and marks */}
-        <div className="grid min-w-max flex-1 grid-cols-[58px_1fr]">
+        <div className={cn("grid flex-1", wrap ? "min-w-0 grid-cols-[58px_minmax(0,1fr)]" : "min-w-max grid-cols-[58px_1fr]")}>
           <div aria-hidden="true" className="pr-6 text-right text-subtle select-none">
             {rows.map((_, i) => (
-              <div key={i} className={cn(written.includes(i + 1) && "text-muted-foreground", i >= lines.length && "opacity-60")}>
+              <div key={i} style={tall?.[i] ? { height: tall[i] } : undefined} className={cn(written.includes(i + 1) && "text-muted-foreground", i >= lines.length && "opacity-60")}>
                 {i + 1}
               </div>
             ))}
           </div>
           <div className="relative">
-            <pre ref={pre} aria-hidden="true" className="m-0 font-mono text-code leading-[1.6] whitespace-pre text-syntax-plain">
+            <pre ref={pre} aria-hidden="true" className={cn("m-0 font-mono text-code leading-[1.6] text-syntax-plain", wrap ? "whitespace-pre-wrap [overflow-wrap:anywhere]" : "whitespace-pre")}>
               {rows.map((line, i) => {
                 const n = i + 1
                 const k = order(n)
@@ -199,7 +216,7 @@ export function Editor({
             </pre>
             {/* The compiler's squiggle, drawn in once per failure: the token's own letters, transparent,
                 carry the underline, so it sits exactly under them in the same font */}
-            {error && token && (
+            {error && token && !wrap && (
               <span
                 key={`${error.line}:${from}:${token}`}
                 aria-hidden="true"
@@ -221,9 +238,13 @@ export function Editor({
               autoCapitalize="off"
               autoComplete="off"
               autoCorrect="off"
-              wrap="off"
-              style={{ height: `calc(${rows.length} * 1lh)` }}
-              className="absolute inset-x-0 top-0 m-0 min-h-full w-full resize-none overflow-hidden bg-transparent p-0 font-mono text-code leading-[1.6] whitespace-pre text-transparent caret-foreground outline-none selection:bg-primary/30 placeholder:font-sans placeholder:text-caption placeholder:text-subtle read-only:cursor-default"
+              wrap={wrap ? "soft" : "off"}
+              style={{ height: wrap ? "100%" : `calc(${rows.length} * 1lh)` }}
+              className={cn(
+                "absolute inset-x-0 top-0 m-0 min-h-full w-full resize-none overflow-hidden bg-transparent p-0 font-mono text-code leading-[1.6] text-transparent caret-foreground outline-none selection:bg-primary/30 placeholder:font-sans placeholder:text-caption placeholder:text-subtle read-only:cursor-default",
+                // The pre's lines keep 32 clear at their right: wrapped, the textarea breaks at the same place
+                wrap ? "pr-8 whitespace-pre-wrap [overflow-wrap:anywhere]" : "whitespace-pre"
+              )}
             />
           </div>
         </div>

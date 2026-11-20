@@ -96,17 +96,18 @@ export function NetworkGroup({ scene, rpcForm }: { scene: Scene; rpcForm: boolea
   }
 
   const add = (word: string) => (
-    <Button variant="ghost" size="sm" onClick={open} className={cn("text-muted-foreground", phone && "h-9")}>
+    <Button variant="ghost" size="sm" onClick={open} className={cn("text-caption font-act text-muted-foreground", phone && "h-9")}>
       <Plus data-icon="inline-start" />
       {word}
     </Button>
   )
-  const input = phone ? "h-12 text-[1rem]" : "h-9 text-[0.8125rem] [html.touch_&]:h-11"
+  const input = phone ? "h-12 text-16" : "h-9 text-13 [html.touch_&]:h-11"
 
   return (
     <div className="flex flex-col">
       <div className="flex flex-col gap-2 py-2">
-        {/* With no RPC saved, "+ Custom" ends the networks' row; the group draws no box of its own */}
+        {/* With no RPC saved, "+ Custom RPC…" ends the networks' row; the group draws no box of its own.
+            "Custom" alone didn't say what it adds (Nikita, 20 Nov) */}
         <div className="flex flex-wrap items-center gap-2">
           <Segmented variant="chips" aria-label="Network" value={c.network} onValueChange={pick} className="contents">
             {own.map((n) => (
@@ -115,14 +116,14 @@ export function NetworkGroup({ scene, rpcForm }: { scene: Scene; rpcForm: boolea
               </SegmentedItem>
             ))}
           </Segmented>
-          {!field && !c.rpcs.length && add("Custom")}
+          {!field && !c.rpcs.length && add("Custom RPC…")}
         </div>
         {mainnet && c.network === "Mainnet" && <SlotLine key="mainnet">Deploys with real SOL</SlotLine>}
         {(c.rpcs.length > 0 || field || removed) && (
           <div className="mt-1 flex flex-col gap-2 border-t border-border pt-2">
             {c.rpcs.length > 0 && (
               <div className="flex min-h-8 items-center justify-between gap-2">
-                <h4 className="text-[0.8125rem] leading-5 font-act text-muted-foreground">Custom RPCs</h4>
+                <h4 className="text-13 leading-5 font-act text-muted-foreground">Custom RPCs</h4>
                 {!field && add("Add")}
               </div>
             )}
@@ -161,15 +162,15 @@ export function NetworkGroup({ scene, rpcForm }: { scene: Scene; rpcForm: boolea
                             onChange={(e) => setNaming({ url: r.url, value: e.target.value })}
                             onBlur={rename}
                             onKeyDown={(e) => e.key === "Enter" && rename()}
-                            className={cn("relative mb-1 max-w-64", phone ? "h-11 text-[1rem]" : "h-7 text-[0.8125rem] [html.touch_&]:h-11")}
+                            className={cn("relative mb-1 max-w-64", phone ? "h-11 text-16" : "h-7 text-13 [html.touch_&]:h-11")}
                           />
                         ) : (
-                          <span className={cn("truncate text-[0.8125rem] leading-5 font-act", on ? "text-foreground" : "text-muted-foreground")}>{label}</span>
+                          <span className={cn("truncate text-13 leading-5 font-act", on ? "text-foreground" : "text-muted-foreground")}>{label}</span>
                         )}
                         {/* The whole address, subdomain and all, with the key hidden */}
-                        <span className="truncate font-mono text-[0.75rem] leading-4 text-muted-foreground">{maskUrl(r.url)}</span>
+                        <span className="truncate font-mono text-13 leading-4 text-muted-foreground">{maskUrl(r.url)}</span>
                       </span>
-                      {/mainnet/i.test(r.url) && on && <span className="shrink-0 text-[0.75rem] leading-4 text-warning-ink">Real SOL</span>}
+                      {/mainnet/i.test(r.url) && on && <span className="shrink-0 text-13 leading-4 text-warning-ink">Real SOL</span>}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon-sm" aria-label={`More for ${label}`} className="relative shrink-0 text-muted-foreground pointer-coarse:size-11">
@@ -211,7 +212,7 @@ export function NetworkGroup({ scene, rpcForm }: { scene: Scene; rpcForm: boolea
               </div>
             )}
             {removed && !field && (
-              <div key="removed" className="flex min-h-5 items-center gap-2 text-[0.8125rem] leading-5 font-read text-muted-foreground duration-120 animate-in fade-in-0 motion-reduce:animate-none">
+              <div key="removed" className="flex min-h-5 items-center gap-2 text-13 leading-5 font-read text-muted-foreground duration-120 animate-in fade-in-0 motion-reduce:animate-none">
                 <span className="min-w-0 truncate">{`Removed ${removed.label}`}</span>
                 <Button variant="quiet" size="xs" onClick={undo} className="shrink-0">
                   Undo
@@ -223,7 +224,7 @@ export function NetworkGroup({ scene, rpcForm }: { scene: Scene; rpcForm: boolea
       </div>
       {/* Nothing to airdrop where SOL is real */}
       {!mainnet && (
-        <Row label="Free test SOL when you run low" htmlFor="oak-airdrop">
+        <Row label="Top up devnet SOL automatically" htmlFor="oak-airdrop">
           <Switch id="oak-airdrop" checked={settings.airdrop} onCheckedChange={(v) => setSetting("airdrop", v)} />
         </Row>
       )}

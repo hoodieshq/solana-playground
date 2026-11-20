@@ -27,7 +27,7 @@ export function validUrl(v: string) {
 /** A line under a control in the one slot it has: an amber dot and muted words, an action after them */
 export function SlotLine({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="flex min-h-5 items-center gap-2 text-[0.8125rem] leading-5 font-read text-muted-foreground duration-120 animate-in fade-in-0 motion-reduce:animate-none">
+    <div className="flex min-h-5 items-center gap-2 text-13 leading-5 font-read text-muted-foreground duration-120 animate-in fade-in-0 motion-reduce:animate-none">
       <StatusDot variant="warning" />
       <span className="min-w-0">{children}</span>
       {action}
@@ -152,7 +152,7 @@ export function UrlField({
             // Blur while empty closes it, unless the focus only went to its own Use, or to a field of the form it sits in
             if (!value.trim() && !(e.currentTarget.closest("[data-url-form]") ?? e.currentTarget.closest('[data-slot="input-group"]'))?.contains(e.relatedTarget as Node)) onClose()
           }}
-          className={cn("font-mono", phone ? "text-[1rem]" : "text-[0.8125rem]")}
+          className={cn("font-mono", phone ? "text-16" : "text-13")}
         />
         <InputGroupAddon align="inline-end">
           <Button variant="soft" size="xs" disabled={!value.trim()} onClick={use} aria-label={status === "checking" ? "Checking" : undefined} className="min-w-10">

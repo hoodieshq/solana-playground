@@ -23,7 +23,10 @@ import { FOCUS } from "../ui/type"
    carry on with, a way to start something new, the path of tutorials. No banner and no picture, which
    Tutorials and Programs have: Home is told from them at a glance, and comes alive in how it arrives */
 
-const H2 = "font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground"
+// The levels by size, every heading at the headline weight 400 (the team's weights: 320, 380, 400, 440):
+// the page 40, a section 17, a card's name 15, its meta 13. At 20/500 a section stood heavier than the
+// page's title and a step from the cards' 17 (Almaz, 20 Nov)
+const H2 = "font-heading text-20 leading-6 font-headline text-foreground"
 
 /** What leads the page: the first tutorial of the path not finished yet, in the words of its own state */
 function useLead() {
@@ -84,14 +87,14 @@ function Hero({ phone }: { phone: boolean }) {
   }, [])
 
   return (
-    <section ref={box} aria-labelledby="home-title" className={cn(wide ? "pt-12 pb-1" : "pt-3")}>
+    <section ref={box} aria-labelledby="home-title" className={cn(wide ? "pt-12 pb-6" : "pt-3 pb-4")}>
       <div className="max-w-[34rem] min-w-0">
-        <h1 id="home-title" className={cn("font-heading font-normal tracking-[-0.02em] text-balance text-foreground", wide ? "text-[2.5rem] leading-[1.1]" : "text-[1.75rem] leading-[1.15]")}>
+        <h1 id="home-title" className={cn("font-heading font-normal tracking-[-0.02em] text-balance text-foreground", wide ? "text-40 leading-[1.1]" : "text-28 leading-[1.15]")}>
           {l.title}
         </h1>
         {l.state === "started" && (
           <>
-            <p className="mt-4 text-[0.9375rem] leading-[1.35] text-foreground/78">
+            <p className="mt-4 text-16 leading-[1.35] text-foreground/78">
               <span className="text-foreground">{l.name}</span>
               {` · Step ${Math.min(l.steps, l.at + 1)} of ${l.steps}`}
               <span className="mt-0.5 block text-muted-foreground">{`Next: ${l.next}`}</span>
@@ -103,9 +106,9 @@ function Hero({ phone }: { phone: boolean }) {
         )}
         {/* One line under the title, not three: the lesson's name is on the button, and its level and steps said
             little a first visit needs (Almaz, 20 Nov). Its time stays, as how long the yes costs */}
-        {l.state === "fresh" && <p className="mt-4 max-w-[44ch] text-[0.9375rem] leading-[1.4] text-muted-foreground">{l.sub}</p>}
+        {l.state === "fresh" && <p className="mt-4 max-w-[44ch] text-16 leading-[1.4] text-muted-foreground">{l.sub}</p>}
         {l.state === "done" && (
-          <p className="mt-4 flex max-w-[40ch] items-start gap-2 text-[0.9375rem] leading-[1.35] text-foreground/78">
+          <p className="mt-4 flex max-w-[40ch] items-start gap-2 text-16 leading-[1.35] text-foreground/78">
             <span aria-hidden="true" className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
               <Check strokeWidth={2.5} className="size-2.5" />
             </span>
@@ -131,7 +134,7 @@ function Hero({ phone }: { phone: boolean }) {
 }
 
 /* The play ring cut from the mark trails the words of the main Start: taken off once, the art director asked for it back (11 Nov) */
-const GO = "h-10 font-heading text-[0.9375rem] font-medium tracking-[-0.005em] pointer-coarse:h-11"
+const GO = "h-10 font-heading text-16 font-act tracking-[-0.005em] pointer-coarse:h-11"
 
 /** A way to start, in the box's foot: an icon and its words, no box of its own. A step under the field (13 to its
  * 16), so the field reads first and the ways as the alternatives (Almaz, 20 Nov) */
@@ -141,7 +144,7 @@ function Way({ icon: Icon, label, onClick }: { icon: ComponentType<{ className?:
       type="button"
       onClick={onClick}
       className={cn(
-        "group/way flex h-8 items-center gap-1.5 rounded-lg px-2 text-[0.8125rem] leading-5 whitespace-nowrap text-muted-foreground transition-colors duration-100 hover:bg-foreground/[0.06] hover:text-foreground motion-reduce:transition-none pointer-coarse:h-11 [html.phone_&]:h-11 [html.touch_&]:h-11",
+        "group/way flex h-8 items-center gap-1.5 rounded-lg px-2 text-13 leading-5 whitespace-nowrap text-muted-foreground transition-colors duration-100 hover:bg-foreground/[0.06] hover:text-foreground motion-reduce:transition-none pointer-coarse:h-11 [html.phone_&]:h-11 [html.touch_&]:h-11",
         FOCUS
       )}
     >
@@ -168,7 +171,7 @@ function useIdea(paused: boolean) {
   return i < 0 ? PROMPT : `${IDEAS[i]}…`
 }
 
-/** Start something new, as one box: tell the assistant what to build, or take one of the ready ways in
+/** Build your own, as one box: tell the assistant what to build, or take one of the ready ways in
  * its foot. The field takes text, as Claude's, ChatGPT's and Gemini's do (design lead, 20 Nov; replaces
  * 4.4, the launcher that took no text): Enter makes an Anchor project and opens it with the words sent
  * to its assistant, Shift+Enter is a new line. With the assistant off or out of messages, Enter opens
@@ -196,9 +199,10 @@ function StartBox() {
     el.style.height = `${Math.min(el.scrollHeight, 5 * 24 + 2)}px`
   }, [text])
   return (
-    <section aria-labelledby="home-start" className="flex flex-col gap-2.5">
+    // 16 from a 20px heading to what it heads; "Start something new" under "Start Hello Anchor" was an echo
+    <section aria-labelledby="home-start" className="flex flex-col gap-4">
       <h2 id="home-start" className={H2}>
-        Start something new
+        Build your own
       </h2>
       <div className="overflow-hidden rounded-panel border border-border bg-surface-raised/60 transition-colors duration-150 focus-within:border-border-strong hover:border-border-strong motion-reduce:transition-none">
         <form
@@ -226,7 +230,7 @@ function StartBox() {
             placeholder={placeholder}
             aria-label="Describe the program you want to build"
             enterKeyHint="send"
-            className="min-w-0 flex-1 resize-none bg-transparent text-[1rem] leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
+            className="min-w-0 flex-1 resize-none bg-transparent text-16 leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
           />
           <button
             type="submit"
@@ -270,12 +274,12 @@ function PathCard({ slug }: { slug: string }) {
     <li className="group/card relative flex min-w-0 flex-col gap-3 rounded-panel border border-border bg-surface-panel p-4 transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none max-sm:flex-row max-sm:items-center">
       <TutorialThumb t={t} />
       <div className="min-w-0 flex-1">
-        <h3 className="truncate font-heading text-[1.0625rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
+        <h3 className="truncate font-heading text-16 leading-5 font-headline tracking-[-0.01em] text-foreground">
           <button type="button" onClick={() => open(slug)} className={cn("rounded-sm after:absolute after:inset-0 after:rounded-panel after:content-['']", FOCUS)}>
             {name}
           </button>
         </h3>
-        <p className={cn("mt-1 flex items-center gap-1.5 text-[0.8125rem] leading-[1.125rem] tabular-nums", p.finished ? "text-foreground" : "text-muted-foreground")}>
+        <p className={cn("mt-1 flex items-center gap-1.5 text-13 leading-[1.125rem] tabular-nums", p.finished ? "text-foreground" : "text-muted-foreground")}>
           {p.finished ? (
             <>
               <span aria-hidden="true" className="size-1.5 rounded-full bg-brand-green" />
@@ -292,28 +296,51 @@ function PathCard({ slug }: { slug: string }) {
   )
 }
 
-/** The path: the three tutorials in the order they build on each other, and the door to the rest */
-function Path() {
+/** The rest of the catalog, as the row's last card where the hero's lesson stepped out */
+function AllCard() {
   const { dispatch } = useStore()
   return (
-    <section aria-labelledby="home-path" className="flex flex-col gap-2.5">
-      <div className="flex min-h-9 items-center justify-between gap-3">
+    <li className="group/card relative flex min-w-0 flex-col justify-end gap-3 rounded-panel border border-border p-4 transition-colors duration-100 hover:bg-surface-panel motion-reduce:transition-none max-sm:flex-row max-sm:items-center max-sm:justify-start">
+      <h3 className="font-heading text-16 leading-5 font-headline tracking-[-0.01em] text-foreground">
+        <button type="button" onClick={() => dispatch({ type: "open", screen: "gallery" })} className={cn("flex items-center gap-1 rounded-sm after:absolute after:inset-0 after:rounded-panel after:content-['']", FOCUS)}>
+          {`All ${CATALOG.length} tutorials`}
+          <ArrowRight aria-hidden="true" strokeWidth={1.75} className="size-3.5 text-muted-foreground transition-transform duration-150 group-hover/card:translate-x-0.5 motion-reduce:transition-none" />
+        </button>
+      </h3>
+    </li>
+  )
+}
+
+/** The path: the tutorials in the order they build on each other, and the door to the rest. The one the
+ * hero already offers isn't a card too (Almaz, 20 Nov: Hello Anchor stood on screen twice, as one
+ * action): its place goes to the catalog. Once the path is finished the hero offers nothing, so all
+ * three show, marked Done */
+function Path() {
+  const { dispatch } = useStore()
+  const featured = useFeatured()
+  const finished = useProgress(featured).finished
+  const slugs = finished ? LADDER : LADDER.filter((s) => s !== featured)
+  const short = slugs.length < LADDER.length
+  return (
+    <section aria-labelledby="home-path" className="flex flex-col gap-4">
+      <div className="flex min-h-6 items-center justify-between gap-3">
         <h2 id="home-path" className={H2}>
           Learn by building
         </h2>
-        <button
+        {!short && <button
           type="button"
           onClick={() => dispatch({ type: "open", screen: "gallery" })}
-          className={cn("group/all -mr-2 flex h-9 items-center gap-1 rounded-lg px-2 text-[0.8125rem] whitespace-nowrap text-muted-foreground tabular-nums transition-colors duration-100 hover:text-foreground motion-reduce:transition-none pointer-coarse:h-11", FOCUS)}
+          className={cn("group/all -my-1.5 -mr-2 flex h-9 items-center gap-1 rounded-lg px-2 text-13 whitespace-nowrap text-muted-foreground tabular-nums transition-colors duration-100 hover:text-foreground motion-reduce:transition-none pointer-coarse:h-11", FOCUS)}
         >
           {`All ${CATALOG.length} tutorials`}
           <ArrowRight aria-hidden="true" strokeWidth={1.75} className="size-3.5 transition-transform duration-150 group-hover/all:translate-x-0.5 motion-reduce:transition-none" />
-        </button>
+        </button>}
       </div>
       <ol className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
-        {LADDER.map((slug) => (
+        {slugs.map((slug) => (
           <PathCard key={slug} slug={slug} />
         ))}
+        {short && <AllCard />}
       </ol>
     </section>
   )

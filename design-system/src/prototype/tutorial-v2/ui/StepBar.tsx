@@ -79,7 +79,7 @@ export function StepBar({ viewing, onPick }: BarProps) {
         <DropdownMenuTrigger
           disabled={!s.started}
           className={cn(
-            "group -mx-1.5 flex h-[1.125rem] items-center gap-1.5 rounded-md px-1.5 text-[0.875rem] leading-[1.125rem] font-label outline-none hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
+            "group -mx-1.5 flex h-[1.125rem] items-center gap-1.5 rounded-md px-1.5 text-13 leading-[1.125rem] font-label outline-none hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
             FOCUS
           )}
         >
@@ -89,7 +89,7 @@ export function StepBar({ viewing, onPick }: BarProps) {
               <span aria-hidden="true" className="text-subtle">
                 ·
               </span>
-              <span className="font-medium text-foreground">{name}</span>
+              <span className="font-act text-foreground">{name}</span>
             </>
           )}
           {s.started && (

@@ -12,7 +12,7 @@ import { CheckBadge, LitPick } from "./LitPick"
 import type { FirstLightState } from "./model"
 import { ProblemCallout } from "./ProblemCallout"
 
-const GROUP_LABEL = "flex h-7 items-end gap-2 pb-1 text-xs leading-4 font-[380] text-(color:--text-quiet)"
+const GROUP_LABEL = "flex h-7 items-end gap-2 pb-1 text-13 leading-4 font-[380] text-(color:--text-quiet)"
 
 /** One example: the tile, the name it will take, its line. The framework is in the tile and the
  * radio's label. The radio is stretched under the row */
@@ -48,13 +48,13 @@ function ExampleRow({
         <span className="flex items-center gap-2">
           {/* Two steps over its line, in the catalog's face: in mono at the line's 13 the name read lighter
               than what it does (Almaz, 10 Nov) */}
-          <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-5 font-act text-foreground">{slug}</span>
+          <span className="min-w-0 flex-1 truncate text-16 leading-5 font-act text-foreground">{slug}</span>
           {picked && <CheckBadge size={16} />}
         </span>
         <span className="flex items-center gap-2">
           {/* A tone under the name as well as a size: in the same grey the two lines read as one (Almaz, 10 Nov).
               The quiet grey still holds 4.5:1 on the dialog */}
-          <span className="min-w-0 flex-1 truncate text-[0.8125rem] leading-[1.125rem] font-read text-(color:--text-quiet)">{line}</span>
+          <span className="min-w-0 flex-1 truncate text-13 leading-[1.125rem] font-read text-(color:--text-quiet)">{line}</span>
         </span>
       </span>
     </div>
@@ -121,7 +121,7 @@ export function ExamplePanel({
     ]
     return (
       <div className="flex flex-col gap-4">
-        <p className="font-mono text-[0.8125rem] leading-[1.125rem] text-foreground">{picked}</p>
+        <p className="font-mono text-13 leading-[1.125rem] text-foreground">{picked}</p>
         <ImportSteps steps={steps} />
       </div>
     )
@@ -138,7 +138,7 @@ export function ExamplePanel({
       </div>
       {none ? (
         <div className="flex flex-col items-start gap-3 pt-6">
-          <p className="text-control leading-5 font-act text-foreground">{`No examples match “${query.trim()}”`}</p>
+          <p className="text-16 leading-5 font-act text-foreground">{`No examples match “${query.trim()}”`}</p>
           <Button variant="outline" size="sm" onClick={() => onQuery("")} className="[html.phone_&]:h-12">
             Clear search
           </Button>

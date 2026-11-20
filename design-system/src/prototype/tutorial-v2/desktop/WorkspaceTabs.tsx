@@ -355,7 +355,7 @@ export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; o
               return (
                 <DropdownMenuItem key={tab} onSelect={() => dispatch({ type: "openFile", file: tab })} className="gap-2">
                   <Check aria-hidden="true" className={cn("size-3.5 shrink-0", tab === active ? "opacity-100" : "opacity-0")} />
-                  <span className="truncate font-mono text-[0.8125rem]">{tab.slice(at + 1)}</span>
+                  <span className="truncate font-mono text-13">{tab.slice(at + 1)}</span>
                   {at > 0 && <span className="ml-auto pl-3 text-caption text-muted-foreground">{tab.slice(0, at)}</span>}
                 </DropdownMenuItem>
               )
@@ -378,7 +378,7 @@ export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; o
               aria-pressed={calling}
               onClick={() => dispatch({ type: "openTest" })}
               className={cn(
-                "rounded-lg text-[0.8125rem] text-muted-foreground hover:text-foreground [&_svg]:size-4! [&_svg]:stroke-[1.5]",
+                "rounded-lg text-13 text-muted-foreground hover:text-foreground [&_svg]:size-4! [&_svg]:stroke-[1.5]",
                 calling && "bg-surface-hover text-foreground",
                 !arrived.has("test") && "animate-rise"
               )}

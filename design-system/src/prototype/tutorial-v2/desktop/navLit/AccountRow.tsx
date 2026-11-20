@@ -4,9 +4,8 @@ import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
-import type { Account } from "../../navStates"
+import { cancelSignIn, type Account } from "../../navStates"
 import { LitIcon } from "./icons"
-import { soon } from "../Catalog"
 import { Notch } from "./ItemTile"
 import { FOCUS, HOVER, Tip, useRoomy, useTablet } from "./parts"
 import type { SetupView } from "./setup"
@@ -30,7 +29,7 @@ export function AvatarDisc({ a, size = 32, notch = false }: { a: Account; size?:
         className={cn(
           "flex size-full items-center justify-center rounded-full bg-surface-raised font-act tracking-[0.02em] [&>svg]:size-[55%]",
           a.avatar ? "text-foreground" : "text-muted-foreground",
-          size < 28 ? "text-[0.625rem]" : "text-[0.75rem]"
+          size < 28 ? "text-11" : "text-13"
         )}
       >
         {a.session === "waiting" ? <Spinner className="size-4" aria-label="Signing in" /> : (a.avatar ?? <LitIcon name="profile" />)}
@@ -122,13 +121,13 @@ export function AccountRow({ account: a, chip, menu, chipWord, setup }: Props) {
                   <span
                     className={cn(
                       "min-w-0 truncate leading-5 font-act tracking-[-0.005em] text-foreground",
-                      roomy ? "text-control" : "text-[0.875rem]"
+                      roomy ? "text-16" : "text-13"
                     )}
                   >
                     {a.primary}
                   </span>
                   {/* The chip's room, drawn invisibly at its size: the chip itself is a button of its own over it */}
-                  <span aria-hidden="true" className="invisible ml-auto flex shrink-0 items-center gap-1.5 px-2 text-[0.75rem] font-act tracking-[0.01em] whitespace-nowrap">
+                  <span aria-hidden="true" className="invisible ml-auto flex shrink-0 items-center gap-1.5 px-2 text-13 font-act tracking-[0.01em] whitespace-nowrap">
                     <span className="size-1.5" />
                     {a.session === "waiting" ? "Cancel" : chipWord}
                   </span>
@@ -137,7 +136,7 @@ export function AccountRow({ account: a, chip, menu, chipWord, setup }: Props) {
                 {!alone && (
                   <span
                     className={cn(
-                      "truncate leading-4 text-[0.75rem] font-act tracking-[0.01em]",
+                      "truncate leading-4 text-13 font-act tracking-[0.01em]",
                       !calm && needsYou(a) ? "text-warning-ink" : "text-(color:--text-quiet)"
                     )}
                   >
@@ -156,8 +155,8 @@ export function AccountRow({ account: a, chip, menu, chipWord, setup }: Props) {
         {a.session === "waiting" ? (
           <button
             type="button"
-            onClick={soon}
-            className={cn("rounded-md px-1.5 text-[0.75rem] text-muted-foreground hover:bg-(--nav-hover) hover:text-foreground", FOCUS, HOVER, roomy ? "h-11" : "mt-0.5 h-6")}
+            onClick={cancelSignIn}
+            className={cn("rounded-md px-1.5 text-13 text-muted-foreground hover:bg-(--nav-hover) hover:text-foreground", FOCUS, HOVER, roomy ? "h-11" : "mt-0.5 h-6")}
           >
             Cancel
           </button>

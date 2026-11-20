@@ -207,7 +207,24 @@
  * plain @theme: the utilities then read them as variables, and a change in
  * Studio's Design tab reaches every text-* and font-* class on the page. */
 @theme {
-  /* The product's scale, one set of sizes for every screen */
+  /* The product's scale (Almaz and Nikita, 20 Nov): five sizes a step apart that the eye can tell, and a
+     sixth for tags only. 15, 16 and 17 read as one size, so they are one now. Screens take these and
+     nothing in between: no text-[…]. A size sets no line height of its own; leading-* sets it.
+       11  tags and key caps only (BETA, ⌘K), never running text
+       13  interface: controls, tabs, menus, meta, code
+       16  reading: text, names, labels
+       20  a card's or a section's heading
+       28  a page's title
+       40  the home hero */
+  --text-11: 0.6875rem;
+  --text-13: 0.8125rem;
+  --text-16: 1rem;
+  --text-20: 1.25rem;
+  --text-28: 1.75rem;
+  --text-40: 2.5rem;
+
+  /* The named sizes below sit on the scale. title and control are off it (17 and 15) and stay only for
+     tutorial v1, which is frozen: nothing new uses them */
   --text-display: 1.75rem;
   --text-display--line-height: 1.15;
   --text-display--letter-spacing: -0.02em;

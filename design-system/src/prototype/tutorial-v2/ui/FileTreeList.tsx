@@ -8,7 +8,7 @@ import { useStore } from "../store"
 
 /** One row shape for the tree, the nav's: 28px, 13px, the glyph in a 16px box */
 export const ROW =
-  "flex h-7 w-full items-center gap-2 rounded-[6px] px-2 text-left text-[0.8125rem] whitespace-nowrap outline-none transition-colors duration-100 hover:bg-surface-hover hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple motion-reduce:transition-none"
+  "flex h-7 w-full items-center gap-2 rounded-[6px] px-2 text-left text-13 whitespace-nowrap outline-none transition-colors duration-100 hover:bg-surface-hover hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple motion-reduce:transition-none"
 
 /** A file's icon, tinted by its language, as the editor's tabs tint them */
 /** File glyphs stay grey: the name says which file, colour is kept for what needs you */
@@ -59,7 +59,7 @@ export function FileTreeList({ onPick, tall = false }: { onPick: (file: string) 
           return (
             // On the phone a folder is only a label, never tapped: 36, not a file's 44, so the list doesn't
             // drift apart, and the names at the reading size so 44px rows don't hold little words
-            <div key={i} style={indent} className={cn(ROW, "cursor-default text-muted-foreground hover:bg-transparent", tall && "h-9 text-[0.9375rem]")}>
+            <div key={i} style={indent} className={cn(ROW, "cursor-default text-muted-foreground hover:bg-transparent", tall && "h-9 text-16")}>
               <span aria-hidden="true" className="flex size-3 text-muted-foreground [&>svg]:size-full">
                 <ChevronDown aria-hidden="true" strokeWidth={1.5} className="size-full" />
               </span>
@@ -84,7 +84,7 @@ export function FileTreeList({ onPick, tall = false }: { onPick: (file: string) 
             className={cn(
               ROW,
               "relative disabled:cursor-default disabled:hover:bg-transparent",
-              tall && "h-11 text-[0.9375rem]",
+              tall && "h-11 text-16",
               // The sheet is the hover grey itself, so on the phone the open file takes a fill of its own and
               // hover leaves it be: the hover grey wiped the fill, and a tap's hover sticks on a phone. A press
               // answers instead

@@ -12,19 +12,20 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 
 import { Editor } from "../../../desktop/Editor"
-import { FILES_KEYS, TERMINAL_KEYS } from "../../../desktop/keys"
+import { ASSISTANT_KEYS, FILES_KEYS, TERMINAL_KEYS } from "../../../desktop/keys"
 import { BuildLog } from "../../../ui/BuildLog"
 import { ROW } from "../../../ui/FileTreeList"
 import { AssistantMark } from "../../../ui/AssistantMark"
-import { ask, busy, edit, go, metaOf, onChain, openFile, setTerminal, usePrograms, type Project, type Turn } from "../../store"
+import { ask, balanceOf, busy, edit, go, metaOf, onChain, openFile, setTerminal, usePrograms, type Project, type Turn } from "../../store"
 import { WalletChip } from "../../../desktop/WalletChip"
-import { AskPanel } from "./AskPanel"
+import { AskPanel, AskThread } from "./AskPanel"
 import { CallPanel } from "./CallPanel"
 import { MoreMenu, ProjectName, ShortcutsDialog } from "./GuideColumn"
 import { OpeningCard } from "./Opening"
+import { PanelHide } from "./parts"
 import { FullNotice } from "./Quota"
 import { DevnetChip, LIT_CSS, ReadNotice, onReadOnlyKey, useLit } from "./Read"
-import { StageBar, StageNote, stagesOf } from "./Stages"
+import { InteractTab, StageAction, StageTrack, stagesOf } from "./Stages"
 import { baseName, changedFiles, failLive, onReveal, shortKey, statusOf } from "./util"
 
 /** The workspace docks the tree beside the editor from this width (ui-design.md, --tree-dock-min) */
@@ -80,7 +81,7 @@ function ProgramChip({ p }: { p: Project }) {
   const deploying = p.deploy.s === "running" || (p.build.s === "running" && !!p.chain)
   const dot = deploying ? "running" : chain ? "success" : p.deployFailed ? "error" : "idle"
   return (
-    <div className="flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface-panel pr-1 pl-2.5 text-[0.75rem] leading-4">
+    <div className="flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface-panel pr-1 pl-2.5 text-13 leading-4">
       <StatusDot variant={dot} />
       <span className="text-muted-foreground">Devnet</span>
       <span aria-hidden="true" className="text-subtle">
@@ -90,7 +91,7 @@ function ProgramChip({ p }: { p: Project }) {
         <>
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
-              <code tabIndex={0} className="rounded-sm font-mono text-[0.75rem] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <code tabIndex={0} className="rounded-sm font-mono text-13 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 {shortKey(chain.programId)}
               </code>
             </TooltipTrigger>
@@ -128,7 +129,7 @@ export function TreeList({ p, onPick, tall = false }: { p: Project; onPick: (fil
     <div role="tree" aria-label="Files" className="flex flex-col gap-px">
       {treeOf(tabsOf(p)).map((e) =>
         e.kind === "folder" ? (
-          <div key={e.name} className={cn("flex h-7 items-center gap-2 px-2 text-[0.8125rem] text-muted-foreground", tall && "h-11 text-[0.9375rem]")}>
+          <div key={e.name} className={cn("flex h-7 items-center gap-2 px-2 text-13 text-muted-foreground", tall && "h-11 text-16")}>
             <span className="flex size-4 [&>svg]:size-full"><Folder aria-hidden="true" strokeWidth={1.5} className="size-full" /></span>
             {e.name}
           </div>
@@ -140,7 +141,7 @@ export function TreeList({ p, onPick, tall = false }: { p: Project; onPick: (fil
             aria-selected={p.pane === "code" && p.open === e.path}
             onClick={() => onPick(e.path)}
             style={{ paddingLeft: `${8 + e.depth * 24}px` }}
-            className={cn(ROW, tall && "h-11 text-[0.9375rem]", p.pane === "code" && p.open === e.path ? "bg-surface-hover text-foreground" : "text-muted-foreground")}
+            className={cn(ROW, tall && "h-11 text-16", p.pane === "code" && p.open === e.path ? "bg-surface-hover text-foreground" : "text-muted-foreground")}
           >
             <span className="min-w-0 flex-1 truncate">{baseName(e.path)}</span>
             {changed.includes(e.path) && <StatusDot variant="warning" aria-label="Changed" />}
@@ -207,12 +208,17 @@ export function Workspace({ p }: { p: Project }) {
   const toggleFiles = () => (wide ? setDocked((d) => !d) : setPop((o) => !o))
   const filesShown = wide ? docked : pop
 
-  // ⌘E: the tree, docked or as the popover
+  // ⌘⇧E: the tree, docked or as the popover. ⌘L: the assistant. ⌘J is the terminal's own
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "e") {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return
+      const k = e.key.toLowerCase()
+      if (k === "e" && e.shiftKey) {
         e.preventDefault()
         toggleFiles()
+      } else if (k === "l" && !e.shiftKey) {
+        e.preventDefault()
+        setAsk(!asking)
       }
     }
     window.addEventListener("keydown", onKey)
@@ -240,7 +246,7 @@ export function Workspace({ p }: { p: Project }) {
   const active = p.pane === "code" ? p.open : null
   const file = p.open
   const status = statusOf(p)
-  const funded = usePrograms((x) => x.funded)
+  const sol = usePrograms(balanceOf)
   const err = errorIn(p, file)
   const lit = useLit(file)
   const meta = metaOf(p)
@@ -271,6 +277,24 @@ export function Workspace({ p }: { p: Project }) {
     </PopoverContent>
   )
 
+  // No code yet (Home's Build your own): the talk alone, at a reading measure in the middle. No files, stages,
+  // terminal or tools until the assistant has written something
+  if (p.draft)
+    return (
+      <section ref={box} aria-label="New program" className="flex min-w-0 flex-1 flex-col bg-surface-base">
+        <div className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-1.5">
+          <Button variant="ghost" size="sm" aria-label="Programs" className="shrink-0 gap-0.5 pl-1.5 text-muted-foreground" onClick={() => go({ at: "catalog" })}>
+            <ChevronLeft className="size-4" />
+            Programs
+          </Button>
+          <span className="ml-1 min-w-0 truncate text-13 text-foreground">{p.name}</span>
+        </div>
+        <div className="mx-auto flex min-h-0 w-full max-w-[40rem] flex-1 flex-col">
+          <AskThread p={p} />
+        </div>
+      </section>
+    )
+
   return (
     <section ref={box} aria-label="Project" className="flex min-w-0 flex-1 flex-col bg-surface-base">
       <div className="@container/bar flex h-11 shrink-0 items-center gap-1 border-b border-border px-1.5">
@@ -279,12 +303,12 @@ export function Workspace({ p }: { p: Project }) {
           <ChevronLeft className="size-4" />
           <span className="@max-[1100px]/bar:hidden">Programs</span>
         </Button>
-        <ProjectName p={p} className="ml-1 min-w-0 shrink truncate text-[0.875rem] text-foreground" />
+        <ProjectName p={p} className="ml-1 min-w-0 shrink truncate text-13 text-foreground" />
         {/* Opened from the catalog and not saved: it isn't in your projects until you build or change it */}
         {p.example && !p.read && !p.opening && (
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
-              <span tabIndex={0} className="ml-1 shrink-0 rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-[0.75rem] leading-4 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring @max-[1100px]/bar:hidden">
+              <span tabIndex={0} className="ml-1 shrink-0 rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-13 leading-4 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring @max-[1100px]/bar:hidden">
                 Example
               </span>
             </TooltipTrigger>
@@ -293,13 +317,11 @@ export function Workspace({ p }: { p: Project }) {
             </TooltipContent>
           </Tooltip>
         )}
-        {!p.opening && (
+        {!p.opening && stagesOf(p).length > 1 && (
           <>
             {/* The bar's rules are one rule: 20 high, with 14 to the words on each side */}
             <span aria-hidden="true" className="ml-2.5 h-5 w-px shrink-0 bg-border" />
-            <StageBar p={p} />
-            {/* With one stage there is no path, so the rule before it is the note's own: a second one doubled it */}
-            <StageNote p={p} className={cn("h-5 leading-5 @max-[1150px]/bar:hidden", stagesOf(p).length > 1 ? "border-l border-border pl-3.5" : "pl-2.5")} />
+            <StageTrack p={p} className="ml-3.5 w-52 shrink" />
           </>
         )}
         <span className="min-w-2 flex-1" />
@@ -315,11 +337,12 @@ export function Workspace({ p }: { p: Project }) {
             <ProgramChip p={p} />
           </span>
         )}
+        {!p.opening && <StageAction p={p} className="ml-1.5" />}
         {/* A gap, not a rule: the chip's own outline already ends the group before the tools (Almaz, 18 Nov) */}
         <span aria-hidden="true" className="w-1 shrink-0" />
         <Tool label="Files" keys={FILES_KEYS} icon={<span className="flex size-[18px] [&>svg]:size-full"><Folder aria-hidden="true" strokeWidth={1.5} className="size-full" /></span>} pressed={filesShown} onClick={toggleFiles} />
         <Tool label="Terminal" keys={TERMINAL_KEYS} icon={<Terminal />} pressed={p.terminal} onClick={() => setTerminal(id, !p.terminal)} />
-        <Tool label="Assistant" icon={<AssistantMark strokeWidth={1.5} />} pressed={asking} onClick={() => setAsk(!asking)} />
+        <Tool label="Assistant" keys={ASSISTANT_KEYS} icon={<AssistantMark strokeWidth={1.5} />} pressed={asking} onClick={() => setAsk(!asking)} />
         {/* 32 here, as the three tools beside it: the menu's own 28 is the phone head's */}
         <span className="flex shrink-0 [&>button]:size-8 [&>button]:rounded-lg [&>button_svg]:size-[18px]!">
           <MoreMenu p={p} onKeys={() => setKeys(true)} />
@@ -327,8 +350,15 @@ export function Workspace({ p }: { p: Project }) {
       </div>
       <div className="relative flex min-h-0 flex-1">
         {wide && docked && !p.opening && (
-          <nav aria-label="Files" className="w-[220px] shrink-0 overflow-y-auto border-r border-border bg-surface-base p-1.5">
-            <TreeList p={p} onPick={pick} />
+          <nav aria-label="Files" className="flex w-[220px] shrink-0 flex-col border-r border-border bg-surface-base">
+            {/* A head as the editor's tabs and the assistant have, level with them: the name and Hide */}
+            <div className="flex h-10 shrink-0 items-center border-b border-border pr-1.5 pl-3.5">
+              <h2 className="flex-1 text-13 font-act text-foreground">Files</h2>
+              <PanelHide what="files" keys={FILES_KEYS} onClick={toggleFiles} />
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+              <TreeList p={p} onPick={pick} />
+            </div>
           </nav>
         )}
         <div className="flex min-w-0 flex-1 flex-col">
@@ -368,6 +398,7 @@ export function Workspace({ p }: { p: Project }) {
                 </PopoverAnchor>
                 {tree}
               </Popover>
+              <InteractTab p={p} className="border-l border-border" />
             </div>
           )}
           <div className="flex min-h-0 flex-1">
@@ -404,7 +435,9 @@ export function Workspace({ p }: { p: Project }) {
             )}
           </div>
           <ConsoleDrawer open={p.terminal} onOpenChange={(open) => setTerminal(id, open)}>
-            <ConsoleDrawerBar>
+            {/* The strip keeps its status and still opens on a click; its chevron gives way to the same Hide the
+                other panels have, there while it's open */}
+            <ConsoleDrawerBar className="[&>[data-slot=console-drawer-trigger]]:hidden">
               <ConsoleDrawerStatus className="flex-1">
                 <StatusDot variant={status.dot} />
                 <span className="truncate">{status.text}</span>
@@ -415,7 +448,8 @@ export function Workspace({ p }: { p: Project }) {
                   </Button>
                 )}
               </ConsoleDrawerStatus>
-              <WalletChip sol={funded ? 3.73 : 0} />
+              <WalletChip sol={sol} />
+              {p.terminal && <PanelHide what="the terminal" keys={TERMINAL_KEYS} onClick={() => setTerminal(id, false)} className="-mr-1 size-6" />}
             </ConsoleDrawerBar>
             <ConsoleDrawerContent style={{ height: p.terminal ? 240 : 0 }} className="relative overscroll-contain">
               <div className="flex min-h-full flex-col">

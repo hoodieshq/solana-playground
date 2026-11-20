@@ -63,7 +63,7 @@ export function SourceRows({ env, into, busy, onOpen }: { env: Env; into: boolea
               {r.notch && <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-warning shadow-[0_0_0_2px_var(--surface-base)]" />}
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="text-base leading-5 font-act text-foreground">{r.label}</span>
+              <span className="text-16 leading-5 font-act text-foreground">{r.label}</span>
             </span>
             <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-(color:--text-quiet)" />
           </button>
@@ -87,7 +87,7 @@ export function SourceTabs({ value, env, into, busy, onPointerPick }: { value: S
             disabled={busy && !current}
             onPointerUp={() => onPointerPick(r.value)}
             className={cn(
-              "group/row flex h-8 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm leading-5 font-act outline-none transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none [html.touch_&]:h-10",
+              "group/row flex h-8 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-13 leading-5 font-act outline-none transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none [html.touch_&]:h-10",
               current ? "bg-foreground/[0.11] text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >

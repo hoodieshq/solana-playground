@@ -36,12 +36,12 @@ function Row({ value, icon, label, meta, warn, words = [], onSelect }: { value: 
       value={value}
       keywords={[label, value.split(" ")[0], ...words]}
       onSelect={onSelect}
-      className="group/row flex h-9 cursor-default items-center gap-3 rounded-lg px-3 text-[0.875rem] text-foreground/85 data-[selected=true]:bg-surface-raised data-[selected=true]:text-foreground"
+      className="group/row flex h-9 cursor-default items-center gap-3 rounded-lg px-3 text-13 text-foreground/85 data-[selected=true]:bg-surface-raised data-[selected=true]:text-foreground"
     >
       <LitIcon name={icon} className="size-4 shrink-0 text-muted-foreground group-data-[selected=true]/row:text-foreground" />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {meta && (
-        <span className={cn("shrink-0 text-[0.75rem] font-label group-data-[selected=true]/row:hidden", warn ? "text-warning-ink" : "text-(color:--text-quiet)")}>{meta}</span>
+        <span className={cn("shrink-0 text-13 font-label group-data-[selected=true]/row:hidden", warn ? "text-warning-ink" : "text-(color:--text-quiet)")}>{meta}</span>
       )}
       <CornerDownLeft aria-hidden="true" className="hidden size-3.5 shrink-0 text-muted-foreground group-data-[selected=true]/row:block" />
     </Command.Item>
@@ -49,7 +49,7 @@ function Row({ value, icon, label, meta, warn, words = [], onSelect }: { value: 
 }
 
 const HEADING =
-  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1.5 [&_[cmdk-group-heading]]:text-[0.75rem] [&_[cmdk-group-heading]]:leading-4 [&_[cmdk-group-heading]]:font-act [&_[cmdk-group-heading]]:text-(color:--text-quiet)"
+  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1.5 [&_[cmdk-group-heading]]:text-13 [&_[cmdk-group-heading]]:leading-4 [&_[cmdk-group-heading]]:font-act [&_[cmdk-group-heading]]:text-(color:--text-quiet)"
 
 /** Search, from the nav's Search row or ⌘K anywhere: one field over everything a learner has and can
  * open (lessons, projects, the tutorials, the programs) and the few actions the nav offers. Empty, it
@@ -149,7 +149,7 @@ export function SearchDialog({ open, onOpenChange, lessons, projects, onTutorial
                 value={query}
                 onValueChange={setQuery}
                 placeholder="Search lessons, projects, tutorials and programs"
-                className="h-7 min-w-0 flex-1 bg-transparent text-[0.9375rem] text-foreground outline-none placeholder:text-(color:--text-quiet)"
+                className="h-7 min-w-0 flex-1 bg-transparent text-16 text-foreground outline-none placeholder:text-(color:--text-quiet)"
               />
               <DialogPrimitive.Close
                 aria-label="Close search"
@@ -160,13 +160,13 @@ export function SearchDialog({ open, onOpenChange, lessons, projects, onTutorial
             </div>
 
             <Command.List className={cn("max-h-[min(26rem,52vh)] scroll-py-2 overflow-y-auto px-1.5 pb-2", HEADING)}>
-              <Command.Empty className="px-3 py-10 text-center text-[0.8125rem] text-muted-foreground">
+              <Command.Empty className="px-3 py-10 text-center text-13 text-muted-foreground">
                 Nothing matches “{query.trim()}”
               </Command.Empty>
               {groups.map((g) => g.rows.length > 0 && <Command.Group key={g.heading} heading={g.heading}>{g.rows}</Command.Group>)}
             </Command.List>
 
-            <div className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-[0.75rem] font-label text-muted-foreground">
+            <div className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-13 font-label text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 Open <Kbd>↵</Kbd>
               </span>
