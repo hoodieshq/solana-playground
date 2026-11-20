@@ -238,6 +238,49 @@ export const readWith =
   };
 
 /**
+ * The page load's read under the key-origin provider: the key page may take
+ * up to `KEY_PAGE_LOAD_TIMEOUT_MS` and more to answer, and the app's first
+ * render waits for every global's init, so the wallet starts `loading` and
+ * takes the read once it lands. A failure reads `unavailable`, as `readWith`
+ * does for a key page it cannot reach.
+ *
+ * @param take what to do with the wallet once it is read
+ * @returns for the read, the wallet to start from
+ */
+export const loadingUntil =
+  (take: (wallet: WalletState) => void) =>
+  (reading: Promise<WalletState>): WalletState => {
+    reading.then(take, (error: unknown) => {
+      keyOriginLog.error(error, {
+        report: true,
+        context: { what: "read the wallet in the background failed" },
+      });
+      take({ ...defaultState, state: "unavailable" });
+    });
+    return { ...defaultState, state: "loading" };
+  };
+
+/**
+ * Take the wallet the page load's read found, unless a read the user started
+ * since (`connect`, Try again) already answered. The state goes last, so
+ * nothing derives a connected wallet from the accounts before they are set.
+ *
+ * @param wallet the wallet read
+ */
+const takeLoaded = (wallet: WalletState) => {
+  if (PgWallet.state !== "loading") return;
+  PgWallet.update({
+    accounts: wallet.accounts,
+    currentIndex: wallet.currentIndex,
+    standardName: wallet.standardName,
+    state: wallet.state,
+  });
+};
+
+/** Whether the next read is the page load's, which `loadingUntil` runs */
+let isPageLoadRead = true;
+
+/**
  * The wallet as read under the local provider: a record with an account whose
  * key is not in it reads `unavailable`. That is a build that lost the
  * key-origin variable after the keys moved out; the keys are still in the key
@@ -266,8 +309,11 @@ const writeWallet = async (
     "accounts" | "currentIndex" | "state" | "standardName"
   >
 ): Promise<WriteOutcome | undefined> => {
-  // Saving it would replace the stored wallet that could not be read
-  if (wallet.state === "unavailable") return undefined;
+  // Saving it would replace the stored wallet that could not be read, or
+  // that is still being read
+  if (wallet.state === "unavailable" || wallet.state === "loading") {
+    return undefined;
+  }
 
   // Don't use spread operator(...) because of the extra state
   const serializedState: SerializedWalletState = {
@@ -300,9 +346,13 @@ const storage = {
         moveKeysWith(await keyPage())(record, others),
       keep: async (text) => keepTextWith(await keyPage())(text),
     };
-    return readWith(keyOrigin)(keyPage)(() =>
+    const reading = readWith(keyOrigin)(keyPage)(() =>
       storage.readStored(walletStorage().readMovingKeys(move))
     );
+    // A later read is the user's (`connect`, Try again), and waits
+    if (!isPageLoadRead) return reading;
+    isPageLoadRead = false;
+    return Promise.resolve(loadingUntil(takeLoaded)(reading));
   },
 
   /**
@@ -372,6 +422,7 @@ const derive = () => ({
         case "disconnected":
         case "setup":
         case "unavailable":
+        case "loading":
           return null;
       }
     },
@@ -535,13 +586,19 @@ const reportKeyFailure =
   };
 
 /**
- * Refuse a new account while the wallet is unavailable: it is never saved
- * then, so the account would live only in memory and be lost on reload
+ * Refuse a new account while the wallet is unavailable or loading: it is
+ * never saved then, so the account would live only in memory and be lost on
+ * reload, and a loading wallet may already hold accounts
  */
 const refuseWhileUnavailable = () => {
   if (PgWallet.state === "unavailable") {
     throw new Error(
       "Wallet unavailable: it could not be read, so no account can be added. Run connect to try again."
+    );
+  }
+  if (PgWallet.state === "loading") {
+    throw new Error(
+      "Wallet still loading: no account can be added until it is read. Try again in a moment."
     );
   }
 };
