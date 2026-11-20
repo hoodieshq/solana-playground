@@ -67,6 +67,8 @@ export type PlaygroundWallet = {
    * Sign a transaction's serialized message, of any version: the signature
    * goes over the message bytes, as Kit's signers sign. A v1 transaction,
    * which web3.js cannot read, is signed this way (`signRequestWith`).
+   * It signs whatever it is given: a caller reads the bytes as a transaction
+   * message first, as `signRequestWith` does.
    *
    * @param bytes the transaction's message bytes
    * @returns the account's signature of them

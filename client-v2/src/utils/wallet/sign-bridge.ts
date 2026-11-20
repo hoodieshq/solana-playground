@@ -83,6 +83,9 @@ export const signRequestWith =
 
         if (compiled.version === 1) {
           if (!wallet.isPg) {
+            // TODO: a Wallet Standard wallet that lists v1 among its
+            // `supportedTransactionVersions` could sign it; the adapter takes
+            // web3.js transactions only, so it is refused for now
             return { error: `${wallet.name} cannot sign a v1 transaction` };
           }
           signature = await wallet.signTransactionBytes(request.bytes);
