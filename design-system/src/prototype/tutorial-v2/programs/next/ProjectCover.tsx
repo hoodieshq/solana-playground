@@ -54,17 +54,18 @@ const ART: Record<Framework | "account" | "tutorial", string[]> = {
     "....###.....",
     "............",
   ],
-  // A quasar seen edge on: the bright core, the disk round it, a jet out of each pole
+  // A quasar: the bright core, its disk seen edge on to each side, a jet out of each pole. Drawn as a
+  // closed oval with the core inside, it read as an eye (Almaz, 23 Nov)
   quasar: [
     ".....##.....",
     ".....##.....",
     ".....##.....",
-    "...######...",
-    ".##......##.",
-    "#....##....#",
-    "#....##....#",
-    ".##......##.",
-    "...######...",
+    "............",
+    "....####....",
+    "###.####.###",
+    "###.####.###",
+    "....####....",
+    "............",
     ".....##.....",
     ".....##.....",
     ".....##.....",
