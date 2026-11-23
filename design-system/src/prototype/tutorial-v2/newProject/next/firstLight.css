@@ -4,8 +4,9 @@
 :root {
   /* A small dialog in one column (Almaz, 10 Nov): the sources across its top, where the rail down its
      left made it 880 wide for four short words. Example's fourth row sits half in the fade at this height,
-     so the list reads as one to scroll */
-  --np-width: 40rem;
+     so the list reads as one to scroll. 44 since Pinocchio and Quasar made the starters three across (23 Nov):
+     at 40 a card's two lines held 23 characters */
+  --np-width: 44rem;
   --np-body: 22.5rem;
   --np-hover: color-mix(in srgb, var(--foreground) 4%, transparent);
   --np-current: color-mix(in srgb, var(--foreground) 8%, transparent);

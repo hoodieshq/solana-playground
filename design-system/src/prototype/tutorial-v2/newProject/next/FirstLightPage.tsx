@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils"
 import "../../desktop/navLit/navLit.css"
 import { useStore } from "../../store"
 import type { NextStateId } from "../design"
-import { FRAMEWORKS, type FrameworkId } from "./data"
+import { FRAMEWORKS, frameworkOf, type FrameworkId } from "./data"
 import { hasStorageLine, StorageLine } from "./FirstLight"
-import { FrameworkCard, TutorialCard } from "./FrameworkCard"
+import { FrameworkCard, TutorialCard, VersionPick } from "./FrameworkCard"
 import "./firstLight.css"
 import type { Source } from "./model"
 import type { Preset } from "./open"
@@ -170,9 +170,10 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                       {FRAMEWORKS.map((x) => (
                         <FrameworkCard key={x.id} f={x} picked={x.id === s.framework} dim={creating && x.id !== s.framework} compact={!tablet} />
                       ))}
-                      {/* The tablet's grid has a fourth cell; the phone's list keeps the row at its foot */}
+                      {/* The tablet's grid has a sixth cell; the phone's list keeps the row at its foot */}
                       {tablet && !s.into && <TutorialCard disabled={busy} onOpen={toTutorials} />}
                     </RadioGroup.Root>
+                    <VersionPick f={frameworkOf(s.framework)} value={s.version} onPick={(version) => dispatch({ type: "version", version })} disabled={busy} phone />
                     <h2 className={LABEL}>Or start from</h2>
                     <SourceRows env={env} into={!!s.into} busy={busy} onOpen={(v) => push(v as Sub)} />
                     {/* A step off the sources, not a section's gap: at 24 it hung apart from them (Almaz, 10 Nov) */}

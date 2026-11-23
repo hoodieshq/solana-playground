@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import { PRIMARY_KEYS } from "../../../desktop/keys"
 import { StepRing } from "../../../ui/StepRing"
 import { readPath } from "../../read"
-import { behind, build, busy, call, deploy, firstIx, metaOf, onChain, refCall, retryDeploy, runClient, setPane, setTerminal, stale, steps, type Project, type StepState } from "../../store"
+import { behind, build, busy, call, deploy, firstIx, metaOf, onChain, refCall, retryDeploy, runClient, runsClient, setPane, setTerminal, stale, steps, type Project, type StepState } from "../../store"
 import { deployingText, lastResult } from "./util"
 
 /* The project's loop in the bar: Write, Build, Deploy, Interact (the client, 17 Nov: a mid or senior
@@ -72,7 +72,7 @@ export function stagesOf(p: Project): Stage[] {
   const b = { ...b0, state: b0.state === "done" && (stale(p) || behind(p)) ? ("stale" as const) : b0.state }
   const built = p.build.s === "ok" && !stale(p)
   // A native starter has no IDL: its client.ts run is the call
-  const runs = p.framework === "native" && !p.idl
+  const runs = runsClient(p.framework) && !p.idl
   return [
     code,
     { id: "build", label: "Build", state: b.state, tip: b.state === "failed" ? "The build failed. Build again" : b.state === "stale" ? "The code changed since the last build" : "Build", keys: BUILD_KEYS, run: () => build(id) },

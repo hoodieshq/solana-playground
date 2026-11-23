@@ -39,6 +39,36 @@ const ART: Record<Framework | "account" | "tutorial", string[]> = {
     "....#..#....",
     "............",
   ],
+  // Pinocchio in outline, as the anchor and the crab are: the cap leaning back, one eye, the long nose
+  pinocchio: [
+    "#...........",
+    ".##.........",
+    "..###.......",
+    "..#..##.....",
+    ".########...",
+    "..#.....#...",
+    "..#..#..#...",
+    "..#.....####",
+    "..#.....#...",
+    "...#...#....",
+    "....###.....",
+    "............",
+  ],
+  // A quasar seen edge on: the bright core, the disk round it, a jet out of each pole
+  quasar: [
+    ".....##.....",
+    ".....##.....",
+    ".....##.....",
+    "...######...",
+    ".##......##.",
+    "#....##....#",
+    "#....##....#",
+    ".##......##.",
+    "...######...",
+    ".....##.....",
+    ".....##.....",
+    ".....##.....",
+  ],
   // TS: the S with its corners cut, so it isn't a 5
   "ts-client": [
     "............",
@@ -49,20 +79,21 @@ const ART: Record<Framework | "account" | "tutorial", string[]> = {
     "..#....###..",
     "..#.......#.",
     "..#.......#.",
+    "..#.......#.",
     "..#...####..",
     "............",
     "............",
-    "............",
   ],
-  // An open book: New project's way to the tutorials
+  // An open book: New project's way to the tutorials. Empty pages: a dot on each read as an animal's
+  // eyes, lines of text as letters (Almaz, 23 Nov)
   tutorial: [
     "............",
     "............",
     ".####..####.",
     ".#...##...#.",
-    ".#.#.##.#.#.",
     ".#...##...#.",
-    ".#.#.##.#.#.",
+    ".#...##...#.",
+    ".#...##...#.",
     ".#...##...#.",
     ".####..####.",
     ".....##.....",

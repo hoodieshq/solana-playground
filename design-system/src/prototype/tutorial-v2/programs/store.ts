@@ -13,7 +13,10 @@ import { markBuilt } from "../desktop/navLit/firstBuild"
    can open a project without sharing a React tree. The shape follows ux-architecture.md section 5,
    with the Guide's feed as a list of turns, as a lesson's chat is (CONSENSUS.md, row 2) */
 
-export type Framework = "anchor" | "native" | "ts-client"
+export type Framework = "anchor" | "native" | "pinocchio" | "quasar" | "ts-client"
+/** A program the build server makes no IDL for and whose client.ts run is its call: Native, and the two
+ * frameworks solpg added in October (Pinocchio, Quasar) */
+export const runsClient = (f: Framework) => f === "native" || f === "pinocchio" || f === "quasar"
 export type Source = "starter" | "example" | "import" | "describe"
 
 /** The live card's action: build mode's steps, or read mode's stops (Call on devnet is "call" in both) */
@@ -325,7 +328,7 @@ export function liveAction(p: Project): Act | null {
   if (!chain) return p.build.s === "ok" && p.build.src === src ? "deploy" : "build"
   if (chain.src !== src) return "upgrade"
   // A native starter's client.ts run is its call: once it ran this code, nothing more is asked
-  if (!p.idl) return p.framework === "native" && p.ranSrc === src ? null : "no-idl"
+  if (!p.idl) return runsClient(p.framework) && p.ranSrc === src ? null : "no-idl"
   if (p.lastCallOkAt <= chain.at) return "call"
   return null
 }
@@ -372,7 +375,7 @@ export function steps(p: Project): { id: StepId; label: string; state: StepState
     p.deploy.s === "running" || (p.build.s === "running" && !!chain) ? "running" : p.deployFailed && !chain ? "failed" : chain ? (behind(p) ? "stale" : "done") : live === "deploy" ? "current" : "pending"
   // A native starter has no IDL: its client.ts run is the call (liveAction asks nothing more once it ran
   // this code), so the strip names it so and fills it, or the journey ended on an empty third segment
-  const runs = p.framework === "native" && !p.idl
+  const runs = runsClient(p.framework) && !p.idl
   const callState: StepState = p.calling
     ? "running"
     : runs
@@ -548,7 +551,7 @@ function buildLog(p: Project, ok: boolean) {
         `$ build`,
         `   Compiling ${crate} v1.0.0 (/src)`,
         `    Finished release [optimized] target(s)`,
-        p.framework === "native" || p.idl ? "Build successful" : "Build successful. No IDL: the build server doesn't make one yet",
+        runsClient(p.framework) || p.idl ? "Build successful" : "Build successful. No IDL: the build server doesn't make one yet",
       ]
     : [`$ build`, `   Compiling ${crate} v1.0.0 (/src)`]
 }
@@ -694,6 +697,8 @@ function callLog(p: Project, programId: string, ix: string, args: Record<string,
   return [...head, ...(anchor ? [`Program log: Instruction: ${pascal(ix)}`] : []), ...said, `Program ${programId} consumed ${anchor ? 4518 : 137} of 200000 compute units`, `Program ${programId} success`]
 }
 
+const WORD: Record<Framework, string> = { anchor: "Anchor", native: "Native", pinocchio: "Pinocchio", quasar: "Quasar", "ts-client": "TypeScript" }
+
 /** The msg! lines a call runs: inside the instruction's own fn in Anchor, every one in a native program */
 function msgsOf(p: Project, ix: string): string[] {
   const out: string[] = []
@@ -712,7 +717,7 @@ function msgsOf(p: Project, ix: string): string[] {
       }
       body = code.slice(open, end)
     }
-    for (const m of body.matchAll(/msg!\(\s*"((?:[^"\\]|\\.)*)"/g)) out.push(m[1])
+    for (const m of body.matchAll(/(?:msg|log)!\(\s*"((?:[^"\\]|\\.)*)"/g)) out.push(m[1])
   }
   return out
 }
@@ -843,7 +848,7 @@ export function runClient(id: string, opts: { instant?: boolean } = {}) {
       const log = q.framework !== "ts-client" && chain ? programLogOf(q, chain.programId) : [`My address: ${WALLET_KEY}`, `My balance: ${Number(balanceOf(state).toFixed(4))} SOL`, `Memo program says: "gm from Playground"`]
       const done = post({ ...q, calling: null, ranSrc: hashFiles(q.files), doneAt: q.doneAt ?? Date.now(), log: [...q.log, ...log] }, { k: "run-ok", log, took: CALL_MS })
       // A deployed native starter's first run is its first call: it ends the journey as a call does
-      return q.framework === "native" && !q.doneAt && onChain(q) ? post(done, { k: "milestone" }) : done
+      return runsClient(q.framework) && !q.doneAt && onChain(q) ? post(done, { k: "milestone" }) : done
     })
   if (opts.instant) finish()
   else later(CALL_MS, finish)
@@ -1030,7 +1035,7 @@ function nextStep(p: Project): string {
     case "call":
       return `Next is Call \`${ix ?? "the program"}\`: it sends that instruction to your program on devnet.`
     case "no-idl":
-      if (p.framework !== "native")
+      if (!runsClient(p.framework))
         return "Next is the IDL: the call form is built from it, and Playground's build server doesn't make one yet. Build the IDL locally, then upload it."
       return "Next is Run client.ts: it calls your program on devnet and prints what comes back."
     case "run":
@@ -1102,7 +1107,7 @@ function writeDraft(p: Project, idea: IdeaId | null, option: 0 | 1): Project {
       : {
           files: starter.files,
           ixs: starter.ixs,
-          said: anchor ? "It's the Anchor starter: `initialize` stores a number in a new account." : `I can only write Anchor programs so far, so this is the ${p.framework === "native" ? "Native" : "TypeScript"} starter to change.`,
+          said: anchor ? "It's the Anchor starter: `initialize` stores a number in a new account." : `I can only write Anchor programs so far, so this is the ${WORD[p.framework]} starter to change.`,
         }
   const name = p.draft?.named ? p.name : unusedName(idea && anchor ? idea : `${p.framework === "ts-client" ? "client" : p.framework}-project`)
   const files = made.files

@@ -1,4 +1,5 @@
 import type { Ix } from "./data"
+import type { Framework } from "./store"
 
 /* The starters New project makes, as the shell needs them: files, the file that opens first, and the
    instructions their IDL lists. Short versions of the product's templates */
@@ -61,6 +62,58 @@ const sig = await web3.sendAndConfirmTransaction(pg.connection, new web3.Transac
 console.log(\`https://explorer.solana.com/tx/\${sig}?cluster=devnet\`);
 `
 
+// solpg's templates as they are (server/templates/pinocchio-0.11.2 and quasar-0.2.0-git.863ee77)
+const pinocchio = `#![no_std]
+
+use pinocchio::{entrypoint, AccountView, Address, ProgramResult};
+use pinocchio_log::log;
+
+entrypoint!(process_instruction);
+
+// Prefix parameters with \`_\` to indicate they're not being used and suppress Rust warnings
+pub fn process_instruction(
+    _program_id: &Address,
+    _accounts: &mut [AccountView],
+    _instruction_data: &[u8],
+) -> ProgramResult {
+    log!("Hello, World!");
+    Ok(())
+}
+`
+
+const quasar = `#![no_std]
+
+use quasar_lang::prelude::*;
+
+declare_id!("11111111111111111111111111111111");
+
+#[program]
+mod my_program {
+    use super::*;
+
+    #[instruction(0)]
+    pub fn noop(_ctx: Ctx<Noop>) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct Noop {
+    pub signer: Signer,
+}
+`
+
+// Quasar reads the instruction from its first byte: 0 is noop, which wants the signer
+const quasarClient = `// Calls noop, instruction 0, with your wallet as the signer
+const ix = new web3.TransactionInstruction({
+  keys: [{ pubkey: pg.wallet.publicKey, isSigner: true, isWritable: false }],
+  programId: pg.PROGRAM_ID,
+  data: Buffer.from([0]),
+});
+const sig = await web3.sendAndConfirmTransaction(pg.connection, new web3.Transaction().add(ix), [pg.wallet.keypair]);
+console.log(\`https://explorer.solana.com/tx/\${sig}?cluster=devnet\`);
+`
+
 const client = `// Sends a memo to the Memo program on devnet and reads the log back
 import { Connection, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
 
@@ -80,7 +133,7 @@ await connection.sendTransaction(new Transaction().add(ix), [pg.wallet.keypair])
 console.log('Memo program says: "gm from Playground"');
 `
 
-export const STARTERS: Record<"anchor" | "native" | "ts-client", Starter> = {
+export const STARTERS: Record<Framework, Starter> = {
   anchor: {
     files: { "src/lib.rs": anchor, "client/client.ts": nativeClient },
     main: "src/lib.rs",
@@ -88,6 +141,16 @@ export const STARTERS: Record<"anchor" | "native" | "ts-client", Starter> = {
   },
   native: {
     files: { "src/lib.rs": native, "client/client.ts": nativeClient },
+    main: "src/lib.rs",
+    ixs: [],
+  },
+  pinocchio: {
+    files: { "src/lib.rs": pinocchio, "client/client.ts": nativeClient },
+    main: "src/lib.rs",
+    ixs: [],
+  },
+  quasar: {
+    files: { "src/lib.rs": quasar, "client/client.ts": quasarClient },
     main: "src/lib.rs",
     ixs: [],
   },

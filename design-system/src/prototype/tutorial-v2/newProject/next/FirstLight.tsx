@@ -14,8 +14,8 @@ import { cn } from "@/lib/utils"
 import "../../desktop/navLit/navLit.css"
 import { useStore } from "../../store"
 import type { NextStateId } from "../design"
-import { FRAMEWORKS, type FrameworkId } from "./data"
-import { FrameworkCard, TutorialCard } from "./FrameworkCard"
+import { FRAMEWORKS, frameworkOf, type FrameworkId } from "./data"
+import { FrameworkCard, TutorialCard, VersionPick } from "./FrameworkCard"
 import "./firstLight.css"
 import type { Env, Source } from "./model"
 import type { Preset } from "./open"
@@ -133,8 +133,8 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
             {/* 12 to the sides, so a list row's hover can reach past the column's edge without being clipped */}
             <div ref={scrollRef} className="fade-edges -mx-3 -my-1 min-h-0 flex-1 overflow-y-auto px-3 py-1 [--fade-size:24px] [scrollbar-width:none]">
               <Tabs.Content value={s.source} className={cn("animate-menu-in outline-none", (s.source === "starter" || s.source === "describe") && "h-full")}>
-                {/* The four cards share the body's height, so the taller body leaves no band under them. The
-                    fourth is the tutorials' way in, so the foot's link to them isn't shown beside it */}
+                {/* The six cards share the body's height, three across, so the taller body leaves no band under
+                    them. The sixth is the tutorials' way in, so the foot's link to them isn't shown beside it */}
                 {s.source === "starter" && (
                   <RadioGroup.Root
                     aria-label="Framework"
@@ -142,7 +142,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
                     onValueChange={(v) => dispatch({ type: "framework", framework: v as FrameworkId })}
                     onKeyDown={enterCreates}
                     disabled={busy}
-                    className="grid h-full grid-cols-2 grid-rows-2 gap-2.5"
+                    className="grid h-full grid-cols-3 grid-rows-2 gap-2.5"
                   >
                     {FRAMEWORKS.map((x) => (
                       <FrameworkCard key={x.id} f={x} picked={x.id === s.framework} dim={creating && x.id !== s.framework} />
@@ -177,7 +177,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
               </button>
             </p>
           ) : s.source === "starter" ? (
-            <span />
+            <VersionPick f={frameworkOf(s.framework)} value={s.version} onPick={(version) => dispatch({ type: "version", version })} disabled={busy} />
           ) : (
             // The other way to begin, quiet at the foot's start: it leaves the dialog, so it isn't a tab
             <button

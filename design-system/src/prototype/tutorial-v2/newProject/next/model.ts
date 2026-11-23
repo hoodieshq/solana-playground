@@ -30,6 +30,8 @@ export type Run =
 export type FirstLightState = {
   source: Source
   framework: FrameworkId
+  /** The picked version; none means the framework's latest */
+  version?: string
   name: { value: string; touched: boolean }
   run: Run
   examples: { programs: "loading" | "ready" | "failed"; query: string; picked?: string }
@@ -51,6 +53,7 @@ export const INITIAL: FirstLightState = {
 export type Action =
   | { type: "source"; source: Source }
   | { type: "framework"; framework: FrameworkId }
+  | { type: "version"; version: string }
   | { type: "name"; value: string }
   | { type: "run"; run: Run }
   | { type: "details" }
@@ -64,7 +67,9 @@ export function reducer(s: FirstLightState, a: Action): FirstLightState {
     case "source":
       return { ...s, source: a.source, run: s.run.state === "failed" ? { state: "idle" } : s.run }
     case "framework":
-      return { ...s, framework: a.framework }
+      return { ...s, framework: a.framework, version: undefined }
+    case "version":
+      return { ...s, version: a.version }
     case "name":
       return { ...s, name: { value: a.value, touched: true } }
     case "run":
