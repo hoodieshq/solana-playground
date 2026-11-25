@@ -270,13 +270,15 @@ function Greeting({ p, asks, phone }: { p: Project; asks: string[]; phone: boole
         </p>
       )}
       {rows.length > 0 && (
-        <div className={cn("mt-5 flex flex-col gap-1", phone && "mt-4")}>
+        // The rows' fills on the field's own edges, left and right, their words 16 in as the field's (Almaz, 25 Nov)
+        // The rows are the field's suggestions: 24 from the words above, 12 to the field below (Almaz, 25 Nov)
+        <div className={cn("mt-6 flex flex-col gap-1", phone && "mt-5")}>
           {rows.map((a) => (
             <button
               key={a}
               type="button"
               onClick={() => ask(p.id, a)}
-              className="-mx-3 min-h-9 rounded-lg bg-foreground/[0.04] px-3 py-2 text-left text-13 leading-5 font-act text-foreground transition-colors duration-100 hover:bg-foreground/[0.07] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple active:bg-foreground/[0.10] motion-reduce:transition-none pointer-coarse:min-h-11"
+              className="min-h-9 rounded-lg bg-foreground/[0.04] px-4 py-2 text-left text-13 leading-5 font-act text-foreground transition-colors duration-100 hover:bg-foreground/[0.07] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple active:bg-foreground/[0.10] motion-reduce:transition-none pointer-coarse:min-h-11"
             >
               {a}
             </button>
@@ -320,7 +322,7 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
   const greet = count === 0 && !p.draft && !p.opening
   return (
     <>
-      <div ref={scroller} className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain pt-[22px] pb-3", phone ? "px-4" : "px-5")}>
+      <div ref={scroller} className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain pt-[22px]", greet ? "pb-0" : "pb-3", phone ? "px-4" : "px-5")}>
         {greet && <Greeting p={p} asks={chips.filter((c) => c !== "Show me the line")} phone={phone} />}
         <div role="log" aria-live="polite" aria-label="Assistant" className="flex flex-col gap-[15px]">
           {/* The tutorial thread's rhythm: 15 from a question to its answer, 24 before the next question */}

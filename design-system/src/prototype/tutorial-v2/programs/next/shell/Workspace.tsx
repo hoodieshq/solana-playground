@@ -344,19 +344,6 @@ export function Workspace({ p }: { p: Project }) {
           <span className="@max-[1100px]/bar:hidden">Programs</span>
         </Button>
         <ProjectName p={p} className="ml-1 min-w-0 shrink truncate text-13 text-foreground" />
-        {/* Opened from the catalog and not saved: it isn't in your projects until you build or change it */}
-        {p.example && !p.read && !p.opening && (
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} className="ml-1 shrink-0 rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-13 leading-4 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring @max-[1100px]/bar:hidden">
-                Example
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-60">
-              Not in your projects yet. Build or change it to keep it.
-            </TooltipContent>
-          </Tooltip>
-        )}
         {!p.opening && stagesOf(p).length > 1 && (
           <>
             {/* The bar's rules are one rule: 20 high, with 14 to the words on each side */}

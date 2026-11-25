@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { ArrowUp, ChevronDown, Ellipsis } from "lucide-react"
+import { ArrowUp, Ellipsis } from "lucide-react"
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
@@ -297,10 +297,9 @@ function NetworkPicker() {
           )}
         >
           <span className="truncate">{networkWord(c)}</span>
-          <ChevronDown aria-hidden="true" strokeWidth={1.75} className="size-3.5 shrink-0" />
         </button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" sideOffset={6} className="w-72 gap-0 rounded-(--radius-panel) p-1.5 shadow-panel">
+      <PopoverContent side="top" align="start" sideOffset={6} className="w-[22rem] gap-0 rounded-(--radius-panel) p-1.5 shadow-panel" onCloseAutoFocus={(e) => e.preventDefault()}>
         <Choose view="Network" bare onBack={() => setOpen(false)} onClose={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
@@ -326,10 +325,9 @@ function ModelPicker() {
           )}
         >
           <span className="truncate">{limit ? `${c.model} · Limit reached` : c.model}</span>
-          <ChevronDown aria-hidden="true" strokeWidth={1.75} className="size-3.5 shrink-0" />
         </button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="end" sideOffset={6} className="w-72 gap-0 rounded-(--radius-panel) p-1.5 shadow-panel">
+      <PopoverContent side="top" align="end" sideOffset={6} className="w-[22rem] gap-0 rounded-(--radius-panel) p-1.5 shadow-panel" onCloseAutoFocus={(e) => e.preventDefault()}>
         {limit && (
           <button
             type="button"
@@ -350,7 +348,7 @@ function ModelPicker() {
 }
 
 /** `context`: a quiet line under the field, as Claude Code's under its own: the network and the model, each
- * a pick */
+ * a pick, their words alone: no chevron, a press and the hover say it (Almaz, 25 Nov) */
 export function Ask({ p, phone = false, chips = [], context = false }: { p: Project; phone?: boolean; chips?: string[]; context?: boolean }) {
   const [text, setText] = useState("")
   const [focused, setFocused] = useState(false)
@@ -397,10 +395,13 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
           placeholder={p.read ? "Ask about this program" : p.draft ? "Reply, or say what to build" : `Ask about ${p.name}`}
           aria-label={p.read ? "Ask about this program" : p.draft ? "Reply to the assistant" : `Ask about ${p.name}`}
           enterKeyHint="send"
-          className={cn("leading-6 placeholder:text-muted-foreground/80!", !tall && "min-h-10 pt-2.5 pb-2.5", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
+          // 13, the interface's size, as the lines under the field (Almaz, 25 Nov: 16 stood louder than the panel)
+          className={cn("text-13 leading-5 font-normal", !tall && "min-h-10 pt-2.5 pb-2.5", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
         />
         <ComposerToolbar className={cn(!tall && "py-1 pr-1")}>
-          <ComposerSend className="pointer-coarse:size-11 disabled:bg-surface-hover disabled:text-subtle disabled:opacity-100">
+          {/* The arrow alone, no disc: the disc comes under the pointer (Almaz, 25 Nov). Grey with nothing to send,
+              light once there is */}
+          <ComposerSend className="bg-transparent text-foreground hover:bg-foreground/[0.08] disabled:bg-transparent disabled:text-subtle disabled:opacity-100 pointer-coarse:size-11">
             <ArrowUp />
           </ComposerSend>
         </ComposerToolbar>

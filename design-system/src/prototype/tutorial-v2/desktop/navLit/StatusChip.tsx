@@ -139,11 +139,13 @@ export function Choose({ view, onBack, bare, onClose }: { view: "Network" | "Ass
             aria-checked={idOf(o) === current}
             autoFocus={i === 0}
             onClick={() => pick(idOf(o))}
-            className={cn("flex min-h-12 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-surface-raised", FOCUS)}
+            className={cn("flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-surface-raised", FOCUS)}
           >
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="text-13 leading-5 font-act text-foreground">{o.name}</span>
-              <span className={cn("text-13 leading-4 font-label", "warn" in o && o.warn ? "text-warning-ink" : "text-muted-foreground")}>{o.hint}</span>
+            {/* The name a size up from its line, 16 against 13, so the two don't run together as two greys of
+                one size did (Almaz, 25 Nov) */}
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-16 leading-6 text-foreground">{o.name}</span>
+              <span className={cn("text-13 leading-5", "warn" in o && o.warn ? "text-warning-ink" : "text-muted-foreground")}>{o.hint}</span>
             </span>
             {idOf(o) === current && <Check aria-hidden="true" className="size-4 shrink-0 text-foreground" strokeWidth={2} />}
           </button>
