@@ -427,7 +427,7 @@ export function Ask({ p, phone = false, chips = [], context = false, roof = fals
               spacer keeps the model by it: three things spread evenly would leave the model in the middle */}
           {roof && <span className="flex-1" />}
           <ModelPicker />
-          {roof && <SoleToggle className="-mr-1.5 -ml-2" />}
+          {roof && <SoleToggle className="-mr-1.5" />}
         </div>
       )}
     </div>

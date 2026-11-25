@@ -26,23 +26,23 @@ const CSS = `
 type Cell = [x: number, y: number, tone: string]
 type Sprite = { cells: Cell[]; box: string; side?: boolean; w?: number; h?: number }
 type Eyes = "open" | "blink" | "happy" | "left" | "right" | "up" | "down"
-type Front = { dy?: number; sq?: boolean; eyes?: Eyes; tail?: "up" | "mid" | "down"; ears?: "up" | "perk" | "flat"; paw?: 0 | 1 | 2; z?: 0 | 1 | 2 }
-type Step = "stand" | "w1" | "w2" | "w3" | "crouch" | "leap" | "wind" | "hit" | "follow"
-type Side = { f?: Step; tail?: "up" | "mid" | "low"; eyes?: "open" | "blink" | "down" }
+type Front = { back?: boolean; dy?: number; sq?: boolean; eyes?: Eyes; tail?: "up" | "mid" | "down"; ears?: "up" | "perk" | "flat"; paw?: 0 | 1 | 2; z?: 0 | 1 | 2 }
+type Step = "stand" | "w1" | "w2" | "w3" | "g1" | "g2" | "g3" | "skid" | "trap" | "roll1" | "roll2" | "crouch" | "leap" | "wind" | "hit" | "follow"
+type Side = { f?: Step; tail?: "up" | "mid" | "low" | "run"; eyes?: "open" | "blink" | "down" }
 
 /* Both views share one 20 by 16 box, a head 6 rows tall under 2 rows of ear, 2 by 2 eyes, a body 4 rows thick and
    paws on rows 11 and 12, so the cat keeps its size when it turns. Ground is y 13 */
 
 /** Facing you, sitting. Centre x 5 */
-function front(pose: Front): Sprite {
-  const p = { dy: 0, sq: false, eyes: "open", tail: "up", ears: "up", paw: 0, z: 0, ...pose }
+export function front(pose: Front): Sprite {
+  const p = { back: false, dy: 0, sq: false, eyes: "open", tail: "up", ears: "up", paw: 0, z: 0, ...pose }
   const out: Cell[] = []
   const put = (x: number, y: number, c = "b") => out.push([x, y + p.dy, c])
   const [x0, x1, top] = p.sq ? [1, 9, 10] : [2, 8, 8]
   for (let y = top; y <= 11; y++) for (let x = x0; x <= x1; x++) put(x, y, y === 11 ? "s" : "b")
   for (const x of [x0 + 1, x0 + 2, x1 - 2, x1 - 1]) put(x, 12, "s")
   const tails = { up: [[1, 11], [2, 11], [3, 10], [3, 9], [3, 8], [3, 7]], mid: [[1, 11], [2, 11], [3, 11], [4, 10], [4, 9], [5, 8]], down: [[1, 11], [2, 11], [3, 11], [4, 11], [5, 12], [6, 12]] }
-  tails[p.tail as "up"].forEach(([dx, y], i) => put(x1 + dx, y, i === 5 && !p.sq ? "e" : "b"))
+  if (!p.back) tails[p.tail as "up"].forEach(([dx, y], i) => put(x1 + dx, y, i === 5 && !p.sq ? "e" : "b"))
   if (p.paw) {
     put(x0 - 1, 10)
     put(x0 - 2, p.paw === 2 ? 11 : 10, "s")
@@ -65,7 +65,9 @@ function front(pose: Front): Sprite {
   }
   const lx = 2, rx = 7, ey = 4 + hd
   const E = (list: number[][], c = "e") => list.forEach(([x, y]) => put(x, y, c))
-  if (p.eyes === "blink") E([[lx, ey + 1], [lx + 1, ey + 1], [rx, ey + 1], [rx + 1, ey + 1]], "l")
+  // From behind: no face, and the tail lies up its back
+  if (p.back) E([[5, 11], [5, 10], [6, 9], [7, 8]], "f"), E([[8, 8]])
+  else if (p.eyes === "blink") E([[lx, ey + 1], [lx + 1, ey + 1], [rx, ey + 1], [rx + 1, ey + 1]], "l")
   else if (p.eyes === "happy") E([[lx - 1, ey + 1], [lx, ey], [lx + 1, ey + 1], [rx, ey + 1], [rx + 1, ey], [rx + 2, ey + 1]])
   else {
     const [dx, dy] = ({ left: [-1, 0], right: [1, 0], down: [0, 1], up: [0, -1] } as Record<string, number[]>)[p.eyes] ?? [0, 0]
@@ -77,23 +79,34 @@ function front(pose: Front): Sprite {
 }
 
 /** In profile, facing right. Centre x 7.5. The step is w1 w2 w3 w2; the swipe is wind, hit, follow */
-function side(pose: Side): Sprite {
+export function side(pose: Side): Sprite {
   const p = { f: "stand", tail: "up", eyes: "open", ...pose }
   const out: Cell[] = []
-  const sh = p.f === "crouch" ? 1 : p.f === "leap" ? -3 : p.f === "w2" ? -1 : 0
+  /* The run is a gallop in three frames: gathered (back humped, all four feet under it), stretched (in the air, front
+     legs out ahead, hind legs trailing), and landed on the front feet. Head low, ears back, tail straight out */
+  const run = p.f === "g1" || p.f === "g2" || p.f === "g3"
+  const air = p.f === "leap" || p.f === "g2"
+  // On its back: the body on the roof, the head lifted to look, and the legs in the air, one pair higher each frame
+  const roll = p.f === "roll1" || p.f === "roll2"
+  const sh = roll ? 2 : p.f === "crouch" || p.f === "skid" || p.f === "trap" ? 1 : p.f === "leap" ? -3 : p.f === "g2" ? -1 : 0
   const put = (x: number, y: number, c = "b") => out.push([x, y + sh, c])
   for (let x = 2; x <= 7; x++) put(x, 7)
-  for (let y = 8; y <= 10; y++) for (let x = 2; x <= 10; x++) put(x, y, y === 10 ? "s" : "b")
-  const tails = { up: [[1, 8], [0, 7], [0, 6], [0, 5], [0, 4]], mid: [[1, 8], [0, 8], [-1, 7], [-1, 6], [-1, 5]], low: [[1, 9], [0, 9], [-1, 9], [-2, 8], [-2, 7]] }
-  tails[p.tail as "up"].forEach(([x, y], i) => put(x, y, i === 4 ? "e" : "b"))
-  const nod = p.f === "wind" || p.f === "hit" ? 1 : 0
+  if (p.f === "g1") for (let x = 4; x <= 7; x++) put(x, 6)
+  for (let y = 8; y <= 10; y++) for (let x = p.f === "g2" ? 1 : 2; x <= 10; x++) put(x, y, y === 10 ? "s" : "b")
+  const tails = { up: [[1, 8], [0, 7], [0, 6], [0, 5], [0, 4]], mid: [[1, 8], [0, 8], [-1, 7], [-1, 6], [-1, 5]], low: [[1, 9], [0, 9], [-1, 9], [-2, 8], [-2, 7]], run: [[1, 8], [0, 8], [-1, 8], [-2, 7], [-3, 7]] }
+  tails[(run ? "run" : p.tail) as "up"].forEach(([x, y], i) => put(x, y, i === 4 ? "e" : "b"))
+  const nod = p.f === "wind" || p.f === "hit" || p.f === "trap" || run ? 1 : 0
   const H = (x: number, y: number, c = "b") => put(x, y + nod, c)
   for (let x = 8; x <= 14; x++) {
     H(x, 2)
     H(x, 7)
   }
   for (let y = 3; y <= 6; y++) for (let x = 7; x <= 15; x++) H(x, y)
-  for (const [x, y] of [[8, 1], [9, 1], [8, 0], [12, 1], [13, 1], [13, 0]]) H(x, y)
+  for (const [x, y] of [[8, 1], [9, 1], [12, 1], [13, 1]]) H(x, y)
+  if (!run) {
+    H(8, 0)
+    H(13, 0)
+  }
   if (p.eyes === "blink") {
     H(12, 5, "l")
     H(13, 5, "l")
@@ -102,15 +115,34 @@ function side(pose: Side): Sprite {
     for (const [x, y] of [[12, 4], [13, 4], [12, 5], [13, 5]]) H(x, y + d, "e")
   }
   // Legs stay on the ground whatever the body does, except in the air
-  const L = (list: number[][], c: string) => list.forEach(([x, y]) => out.push([x, y + (p.f === "leap" ? sh : 0), c]))
+  const L = (list: number[][], c: string) => list.forEach(([x, y]) => out.push([x, y + (air ? sh : 0), c]))
   const back = [[3, 11], [3, 12]], far = [[5, 11], [5, 12], [8, 11], [8, 12]]
-  if (p.f === "w1") {
+  if (roll) {
+    L([[4, 8], [5, 8]], "f")
+    L(p.f === "roll1" ? [[3, 8], [3, 7], [6, 8], [6, 7], [6, 6]] : [[3, 8], [3, 7], [3, 6], [6, 8], [6, 7]], "s")
+  } else if (p.f === "w1") {
     L([[5, 11], [6, 12], [8, 11], [7, 12]], "f")
     L([[3, 11], [2, 12], [10, 11], [11, 12]], "s")
-  } else if (p.f === "w2") L([[4, 10], [4, 11], [4, 12], [9, 10], [9, 11], [9, 12]], "s")
-  else if (p.f === "w3") {
+  } else if (p.f === "w2") {
+    // The body stays level through the step: a walking cat's back doesn't bob
+    L([[6, 11], [6, 12], [7, 11], [7, 12]], "f")
+    L([[4, 11], [4, 12], [9, 11], [9, 12]], "s")
+  } else if (p.f === "w3") {
     L([[3, 11], [2, 12], [10, 11], [11, 12]], "f")
     L([[5, 11], [6, 12], [8, 11], [7, 12]], "s")
+  } else if (p.f === "g1") {
+    L([[5, 11], [6, 12], [8, 11], [7, 12]], "f")
+    L([[4, 11], [5, 12], [9, 11], [8, 12]], "s")
+  } else if (p.f === "g2") L([[2, 11], [1, 11], [0, 12], [11, 11], [12, 11], [13, 12]], "s")
+  else if (p.f === "g3") {
+    L([[9, 11], [9, 12]], "f")
+    L([[2, 11], [1, 11], [11, 11], [11, 12], [12, 12]], "s")
+  } else if (p.f === "skid") {
+    L([[9, 12]], "f")
+    L([[3, 12], [4, 12], [11, 12], [12, 12]], "s")
+  } else if (p.f === "trap") {
+    L([[5, 12]], "f")
+    L([[3, 12], [11, 12], [12, 12], [13, 12]], "s")
   } else if (p.f === "crouch") {
     L([[5, 12], [8, 12]], "f")
     L([[3, 12], [10, 12]], "s")
@@ -131,8 +163,10 @@ const NS = "http://www.w3.org/2000/svg"
 /* The stage is laid out half as wide again as the composer and scaled to two thirds: a 3 px cell draws as 2, and
    every distance and speed below shrinks with the cat. Numbers are in the stage's own px */
 const K = 3, SCALE = 2 / 3
-const G = 900, BOUNCE = 0.45, FRICTION = 180, ACCEL = 420, STRIDE = 8, RUN = 130, WALK = 42, REACH = 24
+/* A cat walks about one body length a second and runs four or five; it gets to speed in a couple of strides */
+const G = 900, BOUNCE = 0.45, FRICTION = 180, ACCEL = 420, BURST = 950, STRIDE = 8, BOUND = 11, RUN = 230, WALK = 42, REACH = 24
 const STEPS: Step[] = ["w1", "w2", "w3", "w2"]
+const BOUNDS: Step[] = ["g1", "g2", "g3"]
 const DAY = "oak.sole.day"
 /** Chats it has already climbed into since the page loaded */
 const entered = new Set<string>()
@@ -182,7 +216,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   /* One clock for everything. An act is a chain of waits on it; starting another act, or the composer speaking,
      moves `act` on and the old chain's next wait rejects */
   let now = 0, last = performance.now(), act = 0, dead = false
-  let resting = false, asleep = false, gone = false, idle = 0, typed = 0
+  let resting = false, asleep = false, gone = false, idle = 0, typed = 0, fun = 0, solo = 0
   let pointer: { x: number; y: number } | null = null
   type Waiter = { cond: () => boolean; id: number; ok: () => void; no: (why: string) => void }
   const waiters: Waiter[] = []
@@ -236,13 +270,18 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
         }
       } else {
         if (d > 2) cat.dir = dx > 0 ? 1 : -1
-        const want = cat.dir * Math.min(cat.vmax, Math.sqrt(2 * ACCEL * d) + 12)
-        cat.v += Math.max(-ACCEL * dt, Math.min(ACCEL * dt, want - cat.v))
+        const running = cat.vmax > 100, acc = running ? BURST : ACCEL
+        const want = cat.dir * Math.min(cat.vmax, Math.sqrt(2 * acc * d) + 12)
+        cat.v += Math.max(-acc * dt, Math.min(acc * dt, want - cat.v))
         cat.x += cat.v * dt
         cat.odo += Math.abs(cat.v) * dt
         if (!cat.air) {
-          const i = Math.floor(cat.odo / STRIDE)
-          S({ f: STEPS[i % 4], tail: i % 6 < 3 ? "up" : "mid" })
+          // It gallops only while it is really moving; the last strides of a run are steps
+          if (running && Math.abs(cat.v) > 90) S({ f: BOUNDS[Math.floor(cat.odo / BOUND) % 3] })
+          else {
+            const i = Math.floor(cat.odo / STRIDE)
+            S({ f: STEPS[i % 4], tail: i % 6 < 3 ? "up" : "mid" })
+          }
         }
       }
     }
@@ -272,6 +311,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     resting = false
     asleep = false
     window.clearTimeout(idle)
+    window.clearTimeout(fun)
   }
   const play = (fn: (id: number) => Promise<unknown>) => {
     const id = ++act
@@ -325,19 +365,45 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     await wait(170, id)
     S()
   }
-  /** After the ball, a beat late; it catches up as the ball slows */
-  const chase = async (id: number) => {
-    await watch(id, 320)
-    if (!ball.on) return
-    cat.vmax = RUN
-    cat.follow = true
-    await until(() => !ball.on || (Math.abs(ball.vx) < 30 && ball.h === 0 && Math.abs((cat.target ?? cat.x) - cat.x) < 2), id)
-    cat.follow = false
-    cat.target = null
-    cat.v = 0
-    S()
+  /** Turning round goes through a glance at you, not a flip */
+  const turn = async (id: number, dir: number) => {
+    if (cat.dir === dir) return
+    F({ eyes: dir < 0 ? "left" : "right", ears: "perk" })
+    await wait(90, id)
+    cat.dir = dir
   }
-  const leap = async (id: number, to: number, ms = 300) => {
+  /** After the ball as a cat goes: it watches a beat, drops and wiggles, bursts into a gallop, and takes the last
+   * stretch in one pounce that lands with its front paws on the ball */
+  const dash = async (id: number) => {
+    await watch(id, 280)
+    if (!ball.on) return
+    await turn(id, ball.x < cat.x ? -1 : 1)
+    if (Math.abs(ball.x - cat.x) > 70) {
+      for (let i = 0; i < 3; i++) {
+        S({ f: "crouch", tail: i % 2 ? "low" : "mid" })
+        await wait(100, id)
+      }
+      cat.vmax = RUN
+      cat.follow = true
+      await until(() => !ball.on || (Math.abs(ball.x - cat.x) < 64 && Math.abs(ball.vx) < 90 && ball.h < 12), id)
+      cat.follow = false
+      cat.target = null
+    }
+    if (!ball.on) {
+      cat.v = 0
+      return S({ f: "skid" })
+    }
+    const dir = ball.x < cat.x ? -1 : 1
+    await leap(id, clamp(ball.x - dir * 20), 230, "trap")
+    cat.v = 0
+    ball.vx = 0
+    ball.h = 0
+    ball.vh = 0
+    ball.held = true
+    await wait(260, id)
+    ball.held = false
+  }
+  const leap = async (id: number, to: number, ms = 300, land: Step = "crouch") => {
     cat.dir = to > cat.x ? 1 : -1
     cat.air = true
     S({ f: "leap" })
@@ -347,26 +413,56 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       cat.x = from + (to - from) * (1 - (1 - k) * (1 - k))
       return k === 1
     }, id)
-    S({ f: "crouch" })
+    S({ f: land, eyes: land === "trap" ? "down" : "open" })
     await wait(90, id)
     cat.air = false
-    S()
+    if (land === "crouch") S()
   }
-  const stalk = async (id: number) => {
-    cat.dir = ball.x < cat.x ? -1 : 1
-    if (Math.abs(ball.x - cat.x) > REACH + 40) await goTo(id, ball.x - cat.dir * (REACH + 34), 70)
-    cat.dir = ball.x < cat.x ? -1 : 1
-    for (let i = 0; i < 5; i++) {
-      S({ f: "crouch", tail: i % 2 ? "low" : "mid" })
-      await wait(130, id)
+  /** A round of play: catch it, then bat it and catch it again, `bats` times. It bats toward the roof's longer side so
+   * the ball stays up, hopping over the ball when it is on the wrong side of it */
+  const playWith = async (id: number, bats: number) => {
+    await dash(id)
+    for (let i = 0; i < bats && ball.on; i++) {
+      const dir = ball.x > W() / 2 ? -1 : 1
+      const spot = clamp(ball.x - dir * REACH)
+      if (Math.sign(cat.x - ball.x) === dir) await leap(id, spot, 260)
+      else if (Math.abs(cat.x - spot) > 5) await goTo(id, spot, 60)
+      await swipe(id, dir, 70 + Math.random() * 50)
+      await dash(id)
     }
-    await leap(id, clamp(ball.x - cat.dir * REACH))
+  }
+  /** On its back with the ball over its paws, tossing it from one pair to the other */
+  const backPlay = async (id: number) => {
+    if (!ball.on) return
+    const dir = ball.x < cat.x ? -1 : 1
+    await turn(id, dir)
+    if (Math.abs(ball.x - cat.x) > 34) await goTo(id, ball.x - dir * 28, WALK)
+    cat.dir = dir
+    S({ f: "crouch", tail: "low" })
+    await wait(180, id)
+    ball.held = true
+    ball.vx = 0
+    const over = cat.x - dir * 9
+    for (let i = 0; i < 9; i++) {
+      S({ f: i % 2 ? "roll2" : "roll1", tail: "low" })
+      ball.x = over + (i % 2 ? 4 : -4) * dir
+      ball.h = i === 0 ? 14 : i % 2 ? 36 : 26
+      draw(ball.el.firstChild as SVGElement, ballSprite(++ball.spin))
+      await wait(190, id)
+    }
+    ball.held = false
+    ball.vh = 90
+    ball.vx = dir * 40
+    S({ f: "crouch", tail: "mid" })
+    await wait(170, id)
+    S()
+    await watch(id, 300)
   }
   /** Caught: sit by the ball, face out, a paw on it */
   const hold = async (id: number, ms: number) => {
     if (ball.on) {
       const right = cat.x >= ball.x
-      await goTo(id, ball.x + (right ? 22 : -22), 70)
+      if (Math.abs(cat.x - (ball.x + (right ? 22 : -22))) > 8) await goTo(id, ball.x + (right ? 22 : -22), 60)
       cat.flip = !right
       ball.vx = 0
       ball.held = true
@@ -424,11 +520,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       F({ eyes: "happy" })
       return wait(500, id)
     }
-    throwBall(W() * 0.44, 120, 40)
-    await watch(id)
-    await stalk(id)
-    await swipe(id, -1, 100)
-    await chase(id)
+    throwBall(W() * 0.4, 120, 40)
+    await playWith(id, 1)
     await hold(id, 800)
   }
   /** Every chat after: it hops up and sits, alone. A moment later a ball drops beside it and bounces to rest, and
@@ -443,17 +536,18 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     F({ eyes: "left" })
     await wait(500, id)
   }
-  /** The ball was sent off by a click: watch it, go after it if it went far, look over the edge if it fell */
+  /** The ball was sent off by a click: it goes after it and plays a round or two. If the ball went over the edge it
+   * runs there, looks down, and a new one drops in */
   const after = async (id: number) => {
-    await watch(id, 200)
-    if (ball.on && Math.abs(ball.x - cat.x) > 46 && !phone) {
-      cat.dir = ball.x < cat.x ? -1 : 1
-      S({ f: "crouch", tail: "low" })
-      await wait(160, id)
-      await chase(id)
-    }
+    if (phone) {
+      await watch(id, 200)
+      if (ball.on) await pat(id, 2)
+    } else await playWith(id, 1 + (Math.random() < 0.5 ? 1 : 0))
     if (!ball.on) {
+      await turn(id, ball.x > W() / 2 ? 1 : -1)
       await goTo(id, ball.x > W() / 2 ? HI() : LO, RUN)
+      S({ f: "skid" })
+      await wait(120, id)
       F({ eyes: "down", ears: "flat", tail: "down" })
       await wait(1300, id)
       throwBall(W() * 0.5, 130, cat.x > W() / 2 ? 16 : -16)
@@ -487,6 +581,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     await wait(160, id)
   }
   const leave = async (id: number) => {
+    await turn(id, 1)
     await goTo(id, HI(), RUN)
     cat.dir = 1
     S({ f: "crouch" })
@@ -505,6 +600,18 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   const rest = async (id: number) => {
     resting = true
     idle = window.setTimeout(() => id === act && !pointer && play(sleep), 40000)
+    // Now and then it plays by itself, three times at most in one chat: a round with the ball, or on its back
+    if (solo < 3 && ball.on && !gone)
+      fun = window.setTimeout(() => {
+        if (id !== act || gone || !ball.on) return
+        solo++
+        play(async (i) => {
+          if (Math.random() < 0.45) await backPlay(i)
+          else if (phone) await pat(i, 2)
+          else await playWith(i, 1)
+          await hold(i, 700)
+        })
+      }, 14000 + Math.random() * 12000)
     try {
       for (;;) {
         F({ eyes: gaze() })
@@ -549,6 +656,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     act++
     window.clearInterval(clock)
     window.clearTimeout(idle)
+    window.clearTimeout(fun)
     window.clearTimeout(typed)
     panel.removeEventListener("pointermove", onMove)
     panel.removeEventListener("pointerleave", onOut)
@@ -599,8 +707,17 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
         ball.on = false
         ball.el.style.transition = "opacity 160ms"
         ball.el.style.opacity = "0"
-        for (const [dy, ms] of [[1, 70], [-2, 110], [3, 70], [8, 70], [13, 90]]) {
-          F({ dy, ears: dy > 0 ? "flat" : "up" })
+        // It doesn't go back down the way it came up: it turns round, shows its back, and jumps away from you
+        cat.flip = false
+        cat.dir = 1
+        S({ tail: "mid" })
+        await wait(150, id)
+        F({ back: true })
+        await wait(230, id)
+        F({ back: true, dy: 1, ears: "flat" })
+        await wait(130, id)
+        for (const [dy, ms] of [[-3, 120], [-1, 70], [4, 70], [9, 70], [13, 90]]) {
+          F({ back: true, dy })
           await wait(ms, id)
         }
         stop()
@@ -686,7 +803,7 @@ export function RoofCat({ id, on: empty, text, phone = false }: { id: string; on
       // The chat stopped being empty: the cat walks off by itself and clears up after. An unmount ends it now
       if (wanted.current) return c.stop()
       // Switched off: it drops behind the field. The first message: it runs to the roof's end and jumps
-      window.setTimeout(c.stop, off.current ? 700 : 2600)
+      window.setTimeout(c.stop, off.current ? 1400 : 2600)
       if (off.current) c.duck()
       else c.leave()
     }
