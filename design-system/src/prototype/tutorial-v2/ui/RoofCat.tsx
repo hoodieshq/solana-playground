@@ -431,11 +431,17 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     await chase(id)
     await hold(id, 800)
   }
-  /** Every chat after: it hops up and sits, the ball already by it */
+  /** Every chat after: it hops up and sits, alone. A moment later a ball drops beside it and bounces to rest, and
+   * the cat follows it down with its ears up (Almaz, 25 Nov: the ball lay there before the cat came) */
   const again = async (id: number) => {
     cat.x = home()
-    throwBall(cat.x - 26, 0)
     await climb(id, false)
+    F()
+    await wait(700, id)
+    throwBall(cat.x - 36, 120, 8)
+    await watch(id, 400)
+    F({ eyes: "left" })
+    await wait(500, id)
   }
   /** The ball was sent off by a click: watch it, go after it if it went far, look over the edge if it fell */
   const after = async (id: number) => {

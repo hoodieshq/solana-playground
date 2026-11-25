@@ -423,9 +423,11 @@ export function Ask({ p, phone = false, chips = [], context = false, roof = fals
         // The network and the model, each a pick of its own; no file name, the tab says it (Almaz, 25 Nov)
         <div className="mt-2 flex items-center justify-between gap-3 px-1 text-13 leading-5 text-muted-foreground">
           <NetworkPicker />
-          {/* While the chat is empty, the cat's own switch sits by the model (Almaz, 25 Nov) */}
-          {roof && <SoleToggle className="-mr-2 ml-auto" />}
+          {/* While the chat is empty, the cat's own switch closes the line, after the model (Almaz, 25 Nov). The
+              spacer keeps the model by it: three things spread evenly would leave the model in the middle */}
+          {roof && <span className="flex-1" />}
           <ModelPicker />
+          {roof && <SoleToggle className="-mr-1.5 -ml-2" />}
         </div>
       )}
     </div>
