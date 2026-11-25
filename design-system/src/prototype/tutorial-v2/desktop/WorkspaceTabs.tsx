@@ -282,11 +282,11 @@ export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; o
                 // A middle click closes, as in a browser or VS Code. No ⌘W: the browser takes it and closes Oak
                 onMouseDown={(e) => canClose && e.button === 1 && e.preventDefault()}
                 onAuxClick={(e) => canClose && e.button === 1 && close()}
-                // The × or the arrow reads as the name's: 6 from it and 9 from the edge, against the 12 before
-                // the name. Three even 12s left it floating apart (Almaz, 10 Nov); its box stays 24
+                // The × or the arrow reads as the name's: 6 from it and 8 from the edge, against the 10 before
+                // the name, as the project's tabs have it. Three even 12s left it floating apart (Almaz, 10 Nov)
                 className={cn(TAB, "shrink-0 gap-0 px-0!", !arrived.has(tab) && "animate-rise")}
               >
-                <EditorTabTrigger className={cn("gap-1.5 px-3", (canClose || tab === active) && "pr-0")} onClick={() => dispatch({ type: "openFile", file: tab })}>
+                <EditorTabTrigger className={cn("gap-1.5 px-2.5", canClose ? "pr-0.5" : tab === active && "pr-0")} onClick={() => dispatch({ type: "openFile", file: tab })}>
                   <EditorTabLabel>{tab.split("/").pop()}</EditorTabLabel>
                 </EditorTabTrigger>
                 {/* The open tab's arrow, as Cat asked: the tree from beside the file's name, to step back
@@ -319,7 +319,7 @@ export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; o
                 {/* On every tab, as Chrome has it, the rest's dimmer: hidden till the pointer came, it left
                     an empty end on every tab but the open one (Almaz, 10 Nov) */}
                 {canClose && (
-                  <EditorTabClose aria-label={`Close ${tab.split("/").pop()}`} onClick={close} className={cn("mr-0.5 size-6 opacity-100", tab !== active && "text-muted-foreground/60")} />
+                  <EditorTabClose aria-label={`Close ${tab.split("/").pop()}`} onClick={close} className={cn("mr-1 opacity-100", tab !== active && "text-muted-foreground/60")} />
                 )}
               </EditorTab>
               )

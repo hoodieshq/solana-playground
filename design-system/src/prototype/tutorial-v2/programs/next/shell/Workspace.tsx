@@ -242,9 +242,10 @@ export function Workspace({ p }: { p: Project }) {
   }, [asked])
 
   // The tree docks only while the code keeps its room beside it: on a 1280 screen with the assistant out it
-  // comes over the code from the Files button instead
+  // comes over the code from the Files button instead. Lying over the code the assistant counts too: docked
+  // under it the tree was out of sight, so it comes as the list at the assistant's edge
   const askDocked = asking && width >= ASK_DOCK_MIN
-  const wide = width - (askDocked ? ASK_W : 0) >= TREE_DOCK_MIN
+  const wide = width - (asking ? ASK_W : 0) >= TREE_DOCK_MIN
   const toggleFiles = () => (wide ? setDocked((d) => !d) : setPop((o) => !o))
   const filesShown = wide ? docked : pop
 
@@ -306,6 +307,7 @@ export function Workspace({ p }: { p: Project }) {
     <PopoverContent
       side="bottom"
       align="start"
+      alignOffset={asking && !askDocked ? ASK_W : 0}
       sideOffset={1}
       className="w-64 gap-0 rounded-none rounded-br-lg border-r border-b border-border bg-surface-base p-1.5 ring-0 data-open:zoom-in-100 data-closed:zoom-out-100"
       onCloseAutoFocus={(e) => e.preventDefault()}
