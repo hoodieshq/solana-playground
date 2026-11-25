@@ -149,9 +149,9 @@ export function AccountRow({ account: a, chip, menu, chipWord, setup }: Props) {
         </Tip>
         {menu}
       </DropdownMenu>
-      {/* Line 1's right: the chip, or Cancel while GitHub answers. Centred on line 1 on the desktop,
-          on the row on the tablet and when the name stands alone */}
-      <div className={cn("absolute right-0 flex items-center", tablet || alone ? "inset-y-0" : "top-0")}>
+      {/* The row's right: the chip, centred on the whole row with the avatar and the words, now a calm chip
+          is a dot alone (Almaz, 25 Nov). Cancel, while GitHub answers, keeps to line 1 on the desktop */}
+      <div className={cn("absolute right-0 flex items-center", tablet || alone || a.session !== "waiting" ? "inset-y-0" : "top-0")}>
         {a.session === "waiting" ? (
           <button
             type="button"

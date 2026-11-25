@@ -1,5 +1,5 @@
 import { Braces, Check, ChevronLeft, Globe } from "lucide-react"
-import { useState, type ReactNode } from "react"
+import { Fragment, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -151,7 +151,16 @@ export function Choose({ view, onBack, bare, onClose }: { view: "Network" | "Ass
       </div>
       {view === "Assistant" && (
         <div className="mx-2 mt-1 border-t border-border pt-1.5">
-          <Button variant="ghost" size="xs" onClick={soon} className="-ml-2 text-muted-foreground hover:text-foreground">
+          {/* To Settings › Assistant, where the key's field is (Almaz, 25 Nov: it was a "not in the prototype" note) */}
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => {
+              onClose?.()
+              openSettings({ section: "assistant" })
+            }}
+            className="-ml-2 text-muted-foreground hover:text-foreground"
+          >
             Use your own API key
           </Button>
         </div>
@@ -212,18 +221,66 @@ export function StatusPopover({ rows, note, side, trigger }: { rows: StatusRow[]
   )
 }
 
+/** The status dot's tooltip: each status row on a line of its own, its dot, its name and its state ("Network
+ * Devnet", "Assistant GLM 5.3 Flash"), read off the same rows the popover draws (Almaz, 25 Nov: one sentence
+ * ran two things together, and said "off" while the field below named the model) */
+export function StatusTip({ rows }: { rows: StatusRow[] }) {
+  const c = useChoices()
+  // One size and one colour for every word, the tooltip's own; the state in the dot, in colours dark enough
+  // for the tooltip's light ground (the nav's green was lost on it) and a size up from the nav's 6 (Almaz, 25 Nov)
+  const DOT: Record<StatusRow["dot"], string> = { success: "bg-[#15803d]", warning: "bg-[#b45309]", error: "bg-[#b91c1c]", idle: "bg-[#71717a]", running: "bg-[#6d28d9]" }
+  return (
+    <span className="grid grid-cols-[auto_auto_auto] items-center gap-x-2 gap-y-1 py-0.5">
+      {withChoices(rows, c).map((r) => (
+        <Fragment key={r.name}>
+          <span aria-hidden="true" className={cn("size-2 rounded-full", DOT[r.dot])} />
+          <span>{r.name}</span>
+          <span>{r.value}</span>
+        </Fragment>
+      ))}
+    </span>
+  )
+}
+
+/** Nothing to tell: the chip shows its dot alone and keeps the word for the hover */
+export const chipCalm = (health: Health) => health.tone !== "attention" && health.tone !== "busy"
+
 /** The chip on the account row's first line: a dot and one word a person would say ("Devnet",
  * "Devnet down", "Offline"). Quiet until something needs you. Visual 20 high, hit 28 (44 on the tablet) */
 export function StatusChip({ health: given, rows, note }: { health: Health; rows: StatusRow[]; note?: string }) {
   const tablet = useRoomy()
   const health = healthWith(given, useChoices())
+  // Calm, the dot alone in the rail's own square (RailButton): 36, the whole square lit under the pointer and
+  // its tooltip to the right, as the folded nav's dot. The pill round a lone dot was a 20px target and its
+  // tooltip covered the row (Almaz, 25 Nov)
+  if (chipCalm(health))
+    return (
+      <StatusPopover
+        rows={rows}
+        note={note}
+        side="top"
+        trigger={
+          <Tip label={<StatusTip rows={rows} />}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Status: ${health.word}. ${health.tip}`}
+                className={cn("flex shrink-0 items-center justify-center rounded-lg hover:bg-(--nav-hover) active:bg-surface-hover data-[state=open]:bg-(--nav-hover)", FOCUS, HOVER, tablet ? "size-11" : "size-9")}
+              >
+                <HealthMark health={health} />
+              </button>
+            </PopoverTrigger>
+          </Tip>
+        }
+      />
+    )
   return (
     <StatusPopover
       rows={rows}
       note={note}
       side="top"
       trigger={
-        <Tip label={health.tip} side="top">
+        <Tip label={<StatusTip rows={rows} />} side="top">
           <PopoverTrigger asChild>
             <button type="button" aria-label={`Status: ${health.word}. ${health.tip}`} className={cn("group/chip flex items-center rounded-full", FOCUS, tablet ? "h-11" : "h-7")}>
               <span
@@ -235,6 +292,7 @@ export function StatusChip({ health: given, rows, note }: { health: Health; rows
                 )}
               >
                 <HealthMark health={health} />
+                {/* Trouble or a wait keeps its word in view; calm has the square above */}
                 {health.word}
               </span>
             </button>

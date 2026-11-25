@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 
 import type { Health, StatusRow } from "../../navStates"
 import { FOCUS, HOVER, Tip, useRoomy } from "./parts"
-import { HealthMark, StatusPopover } from "./StatusChip"
+import { HealthMark, StatusPopover, StatusTip } from "./StatusChip"
 
 type RailButtonProps = ComponentProps<"button"> & { label: string; current?: boolean; section?: boolean; children: ReactNode }
 
@@ -45,7 +45,7 @@ export function HealthDot({ health, rows, note }: { health: Health; rows: Status
       note={note}
       side="right"
       trigger={
-        <Tip label={health.tip}>
+        <Tip label={<StatusTip rows={rows} />}>
           <PopoverTrigger asChild>
             <RailButton label={`Status: ${health.word}. ${health.tip}`}>
               <HealthMark health={health} />

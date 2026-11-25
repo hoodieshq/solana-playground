@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { ArrowUp, Ellipsis } from "lucide-react"
+import { ArrowUp, ChevronDown, Ellipsis } from "lucide-react"
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Composer, ComposerInput, ComposerSend, ComposerToolbar } from "@/compon
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
 import { ASSISTANT_KEYS, FILES_KEYS, MENU_KEYS, PRIMARY_KEYS, TERMINAL_KEYS } from "../../../desktop/keys"
@@ -15,6 +16,10 @@ import { ChipRow } from "../../../ui/ChipRow"
 import { openExplorer } from "../../../ui/explorer"
 import { launch } from "../../../ui/turns/YouPill"
 import { showFailLine } from "./Talk"
+import { isMainnet, networkWord, useChoices } from "../../../desktop/navLit/choices"
+import { Choose } from "../../../desktop/navLit/StatusChip"
+import { useEnv } from "../../../newProject/next/model"
+import { openSettings } from "../../../settings/open"
 import { pinToSidebar, usePins } from "../../../desktop/navLit/pins"
 import { ask, build, busy, deleteProject, deploy, go, ixsOf, metaOf, onChain, renameProject, type Project } from "../../store"
 import { WALLET_KEY, fakeKey } from "../../data"
@@ -271,7 +276,82 @@ export function MoreMenu({ p, onKeys }: { p: Project; onKeys?: () => void }) {
 }
 
 /** The composer at the foot: questions about the project go into the same thread */
-export function Ask({ p, phone = false, chips = [] }: { p: Project; phone?: boolean; chips?: string[] }) {
+/** The model under the field, as Claude Code, Cursor and ChatGPT keep it by theirs (Almaz, 25 Nov): its name
+ * and a chevron, the list of models the Status popover and Settings already pick from opening above it, and
+ * Use your own API key under them. At its limit the name turns amber, "Limit reached", and Add API key leads */
+/** The network under the field, a pick as the model beside it is: the Status popover's own list, with its
+ * custom RPCs and Add custom RPC. Mainnet is amber, as everywhere, since deploys there cost real SOL */
+function NetworkPicker() {
+  const c = useChoices()
+  const [open, setOpen] = useState(false)
+  const real = isMainnet(c)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Network: ${networkWord(c)}. Change`}
+          className={cn(
+            "-ml-1 flex h-6 min-w-0 items-center gap-1 rounded-md px-1 hover:bg-foreground/[0.05] hover:text-foreground data-[state=open]:text-foreground focus-visible:outline-2 focus-visible:outline-brand-purple pointer-coarse:h-11",
+            real && "text-warning-ink hover:text-warning-ink"
+          )}
+        >
+          <span className="truncate">{networkWord(c)}</span>
+          <ChevronDown aria-hidden="true" strokeWidth={1.75} className="size-3.5 shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" sideOffset={6} className="w-72 gap-0 rounded-(--radius-panel) p-1.5 shadow-panel">
+        <Choose view="Network" bare onBack={() => setOpen(false)} onClose={() => setOpen(false)} />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function ModelPicker() {
+  const env = useEnv()
+  const c = useChoices()
+  const [open, setOpen] = useState(false)
+  // Before any is connected it names the built-in one all the same, which needs no key: the one that will
+  // answer (Almaz, 25 Nov: "Choose a model" read as if the assistant wouldn't work without a pick)
+  const limit = env.assistant === "limit"
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Model: ${c.model}${limit ? ", limit reached" : ""}. Change`}
+          className={cn(
+            "-mr-1 flex h-6 max-w-[60%] shrink-0 items-center gap-1 rounded-md px-1 hover:bg-foreground/[0.05] hover:text-foreground data-[state=open]:text-foreground focus-visible:outline-2 focus-visible:outline-brand-purple pointer-coarse:h-11",
+            limit && "text-warning-ink hover:text-warning-ink"
+          )}
+        >
+          <span className="truncate">{limit ? `${c.model} · Limit reached` : c.model}</span>
+          <ChevronDown aria-hidden="true" strokeWidth={1.75} className="size-3.5 shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="end" sideOffset={6} className="w-72 gap-0 rounded-(--radius-panel) p-1.5 shadow-panel">
+        {limit && (
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              openSettings({ section: "assistant" })
+            }}
+            className="mb-1 flex w-full flex-col rounded-lg border-b border-border px-2 py-1.5 text-left hover:bg-surface-raised"
+          >
+            <span className="text-13 leading-5 font-act text-foreground">Add API key</span>
+            <span className="text-13 leading-4 text-warning-ink">Limit reached. Back at 3:00 PM</span>
+          </button>
+        )}
+        <Choose view="Assistant" bare onBack={() => setOpen(false)} onClose={() => setOpen(false)} />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+/** `context`: a quiet line under the field, as Claude Code's under its own: the network and the model, each
+ * a pick */
+export function Ask({ p, phone = false, chips = [], context = false }: { p: Project; phone?: boolean; chips?: string[]; context?: boolean }) {
   const [text, setText] = useState("")
   const [focused, setFocused] = useState(false)
   // A chip's question flies from the chip into the thread, as in a tutorial
@@ -325,6 +405,13 @@ export function Ask({ p, phone = false, chips = [] }: { p: Project; phone?: bool
           </ComposerSend>
         </ComposerToolbar>
       </Composer>
+      {context && (
+        // The network and the model, each a pick of its own; no file name, the tab says it (Almaz, 25 Nov)
+        <div className="mt-2 flex items-center justify-between gap-3 px-1 text-13 leading-5 text-muted-foreground">
+          <NetworkPicker />
+          <ModelPicker />
+        </div>
+      )}
     </div>
   )
 }

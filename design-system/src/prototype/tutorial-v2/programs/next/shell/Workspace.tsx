@@ -404,8 +404,10 @@ export function Workspace({ p }: { p: Project }) {
           </nav>
         )}
         <div className="flex min-w-0 flex-1 flex-col">
+          {/* No rule under the tabs (Almaz, 25 Nov): the open tab wears the code's ground, so the code runs on
+              from it, and the bar's own ground marks the edge elsewhere */}
           {!p.opening && (
-            <div className="flex h-10 shrink-0 items-stretch border-b border-border bg-surface-base">
+            <div className="flex h-10 shrink-0 items-stretch bg-surface-base">
               <Popover open={!wide && pop} onOpenChange={setPop}>
                 <PopoverAnchor asChild>
                   <EditorTabs variant="quiet" className="h-full min-w-0 flex-1 border-b-0!">

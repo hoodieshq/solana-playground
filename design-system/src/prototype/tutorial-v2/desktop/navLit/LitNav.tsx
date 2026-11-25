@@ -30,7 +30,7 @@ import { HealthDot, RailButton } from "./Rail"
 import { useBuiltOnce } from "./firstBuild"
 import { setupOf } from "./setup"
 import { SetupSteps } from "./SetupRow"
-import { StatusChip } from "./StatusChip"
+import { StatusChip, chipCalm } from "./StatusChip"
 import "./navLit.css"
 import { toCatalog, useInProject } from "../../programs"
 import { openSettings } from "../../settings/open"
@@ -438,7 +438,8 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
                     <AccountRow
                       account={account}
                       setup={setup}
-                      chipWord={health && healthWith(health, choices).word}
+                      // The room kept for the chip: its word only while it shows one, a calm chip is a dot
+                      chipWord={health ? (chipCalm(healthWith(health, choices)) ? "" : healthWith(health, choices).word) : undefined}
                       chip={health && state.statusRows && <StatusChip health={health} rows={state.statusRows} note={state.statusNote} />}
                       menu={accountMenu("top")}
                     />

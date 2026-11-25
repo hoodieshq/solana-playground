@@ -1,17 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Check, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
 import { ASSISTANT_KEYS } from "../../../desktop/keys"
 import { useChoices } from "../../../desktop/navLit/choices"
-import { useEnv } from "../../../newProject/next/model"
 import { AssistantMark } from "../../../ui/AssistantMark"
 import { LANDING_CHIPS } from "../../read"
 import { Prose } from "../../../ui/Prose"
 import { ApplyCardView } from "../../../ui/turns/ApplyCard"
 import { READ, READ_CODE, reducedMotion } from "../../../ui/type"
-import { busy, FIX_ASK, firstIx, metaOf, onChain, openFile, settleFix, type Project, type Turn } from "../../store"
+import { ask, busy, FIX_ASK, firstIx, metaOf, onChain, openFile, settleFix, type Project, type Turn } from "../../store"
+import { standing } from "../catalog-parts"
 import { Ask } from "./GuideColumn"
 import { PanelHide } from "./parts"
 import { nextStageOf, stageHint } from "./Stages"
@@ -67,7 +67,8 @@ function briefOf(p: Project): Brief {
   // While a run is going, the note says so: "It answered" before the call had come back said the opposite
   if (busy(p)) return { text: `${stageHint(p) ?? "Running"}. The terminal shows each step as it goes.`, ask: [] }
   const fail = [...p.feed].reverse().find((t): t is Extract<Turn, { k: "build-fail" }> => t.k === "build-fail")
-  if (fail && failLive(p, fail)) return { text: `The compiler stopped at ${baseName(fail.file ?? mainFile(p))} line ${fail.line}. I can explain the error or fix it.`, ask: ["Explain the error", FIX_ASK] }
+  // The rows under it offer to explain and to fix, so the note says only where it stopped (the judged spec, 25 Nov)
+  if (fail && failLive(p, fail)) return { text: `The compiler stopped at \`${baseName(fail.file ?? mainFile(p))}\` line ${fail.line}.`, ask: ["Explain the error", FIX_ASK] }
   if (p.deployFailed) return { text: "Nothing reached devnet, and the build is still good.", ask: ["Is it safe to deploy?"] }
   const next = nextStageOf(p)
   const chain = onChain(p)
@@ -93,7 +94,7 @@ function briefOf(p: Project): Brief {
     default: {
       // Only after a call: the note names it and stops there
       const ix = [...p.feed].reverse().find((t): t is Extract<Turn, { k: "call-ok" }> => t.k === "call-ok")?.ix
-      return { text: ix ? `Called \`${ix}\`. Logs are in the terminal.` : "Live on devnet.", ask: ["What should I read first?"] }
+      return { text: ix ? `Called \`${ix}\` on devnet. Logs are in the terminal.` : "Live on devnet.", ask: ["What should I read first?"] }
     }
   }
 }
@@ -177,6 +178,9 @@ function chipsFor(p: Project, said: Talk[], moment: string[]): string[] {
   return p.read || turns.length === 0 ? list : [...list.slice(0, 2), NEXT_STEP, ...list.slice(2)]
 }
 
+/** Where a model was picked mid talk, by project: after how many lines of the thread, and which */
+const switches = new Map<string, { at: number; model: string }[]>()
+
 // Answers that finished typing, and those already there when a project opened: coming back finds them whole
 const typed = new Set<string>()
 
@@ -237,6 +241,52 @@ function EventLine({ t }: { t: Event }) {
   )
 }
 
+const FRAMEWORK_WORD: Record<Project["framework"], string> = { anchor: "Anchor", native: "Native Rust", pinocchio: "Pinocchio", quasar: "Quasar", "ts-client": "TypeScript client" }
+
+/** What an open program finds before anything is said, as judged on 25 Nov after a UX architect's and a UI
+ * designer's passes: anchored to the field, on the column's own left edge. A quiet line with the program and its
+ * framework (no mark: the head has it; no "Ask about": the field says it; no step: the bar says it), then the
+ * note in the assistant's own reading face, its first word set as its answers are, then up to three questions as
+ * filled rows, pressable at a glance without a hover. No card, no label, no fact under a question: it gave the
+ * answer away. It steps out once you are talking */
+function Greeting({ p, asks, phone }: { p: Project; asks: string[]; phone: boolean }) {
+  const meta = metaOf(p)
+  const brief = briefOf(p)
+  const fail = [...p.feed].reverse().find((t) => t.k === "build-fail")
+  const failing = !!fail && failLive(p, fail)
+  const own = (a: string) => !!meta?.ixs.some((ix) => ixAsk(ix.name) === a)
+  const done = !!standing(p).done
+  // While a build fails, its two questions alone; else the program's own instructions first, nothing about a
+  // deploy once it is deployed, three at most
+  const rows = failing
+    ? brief.ask
+    : [...asks.filter(own), ...asks.filter((a) => !own(a))].filter((a) => !done || (a !== "What does a deploy cost?" && a !== "Is it safe to deploy?")).slice(0, 3)
+  return (
+    <div className="flex min-h-full flex-col justify-end">
+      <p className="text-13 leading-5 text-muted-foreground">{`${meta?.title ?? p.name} · ${FRAMEWORK_WORD[p.framework]}`}</p>
+      {brief.text && (
+        <p className={cn(READ, "mt-2")}>
+          <Prose text={brief.text} chip="p-0! mr-0! text-16! leading-6!" ink="text-current" />
+        </p>
+      )}
+      {rows.length > 0 && (
+        <div className={cn("mt-5 flex flex-col gap-1", phone && "mt-4")}>
+          {rows.map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => ask(p.id, a)}
+              className="-mx-3 min-h-9 rounded-lg bg-foreground/[0.04] px-3 py-2 text-left text-13 leading-5 font-act text-foreground transition-colors duration-100 hover:bg-foreground/[0.07] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple active:bg-foreground/[0.10] motion-reduce:transition-none pointer-coarse:min-h-11"
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** The thread and the composer, with no head: the desktop's panel adds one, the phone's space has the bar */
 export function AskThread({ p, phone = false }: { p: Project; phone?: boolean }) {
   const scroller = useRef<HTMLDivElement>(null)
@@ -253,11 +303,25 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
     const el = scroller.current
     if (el) el.scrollTop = el.scrollHeight
   })
+  // A model picked mid talk leaves a line where it took over, as a run's does (Almaz, 25 Nov)
+  const { model } = useChoices()
+  const was = useRef(model)
+  useEffect(() => {
+    if (was.current === model) return
+    was.current = model
+    if (count === 0) return
+    switches.set(p.id, [...(switches.get(p.id) ?? []), { at: count, model }])
+    tick((n) => n + 1)
+  }, [model, count, p.id])
+  const switched = switches.get(p.id) ?? []
   const brief = briefOf(p)
   const chips = chipsOf(p, turns, brief.ask)
+  // Nothing said yet in a program with code: the greeting holds the column, and its questions leave the field
+  const greet = count === 0 && !p.draft && !p.opening
   return (
     <>
       <div ref={scroller} className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain pt-[22px] pb-3", phone ? "px-4" : "px-5")}>
+        {greet && <Greeting p={p} asks={chips.filter((c) => c !== "Show me the line")} phone={phone} />}
         <div role="log" aria-live="polite" aria-label="Assistant" className="flex flex-col gap-[15px]">
           {/* The tutorial thread's rhythm: 15 from a question to its answer, 24 before the next question */}
           {turns.map((t, i) => {
@@ -294,40 +358,22 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
                     }}
                   />
                 )}
+                {switched
+                  .filter((s) => s.at === i + 1)
+                  .map((s, k) => (
+                    <p key={k} className="mt-[15px] flex items-center gap-2 text-13 leading-5 text-muted-foreground">
+                      <AssistantMark strokeWidth={1.75} className="size-3.5" />
+                      {`Switched to ${s.model}`}
+                    </p>
+                  ))}
               </div>
             )
           })}
         </div>
       </div>
-      {count === 0 && <BriefNote text={brief.text} phone={phone} />}
-      <Ask p={p} phone={phone} chips={chips} />
+      {count === 0 && !greet && <BriefNote text={brief.text} phone={phone} />}
+      <Ask p={p} phone={phone} chips={greet ? [] : chips} context={!p.opening} />
     </>
-  )
-}
-
-/** "Assistant · GLM 5.3 Flash": which model answers (Spec 04, 4.14), plain "Assistant" while none is on. A
- * long name ends in "…" at 12rem and shows in full on hover, only when it was cut */
-function ModelHead() {
-  const env = useEnv()
-  const { model } = useChoices()
-  const name = useRef<HTMLSpanElement>(null)
-  const [cut, setCut] = useState(false)
-  useLayoutEffect(() => {
-    const el = name.current
-    setCut(!!el && el.scrollWidth > el.clientWidth)
-  }, [model, env.assistant])
-  return (
-    <h2 className="flex min-w-0 flex-1 items-center gap-1.5 text-13 font-act text-foreground">
-      Assistant
-      {env.assistant !== "off" && (
-        <>
-          <span aria-hidden="true" className="text-subtle">·</span>
-          <span ref={name} title={cut ? model : undefined} className="max-w-[12rem] min-w-0 truncate font-normal text-muted-foreground">
-            {model}
-          </span>
-        </>
-      )}
-    </h2>
   )
 }
 
@@ -339,7 +385,8 @@ export function AskPanel({ p, onClose, className }: { p: Project; onClose: () =>
           the thread starts a clear step below */}
       <div className="flex h-10 shrink-0 items-center gap-2 pr-1.5 pl-5">
         <AssistantMark strokeWidth={1.75} className="text-muted-foreground" />
-        <ModelHead />
+        {/* The name alone: the model sits under the field now, where it is changed (Almaz, 25 Nov) */}
+        <h2 className="flex-1 text-13 font-act text-foreground">Assistant</h2>
         <PanelHide what="the assistant" keys={ASSISTANT_KEYS} onClick={onClose} />
       </div>
       <AskThread p={p} />

@@ -26,7 +26,7 @@ export const RoomyCtx = createContext(false)
 export const useRoomy = () => useContext(RoomyCtx)
 
 /** A tooltip after 300ms, pointer only: on the tablet the trigger stands alone */
-export function Tip({ label, keys, side = "right", children }: { label?: string; keys?: string; side?: "right" | "top" | "bottom"; children: ReactNode }) {
+export function Tip({ label, keys, side = "right", children }: { label?: ReactNode; keys?: string; side?: "right" | "top" | "bottom"; children: ReactNode }) {
   const tablet = useTablet()
   if (!label || tablet) return <>{children}</>
   return (
