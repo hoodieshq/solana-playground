@@ -1299,7 +1299,7 @@ describe("useTurn without a session", () => {
     expect(provider.send).not.toHaveBeenCalled();
   });
 
-  it("keeps a requested prompt waiting while the default has no session", async () => {
+  it("keeps a requested prompt waiting while the default has no session, with no Connect over the off row", async () => {
     defaultBackend(true);
     const { result } = renderHook(() => useTestTurn());
 
@@ -1307,8 +1307,38 @@ describe("useTurn without a session", () => {
 
     await waitFor(() => expect(result.current.promptWaiting).toBe(true));
     expect(result.current.draft.get()).toBe("Explain this error");
-    expect(open).toHaveBeenCalledWith("send", undefined);
+    expect(result.current.sendsOnSignIn).toBe(true);
+    expect(open).not.toHaveBeenCalled();
     expect(provider.send).not.toHaveBeenCalled();
+  });
+
+  it("sends the waiting prompt by itself once the user signs in", async () => {
+    defaultBackend(true);
+    const { result } = renderHook(() => useTestTurn());
+    act(() => PgAssistant.requestPrompt("Explain this error"));
+    await waitFor(() => expect(result.current.sendsOnSignIn).toBe(true));
+
+    await act(() => PgSession.refreshWith(USER));
+
+    await waitFor(() => expect(provider.send).toHaveBeenCalledTimes(1));
+    expect(provider.send.mock.calls[0][0]).toBe("Explain this error");
+    expect(PgAssistant.connection?.id).toBe("default");
+    expect(result.current.sendsOnSignIn).toBe(false);
+    expect(result.current.draft.get()).toBe("");
+  });
+
+  it("keeps an edited prompt for the user after the sign-in, unsent", async () => {
+    defaultBackend(true);
+    const { result } = renderHook(() => useTestTurn());
+    act(() => PgAssistant.requestPrompt("Explain this error"));
+    await waitFor(() => expect(result.current.sendsOnSignIn).toBe(true));
+    act(() => result.current.draft.set("Explain this error, briefly"));
+
+    await act(() => PgSession.refreshWith(USER));
+
+    await waitFor(() => expect(result.current.sendsOnSignIn).toBe(false));
+    expect(provider.send).not.toHaveBeenCalled();
+    expect(result.current.draft.get()).toBe("Explain this error, briefly");
   });
 
   it("sends on a key-based backend", async () => {

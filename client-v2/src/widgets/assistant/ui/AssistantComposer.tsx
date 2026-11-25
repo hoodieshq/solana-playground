@@ -293,6 +293,7 @@ export function AssistantComposer({
         <BaseAiOffRow
           reason={off}
           promptWaiting={turn.promptWaiting}
+          sendsOnSignIn={turn.sendsOnSignIn}
           signInError={signInError}
           signingIn={PgSession.signInState().status === "pending"}
           retrying={retrying}

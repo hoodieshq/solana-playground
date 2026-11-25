@@ -34,6 +34,17 @@ const REASONS: Record<
   },
 };
 
+/**
+ * The line an ask box away from the panel shows before a send, by reason:
+ * Home's says what a send will need, so the panel's off row is no surprise.
+ * None while the model is only out of reach, which a send will report
+ */
+export const AI_OFF_SEND_HINT: Record<AiOffReason, string | undefined> = {
+  "no-key": "Add a key to send",
+  "signed-out": "Sign in or add a key to send",
+  unreachable: undefined,
+};
+
 /** Send's tooltip while the row stands, by reason */
 export const AI_OFF_SEND_BLOCKED: Record<AiOffReason, string> = {
   "no-key": "Connect a model to send",
@@ -45,6 +56,8 @@ export interface BaseAiOffRowProps {
   reason: AiOffReason;
   /** A requested prompt waits in the composer */
   promptWaiting: boolean;
+  /** It sends by itself once the user signs in or adds a key */
+  sendsOnSignIn?: boolean;
   /** Why the last sign-in from the row failed, if it did */
   signInError?: string;
   /** A sign-in is under way, so a second press would only join it */
@@ -65,6 +78,7 @@ export interface BaseAiOffRowProps {
 export function BaseAiOffRow({
   reason,
   promptWaiting,
+  sendsOnSignIn = false,
   signInError,
   signingIn,
   retrying,
@@ -83,7 +97,10 @@ export function BaseAiOffRow({
       <CalloutTitle>{title}</CalloutTitle>
       <CalloutDescription>
         {text}
-        {promptWaiting && " Your prompt is waiting in the composer."}
+        {promptWaiting &&
+          (sendsOnSignIn
+            ? " Your question waits in the composer and sends once you're in."
+            : " Your prompt is waiting in the composer.")}
         {action === "sign-in" && signInError && (
           <span className="block">{signInError}</span>
         )}
