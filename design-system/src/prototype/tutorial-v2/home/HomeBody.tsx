@@ -17,7 +17,6 @@ import { GitHubMark } from "../newProject/next/SourceRail"
 import { YourPrograms } from "../programs/next/YourPrograms"
 import { useStore } from "../store"
 import { CATALOG, shownName } from "../ui/catalog"
-import { StepRing } from "../ui/StepRing"
 import { FOCUS } from "../ui/type"
 
 /* Home (Almaz, 10 Nov): the page you land on. Three things, in the order a visit needs them: what to
@@ -35,7 +34,6 @@ function useLead() {
   const lesson = LESSONS[slug]
   const p = useProgress(slug)
   const openTutorial = useOpenTutorial()
-  const n = lesson.steps.length
   const at = lesson.steps.findIndex((_, i) => !p.passed[i])
   const [, nav] = useNavState()
   const first = nav.account?.session === "in" ? nav.account.primary.split(" ")[0] : null
@@ -44,11 +42,10 @@ function useLead() {
   const lessons = useStartedLessons().length
   const back = lessons > 0 || (Array.isArray(nav.projects) && nav.projects.length > 0)
   return {
+    entry: CATALOG.find((c) => c.slug === slug),
     name: lesson.card.name,
     state: p.finished ? ("done" as const) : started ? ("started" as const) : ("fresh" as const),
     title: back ? (first ? `Welcome back, ${first}` : "Welcome back") : "Build your first Solana program",
-    steps: n,
-    at: at === -1 ? n : at,
     next: at === -1 ? "One more tap to finish" : lesson.steps[at].objective,
     // On a first visit the title already says "your first program", so the line says how, not what again
     sub: back ? `${lesson.line} · ${lesson.minutes} min` : `Write it, deploy it to devnet and call it. About ${lesson.minutes} minutes.`,
@@ -73,25 +70,27 @@ function Hero({ phone }: { phone: boolean }) {
 
   return (
     <section ref={box} aria-labelledby="home-title" className={cn(wide ? "pt-12 pb-6" : "pt-3 pb-4")}>
-      <div className="max-w-[34rem] min-w-0">
+      {/* The words keep a reading width; the card under them runs the page's, as the cards below do */}
+      <div className={cn("min-w-0", l.state !== "started" && "max-w-[34rem]")}>
         <h1 id="home-title" className={cn("font-heading font-normal tracking-tight text-balance text-foreground", wide ? "text-40 leading-11" : "text-28 leading-8")}>
           {l.title}
         </h1>
+        {/* Back to what you were doing, as one card: what it is and what comes next, with the button in it.
+            No progress here: that's the lesson's own bar; this only has to get you back in (Almaz, 25 Nov) */}
         {l.state === "started" && (
-          <>
-            {/* The ring by the step, as the lesson and a project show it: a row of bars under it was a third
-                pattern for the same thing (Nikita, 20 Nov) */}
-            <p className="mt-4 text-16 leading-5 text-foreground/78">
-              <span className="flex items-center gap-2">
-                <StepRing done={l.at} of={l.steps} />
-                <span>
-                  <span className="text-foreground">{l.name}</span>
-                  {` · Step ${Math.min(l.steps, l.at + 1)} of ${l.steps}`}
-                </span>
-              </span>
-              <span className="mt-0.5 block pl-6 text-muted-foreground">{`Next: ${l.next}`}</span>
-            </p>
-          </>
+          <div className={cn("mt-6 flex gap-3.5 rounded-panel border border-border bg-surface-panel p-3", wide ? "items-center pr-3.5" : "flex-col")}>
+            <div className="flex min-w-0 flex-1 items-center gap-3.5">
+              {l.entry && <TutorialThumb t={l.entry} />}
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-heading text-16 leading-5 font-normal tracking-tight text-foreground">{l.name}</p>
+                <p className="mt-1 text-13 leading-5 text-muted-foreground">{`Next: ${l.next}`}</p>
+              </div>
+            </div>
+            <BrandButton className={cn(GO, "shrink-0", !wide && "h-12 w-full")} onClick={l.open}>
+              Continue
+              <BrandButtonIcon />
+            </BrandButton>
+          </div>
         )}
         {/* One line under the title, not three: the lesson's name is on the button, and its level and steps said
             little a first visit needs (Almaz, 20 Nov). Its time stays, as how long the yes costs */}
@@ -104,19 +103,21 @@ function Hero({ phone }: { phone: boolean }) {
             You finished the path. The next program is your own.
           </p>
         )}
-        <div className={cn("mt-6 flex", !wide && "[&>button]:h-12 [&>button]:w-full [html.portrait_&>button]:w-auto [html.portrait_&>button]:min-w-60")}>
-          {l.state === "done" ? (
-            <BrandButton className={GO} onClick={() => openFirstLight({ entry: "home-tile" })}>
-              New project
-              <BrandButtonIcon />
-            </BrandButton>
-          ) : (
-            <BrandButton className={GO} onClick={l.open}>
-              {l.state === "started" ? "Continue" : `Start ${l.name}`}
-              <BrandButtonIcon />
-            </BrandButton>
-          )}
-        </div>
+        {l.state !== "started" && (
+          <div className={cn("mt-6 flex", !wide && "[&>button]:h-12 [&>button]:w-full [html.portrait_&>button]:w-auto [html.portrait_&>button]:min-w-60")}>
+            {l.state === "done" ? (
+              <BrandButton className={GO} onClick={() => openFirstLight({ entry: "home-tile" })}>
+                New project
+                <BrandButtonIcon />
+              </BrandButton>
+            ) : (
+              <BrandButton className={GO} onClick={l.open}>
+                {`Start ${l.name}`}
+                <BrandButtonIcon />
+              </BrandButton>
+            )}
+          </div>
+        )}
       </div>
     </section>
   )
@@ -303,10 +304,11 @@ function Path() {
         {!short && <button
           type="button"
           onClick={() => dispatch({ type: "open", screen: "gallery" })}
-          className={cn("group/all -my-1.5 -mr-2 flex h-9 items-center gap-1 rounded-lg px-2 text-13 whitespace-nowrap text-muted-foreground tabular-nums transition-colors duration-100 hover:text-foreground motion-reduce:transition-none pointer-coarse:h-11", FOCUS)}
+          // In the heading's own size and colour, as Your projects' Show all (Almaz, 25 Nov)
+          className={cn("group/all -my-1.5 -mr-2 flex h-9 items-center gap-1.5 rounded-lg px-2 font-heading text-20 leading-6 font-headline whitespace-nowrap text-foreground tabular-nums transition-opacity duration-100 hover:opacity-75 motion-reduce:transition-none pointer-coarse:h-11", FOCUS)}
         >
           {`All ${CATALOG.length} tutorials`}
-          <ArrowRight aria-hidden="true" strokeWidth={1.75} className="size-3.5 transition-transform duration-150 group-hover/all:translate-x-0.5 motion-reduce:transition-none" />
+          <ArrowRight aria-hidden="true" strokeWidth={1.75} className="size-5 transition-transform duration-150 group-hover/all:translate-x-0.5 motion-reduce:transition-none" />
         </button>}
       </div>
       <ol className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">

@@ -15,19 +15,11 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-import { TileCover } from "./TileCover"
+import { QUIET_SWEEP, TileCover } from "./TileCover"
 
-/* A tutorial's cover: the tile cover (TileCover.tsx) in the tutorials' violets, with a picture of what
-   the lesson builds. Programs wear the same cover in greens and teals, so the two sections read as one
-   family and are still told apart (Almaz, 10 Nov) */
-
-/** From the top left to the bottom right, by level, as the gallery groups its lessons: violet leaning
- * to teal for Beginner, to blue for Intermediate, the brand's own purple for Advanced */
-const SWEEP: Record<string, [string, string]> = {
-  Beginner: ["#C3B0FF", "#5FD5C1"],
-  Intermediate: ["#B4C0FF", "#4A8BE0"],
-  Advanced: ["#E3B0FF", "#9945FF"],
-}
+/* A tutorial's cover: the tile cover (TileCover.tsx) in the covers' quiet grey, with a picture of what
+   the lesson builds. One colour for every level and for Programs too: the level is the section's heading,
+   and coloured pictures pulled the eye from the names (Almaz, 25 Nov; was violets by level) */
 
 /** The pictures, drawn by hand on the 12 by 12 grid, a row a string, # a lit tile. By the product's
  * (upstream's) names, in order: an anchor, waves, Solana's three bars, a bank's front, a coin, a skull
@@ -242,6 +234,6 @@ export const tutorialIcon = (name: string) => ICONS[name] ?? GraduationCap
 /** Decorative: the card's own text names the tutorial. `name` is the product's (upstream's) name,
  * which picks the picture, so a cover matches the product's. `level` picks the colours; a caller with
  * none gets Beginner's */
-export function TutorialCover({ name, level, className }: { name: string; framework?: string; level?: string; className?: string }) {
-  return <TileCover art={ART[name] ?? ART.default} sweep={SWEEP[level ?? ""] ?? SWEEP.Beginner} className={className} />
+export function TutorialCover({ name, className }: { name: string; framework?: string; level?: string; className?: string }) {
+  return <TileCover art={ART[name] ?? ART.default} sweep={QUIET_SWEEP} className={className} />
 }

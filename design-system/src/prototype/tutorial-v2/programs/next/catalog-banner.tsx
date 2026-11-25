@@ -1,9 +1,10 @@
+import { Clock } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
 
 import { BrandButton, BrandButtonIcon } from "@/components/ui/brand-button"
 import { cn } from "@/lib/utils"
 
-import { programBySlug } from "../data"
+import { CATALOG, programBySlug } from "../data"
 import { go, openProgram, usePrograms } from "../store"
 import { programCoverIcon } from "./ProgramCover"
 import { ProgramVoxels } from "./ProgramVoxels"
@@ -12,6 +13,18 @@ import { StandingWord, resumeLabel, standing, useProjectOf } from "./catalog-par
 /** The program to start with: one you can build, deploy and call. While the build server can't build
  * Native that is the Anchor counter; once it can, memo, called in one press with no setup */
 const firstFor = (native: boolean) => (native ? "spl-memo" : "counter")
+
+/** The banner's own short line for the first ones; the rest say their catalog line */
+const LINE: Record<string, string> = { counter: "Deploy a counter and count up", "spl-memo": "Send text and read it back" }
+
+/** What the banner offers: the first program, else the next one you can run and haven't finished, in the
+ * catalog's order. A finished one never leads it: "Done" over a Start told you nothing to do (Almaz, 25 Nov) */
+function useNext(native: boolean) {
+  const projects = usePrograms((s) => s.projects)
+  const done = (slug: string) => Object.values(projects).some((x) => x.slug === slug && standing(x).done)
+  const order = [firstFor(native), ...CATALOG.filter((m) => native || m.kind === "anchor").map((m) => m.slug)]
+  return order.find((slug) => !done(slug)) ?? order[0]
+}
 
 /** The banner's width, in px, from which the sculpture stands beside the words, as on the Tutorials banner */
 const WIDE_MIN = 640
@@ -40,10 +53,11 @@ const GO = "start-beam h-10 font-heading text-16 font-act tracking-normal pointe
  * from the top right corner and the words run under it */
 export function ProgramBanner({ phone = false }: { phone?: boolean }) {
   const native = usePrograms((s) => s.native)
-  const FIRST = firstFor(native)
-  const p = programBySlug(FIRST)!
-  const project = useProjectOf(FIRST)
-  const st = project ? standing(project) : null
+  const slug = useNext(native)
+  const p = programBySlug(slug)!
+  const project = useProjectOf(slug)
+  // Under way says where it stands; done (every one finished) says nothing, the minutes alone
+  const st = project && !standing(project).done ? standing(project) : null
   const titleId = useId()
   const box = useRef<HTMLElement>(null)
   const [wide, setWide] = useState(true)
@@ -61,38 +75,47 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
       aria-labelledby={titleId}
       // Green, the deploy's colour, from the corner the ring climbs to; the Tutorials banner has purple there
       style={{ background: "radial-gradient(120% 140% at 100% 0%, #14f1951a, transparent 62%), var(--surface-panel)" }}
-      className={cn("relative isolate overflow-hidden rounded-card border border-border", phone ? "mb-6" : "mb-8")}
+      // 48 under it, the gap between the page's sections, so Your projects starts as Solana examples does (Almaz, 25 Nov)
+      className="relative isolate mb-12 overflow-hidden rounded-card border border-border"
     >
       <style>{BEAM_CSS}</style>
-      <ProgramVoxels corner={!wide} icon={programCoverIcon(FIRST)} />
+      <ProgramVoxels corner={!wide} icon={programCoverIcon(slug)} />
       <div className={cn("relative", phone ? "p-5" : "p-7")}>
-        {/* The words keep to where the sculpture has faded out, about the left 42% of a wide banner: 22rem
-            holds the line on one row, so the words are three lines at most, as on the Tutorials banner */}
-        <div className="max-w-[22rem] min-w-0">
-          <p className={cn("flex items-center gap-1.5 text-13", st ? "text-muted-foreground" : "text-brand-periwinkle")}>
+        {/* The words keep to where the sculpture has faded out. 20rem: one row at 24 ran into the art, and 22
+            balanced two short halves; here the line breaks once, long first, with no word left alone (Almaz, 25 Nov) */}
+        <div className="max-w-[20rem] min-w-0">
+          {/* Three faces and no more, a clear step apart: the line over the name at 13, the name at 28, the
+              words at 16, all small text muted so the name leads (the minutes too: no colour, Almaz 25 Nov). The
+              gaps are set by what the eye sees, not by the boxes: the 28's and the 16's line heights already add
+              air, so 6 over and under the name and 20 to the button read as an even 16, 16, 24 (Almaz, 25 Nov,
+              after Claude's plugin banner). On the phone the page's own title is 28, so the name steps down to 20
+              and the words to 13, the line's size. One row, so the dot and the minutes sit on the state's line */}
+          <p className="flex items-center gap-1.5 text-13 leading-5 text-muted-foreground tabular-nums">
             {/* No "Start here": the button says it (Almaz, 20 Nov) */}
-            <span className="tabular-nums">
-              {st && <StandingWord s={st} className="text-muted-foreground" />}
-              {st ? ` · ${p.minutes} min` : `${p.minutes} min`}
-            </span>
+            {st && <StandingWord s={st} className="text-muted-foreground" />}
+            {st && <span aria-hidden="true">·</span>}
+            {/* The clock as on the cards' minutes (Almaz, 25 Nov) */}
+            <Clock aria-hidden="true" className="size-3.5" />
+            <span>{`${p.minutes} min`}</span>
           </p>
-          <h2 id={titleId} className="mt-1.5 font-heading text-20 leading-6 font-normal tracking-tight text-foreground">
-            {/* A heading, so the name takes a capital here; the cards keep the program's own lowercase */}
-            {p.name.charAt(0).toUpperCase() + p.name.slice(1)}
+          <h2 id={titleId} className={cn("mt-1.5 font-heading font-normal tracking-tight text-foreground", phone ? "text-20 leading-6" : "text-28 leading-8")}>
+            {/* A heading, so the name takes a capital and words, not the slug's hyphens ("Create account"); the
+                cards keep the program's own name */}
+            {(p.name.charAt(0).toUpperCase() + p.name.slice(1)).replace(/-/g, " ")}
           </h2>
-          <p className="mt-2 max-w-[44ch] text-16 leading-5 text-balance text-foreground/78">
-            {native ? "Send text and read it back" : "Deploy a counter and count up"}
+          <p className={cn("text-pretty text-muted-foreground", phone ? "mt-1 text-13 leading-5" : "mt-1.5 text-16 leading-6")}>
+            {LINE[slug] ?? p.description}
           </p>
           {/* On the phone the button takes the card's width, a thumb's 48, as the Tutorials banner sets it; an
               upright tablet keeps it to 240 */}
-          <div className={cn("mt-6", phone && "[&>button]:h-12 [&>button]:w-full [html.portrait_&>button]:w-auto [html.portrait_&>button]:min-w-60")}>
+          <div className={cn("mt-5", phone && "[&>button]:h-12 [&>button]:w-full [html.portrait_&>button]:w-auto [html.portrait_&>button]:min-w-60")}>
             {project ? (
               <BrandButton className={GO} onClick={() => go({ at: "project", id: project.id })}>
                 {resumeLabel(project)}
                 <BrandButtonIcon />
               </BrandButton>
             ) : (
-              <BrandButton className={GO} onClick={() => openProgram(FIRST)}>
+              <BrandButton className={GO} onClick={() => openProgram(slug)}>
                 Start
                 <BrandButtonIcon />
               </BrandButton>

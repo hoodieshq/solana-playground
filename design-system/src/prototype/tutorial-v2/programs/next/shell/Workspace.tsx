@@ -304,7 +304,7 @@ export function Workspace({ p }: { p: Project }) {
 
   return (
     <section ref={box} aria-label="Project" className="flex min-w-0 flex-1 flex-col bg-surface-base">
-      <div className="@container/bar flex h-11 shrink-0 items-center gap-1 border-b border-border px-1.5">
+      <div className="@container/bar flex h-11 shrink-0 items-center gap-1 border-b border-border pr-1.5 pl-2">
         {/* Every project goes back to Programs, as a lesson to Tutorials: yours are listed there too (Almaz, 10 Nov) */}
         <Button variant="ghost" size="sm" aria-label="Programs" className="shrink-0 gap-0.5 pl-1.5 text-muted-foreground" onClick={() => go({ at: "catalog" })}>
           <ChevronLeft className="size-4" />

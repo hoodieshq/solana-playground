@@ -12,6 +12,10 @@
 :is(.group\/card, .group\/row):is(:hover, :focus-within) .tile-cover-lit {
   animation: tile-cover-wave 620ms var(--ease-standard-value, ease-out) both;
 }
+/* Not under a done veil: the picture rests behind it, only the tick shows (Almaz, 25 Nov) */
+[data-done] .tile-cover-lit {
+  animation: none !important;
+}
 @media (prefers-reduced-motion: reduce) {
   .tile-cover-lit {
     animation: none !important;

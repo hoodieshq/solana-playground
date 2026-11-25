@@ -20,12 +20,34 @@ import { deleteProject, go, openSaved, usePrograms, type Project } from "../stor
 import { ProgramIcon, standing } from "./catalog-parts"
 import { ProjectCover } from "./ProjectCover"
 import { deletable, deleteQuestion, startRename } from "./shell/GuideColumn"
+import { stagesOf } from "./shell/Stages"
 
 /** Where a project of yours stands: the words its catalog card says, from one place */
 function whereNow(p: Project): { where: string; done: boolean; failed: boolean } {
   const st = standing(p)
   return { where: st.word, done: !!st.done, failed: !!st.failed }
 }
+
+const FRAMEWORK: Record<Project["framework"], string> = { anchor: "Anchor", native: "native Rust", pinocchio: "Pinocchio", quasar: "Quasar", "ts-client": "TypeScript client" }
+
+/** Two lines for a project of your own, which has no catalog line: what it is, and what to do next in it
+ * (Almaz, 25 Nov: a card is never one line or none). Kept near 70 characters, two lines at a card's width */
+function lineOf(p: Project): string {
+  const what = p.framework === "ts-client" ? "Your TypeScript client." : `Your ${FRAMEWORK[p.framework]} program.`
+  const next = stagesOf(p).find((s) => s.state !== "done" && s.state !== "off")
+  if (!next) return `${what} It runs on devnet: open it to call it or change the code.`
+  if (next.id === "build")
+    return next.state === "failed"
+      ? `${what} The last build failed: fix the error and build again.`
+      : next.state === "stale"
+        ? `${what} The code changed since the last build: build it again.`
+        : `${what} Build it next to check that the code compiles.`
+  if (next.id === "deploy") return `${what} Built. Deploy it next to put it on devnet.`
+  return `${what} On devnet. ${next.label === "Run" ? "Run client.ts" : "Call an instruction"} next to see it work.`
+}
+
+/** An account's project the prototype only knows by name */
+const ACCOUNT_LINE = "A project saved to your account. Open it to pick up where you left off."
 
 /** The last thing you did in it: made, built, deployed or called. Opening it or typing leaves no time in
  * the prototype; the product would keep a last opened one */
@@ -91,6 +113,8 @@ export function YourPrograms() {
         cover: meta ? <ProgramIcon p={meta} className="shrink-0" /> : <ProjectCover framework={p.framework} />,
         name: p.name,
         ...whereNow(p),
+        // A catalog program's words, as its card says them; yours, what it is and what's next (Almaz, 25 Nov)
+        line: meta?.description ?? lineOf(p),
         onOpen: () => openSaved(p.id),
         menu: <RowMenu p={p} onDelete={() => setAsking(p.id)} />,
         confirm:
@@ -131,7 +155,15 @@ export function YourPrograms() {
   for (const name of lessonNames) {
     const t = CATALOG_TUTORIALS.find((c) => shownName(c) === name || c.name === name)
     if (mine.has(name) || !t) continue
-    items.push({ key: `lesson-${t.slug}`, cover: <TutorialThumb t={t} />, name, where: "Done · From a tutorial", done: true, onOpen: () => openTutorial(t.slug) })
+    items.push({
+      key: `lesson-${t.slug}`,
+      cover: <TutorialThumb t={t} />,
+      name,
+      where: "Done · From a tutorial",
+      line: `The program you wrote in the ${name} tutorial. Open it to change or call it.`,
+      done: true,
+      onOpen: () => openTutorial(t.slug),
+    })
   }
   for (const r of rows.filter((r) => !r.lesson && !mine.has(r.name))) {
     items.push({
@@ -140,6 +172,7 @@ export function YourPrograms() {
       name: r.name,
       // Where its work lives, as the nav marks it; the prototype knows nothing else about these
       where: r.marker ?? "Saved to your account",
+      line: ACCOUNT_LINE,
       onOpen: soon,
     })
   }
@@ -153,6 +186,7 @@ export function YourPrograms() {
       cover: <ProjectCover framework="account" />,
       name,
       where: "Saved to your account",
+      line: ACCOUNT_LINE,
       onOpen: soon,
     })
   }
@@ -165,6 +199,7 @@ export function YourPrograms() {
       id="programs-yours"
       title="Your projects"
       items={items}
+      cards
     />
   )
 }

@@ -13,9 +13,10 @@ const BRAND = { purple: "#9945FF", violet: "#7A56DA", green: "#14F195" } as cons
 
 /* The words own the left of the banner: the art fades out before it. In the corner it fades out
    down and to the left, towards the words under it, so they read over its faint end */
+// From 46%: just past the words' 20rem column, as the Programs banner (Almaz, 25 Nov)
 const SIDE_MASK: CSSProperties = {
-  WebkitMaskImage: "linear-gradient(90deg, transparent 42%, #000 54%)",
-  maskImage: "linear-gradient(90deg, transparent 42%, #000 54%)",
+  WebkitMaskImage: "linear-gradient(90deg, transparent 46%, #000 58%)",
+  maskImage: "linear-gradient(90deg, transparent 46%, #000 58%)",
 };
 const CORNER_MASK: CSSProperties = {
   WebkitMaskImage: "radial-gradient(130% 80% at 100% 0%, #000 30%, rgba(0, 0, 0, 0.25) 58%, transparent 78%)",

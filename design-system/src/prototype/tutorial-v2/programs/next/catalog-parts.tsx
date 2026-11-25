@@ -39,7 +39,8 @@ export function standing(p: Project): Standing {
   if (at === -1) return { word: p.framework === "ts-client" ? "Done · Ran on devnet" : "Done · Runs on devnet", deployed: true, done: true, id: chain?.programId, at: when }
   const stage = list[at]
   if (stage.state === "failed") return { word: `${stage.label} failed`, deployed: !!chain, failed: true, id: chain?.programId, at: when }
-  return { word: `Step ${at + 1} of ${list.length} · ${stage.label}`, deployed: !!chain, id: chain?.programId, at: when }
+  // The step alone, never its stage after it ("· Build"): the step says where you are (Almaz, 25 Nov)
+  return { word: `Step ${at + 1} of ${list.length}`, deployed: !!chain, id: chain?.programId, at: when }
 }
 
 /** The 44 tile with the program's cover, on a row of Your projects; the catalog's card draws it at 56 */

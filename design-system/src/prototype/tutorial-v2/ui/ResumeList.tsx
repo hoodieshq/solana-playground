@@ -4,6 +4,8 @@ import { useState, type ReactNode } from "react"
 import { StatusDot } from "@/components/ui/status-dot"
 import { cn } from "@/lib/utils"
 
+import { DoneVeil } from "./TileCover"
+
 
 const FOCUS = "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
 
@@ -27,17 +29,23 @@ export type ResumeItem = {
   menu?: ReactNode
   /** In the row's place while a delete is asked about */
   confirm?: ReactNode
+  /** As cards: what it does, under the name, when it's known */
+  line?: string
 }
+
+/** As cards: the catalog's card at its size, two before Show all */
+const FIRST_CARDS = 2
 
 /** What you started, at the top of Tutorials and of Programs (Almaz, 10 Nov): left half done, a lesson
  * or a project was found again only by its card, or not at all. A grid of cards, each card one button:
  * the cover, the name and where it stands in the words of its own step bar. Built for any number (Almaz,
  * 11 Nov): one card runs the row's width, four show before Show all, and a long list opens with a filter.
  * With none it isn't drawn */
-export function ResumeList({ id, title, items, className }: { id: string; title: string; items: ResumeItem[]; className?: string }) {
+export function ResumeList({ id, title, items, cards = false, className }: { id: string; title: string; items: ResumeItem[]; cards?: boolean; className?: string }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   if (!items.length) return null
+  if (cards) return <ResumeCards id={id} title={title} items={items} className={className} />
   const more = items.length > FIRST
   const filtering = open && items.length >= FILTER_FROM
   const q = filtering ? query.trim().toLowerCase() : ""
@@ -129,6 +137,90 @@ export function ResumeList({ id, title, items, className }: { id: string; title:
                   {it.menu}
                 </div>
               )}
+            </li>
+          )
+        )}
+      </ul>
+    </section>
+  )
+}
+
+/** Your projects at the catalog's card size (Almaz, 25 Nov): the cover at 72, the name, what it does when
+ * it's known, and where it stands. No grey foot: its instructions and minutes said nothing about your own
+ * work (Almaz, 25 Nov). Two show, the rest behind Show all */
+function ResumeCards({ id, title, items, className }: { id: string; title: string; items: ResumeItem[]; className?: string }) {
+  const [open, setOpen] = useState(false)
+  const more = items.length - FIRST_CARDS
+  const shown = open ? items : items.slice(0, FIRST_CARDS)
+  return (
+    <section aria-labelledby={id} className={className}>
+      <div className="mb-4 flex min-h-6 items-center gap-2">
+        <h2 id={id} className="font-heading text-20 leading-6 font-headline text-foreground">
+          {title}
+        </h2>
+        {items.length > 1 && <span className="rounded-full bg-surface-hover px-2 text-13 leading-6 text-muted-foreground tabular-nums">{items.length}</span>}
+        {/* Show all at the heading's end, as the rows and Tutorials have it: under the cards it hung loose
+            between two sections. In the heading's own size and colour, so the row reads as one line (Almaz,
+            25 Nov, after Claude's plugin lists) */}
+        {more > 0 && (
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
+            className={cn("-my-1.5 -mr-2 ml-auto flex h-9 items-center gap-1.5 rounded-lg px-2 font-heading text-20 leading-6 font-headline text-foreground transition-opacity duration-100 hover:opacity-75 motion-reduce:transition-none pointer-coarse:h-11", FOCUS)}
+          >
+            {open ? "Show less" : "Show all"}
+            <span
+              aria-hidden="true"
+              className={cn("flex size-5 transition-transform duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] motion-reduce:transition-none [&>svg]:size-full", open ? "-rotate-90" : "rotate-90")}
+            >
+              <ChevronRight aria-hidden="true" strokeWidth={1.75} className="size-full" />
+            </span>
+          </button>
+        )}
+      </div>
+      <ul className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+        {shown.map((it) =>
+          it.confirm ? (
+            <li key={it.key} className="col-span-full flex min-h-[4.25rem] items-center gap-3 rounded-panel border border-border bg-surface-panel px-4 py-3">
+              {it.confirm}
+            </li>
+          ) : (
+            <li
+              key={it.key}
+              className="group/row relative flex flex-col overflow-hidden rounded-panel border border-border bg-surface-panel transition-colors duration-100 hover:border-border-strong hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none"
+            >
+              <button
+                type="button"
+                onClick={it.onOpen}
+                aria-label={`${it.done ? "Open" : "Continue"} ${it.name}, ${it.where}`}
+                className={cn("absolute inset-0 rounded-panel", FOCUS)}
+              />
+              <div className="pointer-events-none grid flex-1 grid-cols-[auto_minmax(0,1fr)_auto] content-start items-start gap-x-3.5 p-4">
+                <div data-done={it.done || undefined} className="relative row-span-3 size-14 overflow-hidden rounded-xl [&>*]:size-14!">
+                  {it.cover}
+                  {it.done && <DoneVeil />}
+                </div>
+                <p className="line-clamp-1 min-w-0 font-heading text-16 leading-5 font-normal tracking-tight text-foreground">{it.name}</p>
+                {it.menu ? (
+                  <div className="pointer-events-auto relative z-10 -my-1.5 -mr-1.5 opacity-0 transition-opacity duration-100 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100 [html.phone_&]:opacity-100 [html.touch_&]:opacity-100">
+                    {it.menu}
+                  </div>
+                ) : (
+                  <span />
+                )}
+                {/* The name and one muted style for everything under it, as the catalog's cards (Almaz, 25 Nov) */}
+                {it.line && <p className="col-span-2 col-start-2 mt-1 line-clamp-2 min-h-10 text-13 leading-5 text-muted-foreground">{it.line}</p>}
+                {/* Done in green, as the catalog's cards (the tick sits on the cover); under way: the step */}
+                <p className="col-span-2 col-start-2 mt-2 flex items-center gap-1.5 text-13 leading-5 text-muted-foreground tabular-nums">
+                  {it.done ? (
+                    <span className="text-success">Done</span>
+                  ) : (
+                    // No dot before the step: the words say it, as the catalog's lines have no mark (Almaz, 25 Nov)
+                    <span className="truncate">{it.where}</span>
+                  )}
+                </p>
+              </div>
             </li>
           )
         )}

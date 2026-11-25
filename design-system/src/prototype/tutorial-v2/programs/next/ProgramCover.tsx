@@ -1,19 +1,14 @@
 import { ArrowRightLeft, Binary, Braces, CirclePlus, Code, Cpu, Eye, FilePlus, Heart, Hourglass, IdCard, Layers, MessageSquare, Save, Send, SquareCheckBig, StickyNote, type LucideIcon } from "lucide-react"
 
 import { TileCover } from "../../ui/TileCover"
-import type { ProgramMeta, Topic } from "../data"
+import type { ProgramMeta } from "../data"
+import { SWEEP } from "./ProjectCover"
 
-/* A program's cover: the tile cover (ui/TileCover.tsx) in Solana's greens and teals, with a picture of
-   what the program does. Each picture is drawn by hand on the 12 by 12 grid. Read off a line icon by
-   machine, strokes fell between tiles and the picture broke up: a database came out as a crate
-   (Almaz, 10 Nov) */
-
-/** From the top left to the bottom right, by what the program is for. Tutorials keep the violets */
-const SWEEP: Record<Topic, [string, string]> = {
-  Basics: ["#9BF7D6", "#14F195"],
-  "Tokens and trading": ["#5FE3D0", "#2F8FD6"],
-  "Network services": ["#B78CFF", "#19E3C0"],
-}
+/* A program's cover: the tile cover (ui/TileCover.tsx) in your projects' soft grey, with a picture
+   of what the program does. One gradient for every topic: Basics' all green outshone everything near it,
+   and the section's heading already names the topic (Almaz, 25 Nov). Each picture is drawn by hand on the
+   12 by 12 grid. Read off a line icon by machine, strokes fell between tiles and the picture broke up: a
+   database came out as a crate (Almaz, 10 Nov) */
 
 /** The pictures, a row a string, # a lit tile. Each is the plainest thing that says what the program
  * does, and no two share a shape (Almaz, 10 Nov): a sheet with its corner folded (memo), a pair of braces
@@ -290,5 +285,5 @@ export const programCoverIcon = (slug: string) => ICONS[slug] ?? Code
 
 /** Decorative: the card's own text names the program */
 export function ProgramCover({ p, className }: { p: ProgramMeta; className?: string }) {
-  return <TileCover art={ART[p.slug] ?? ART.default} sweep={SWEEP[p.topic]} className={className} />
+  return <TileCover art={ART[p.slug] ?? ART.default} sweep={SWEEP} className={className} />
 }

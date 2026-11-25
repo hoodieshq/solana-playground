@@ -452,9 +452,24 @@ const LEVEL_ORDER: Level[] = ["Beginner", "Intermediate", "Advanced"]
 /** Easiest first, so the top of the list is where a beginner starts; the product's order within a level.
  * token-vesting and spl-stake-pool are out (11/07): the team dropped the first, the second is over the
  * project limits */
+/** Each program's line rewritten to fill two lines of a card, no more and no less (Almaz, 25 Nov: every card
+ * the same two lines). Near 50 to 75 characters; the ones not here already fit */
+const LINES: Record<string, string> = {
+  "transfer-sol": "Sends SOL from one account to another through the System Program.",
+  "spl-noop": "Does nothing and returns. Callers use it to leave data in the log.",
+  "spl-memo": "Checks that a text is valid UTF-8 and writes it to the transaction log.",
+  "spl-record": "Stores data in an account that only its authority can write or close.",
+  "spl-shared-memory": "Hands data back to a calling program by writing it into a shared account.",
+  "spl-binary-option": "A bet on an event: two sides pay in tokens, and the winner takes them.",
+  "spl-binary-oracle-pair": "Mints a pass and a fail token per deposit; an oracle picks which redeems.",
+  "spl-stateless-asks": "Swaps one token for another in one call, with no escrow account.",
+  "spl-feature-proposal": "Proposes a new cluster feature; it turns on once enough holders vote.",
+  "spl-name-service": "Issues and manages names on Solana: domains, public keys, URLs and handles.",
+}
+
 export const CATALOG: ProgramMeta[] = [...BASIC_PROGRAMS, ...PROGRAMS]
   .filter((p) => p.name in META)
-  .map((p) => ({ ...p, slug: p.name, topic: TOPIC[p.name], kind: p.framework === "Anchor" ? ("anchor" as const) : ("native" as const), ...META[p.name] }))
+  .map((p) => ({ ...p, description: LINES[p.name] ?? p.description, slug: p.name, topic: TOPIC[p.name], kind: p.framework === "Anchor" ? ("anchor" as const) : ("native" as const), ...META[p.name] }))
   .sort((a, b) => LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level))
 
 /** The catalog a search leaves: name, line, framework and topic */

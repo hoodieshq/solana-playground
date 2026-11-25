@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ComponentProps } from "react"
-import { ArrowRight, Check } from "lucide-react"
+import { ArrowRight, Clock } from "lucide-react"
 
 import { BrandButton, BrandButtonIcon } from "@/components/ui/brand-button"
 import { cn } from "@/lib/utils"
@@ -20,10 +20,10 @@ function useBanner() {
   const finished = p.finished
   const started = p.started && !finished
   const fresh = !started && !finished
-  const done = p.passed.filter(Boolean).length
   const first = STEPS.findIndex((_, i) => !p.passed[i])
 
-  const label = finished ? "Completed" : started ? `Continue · Step ${Math.min(STEPS.length, (first === -1 ? STEPS.length - 1 : first) + 1)} of ${STEPS.length}` : "Start here"
+  // The step alone, never "Continue" before it: the button says that (Almaz, 25 Nov)
+  const label = finished ? "Done" : started ? `Step ${Math.min(STEPS.length, (first === -1 ? STEPS.length - 1 : first) + 1)} of ${STEPS.length}` : "Start here"
   const line = finished
     ? lesson.headline.replace(/\.$/, "")
     : started
@@ -42,7 +42,7 @@ function useBanner() {
   // Anchor" the next one's mark read as the wrong picture (Almaz, 10 Nov)
   const shown = CATALOG.find((t) => t.slug === slug)
   const icon = tutorialIcon(shown ? upstreamName(shown) : lesson.card.name)
-  return { lesson, steps: STEPS.length, nextCard, finished, started, fresh, done, label, line, open, go, next, icon }
+  return { lesson, nextCard, finished, started, fresh, label, line, open, go, next, icon }
 }
 
 /** The second action beside the main button: words and an arrow, no box. Its box is a button's
@@ -126,37 +126,30 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
       <style>{BEAM_CSS}</style>
       <IsoVoxels corner={!wide} icon={b.icon} />
       <div className={cn("relative", phone ? "p-5" : "p-7")}>
-        {/* The words keep to where the sculpture has faded out, about the left 42% of a wide banner: 22rem
-            holds the line on one row, so the words are three lines at most (Almaz, 20 Nov) */}
-        <div className="max-w-[22rem] min-w-0">
-          <p className={cn("flex items-center gap-1.5 text-13", b.fresh ? "text-brand-periwinkle" : "text-muted-foreground")}>
-            {b.finished && (
-              <span aria-hidden="true" className="flex size-4 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
-                <Check strokeWidth={2.5} className="size-2.5" />
-              </span>
+        {/* As the Programs banner (Almaz, 25 Nov): a 20rem column, the line breaking once, long first; three
+            faces, the line over the name at 13 and the words at 16 both muted, the name at 28 (20 on the phone,
+            where the page's title is 28); 6 over and under the name and 20 to the button read as an even rhythm */}
+        <div className="max-w-[20rem] min-w-0">
+          <p className="flex items-center gap-1.5 text-13 leading-5 text-muted-foreground tabular-nums">
+            {/* Fresh: how long it takes, with the clock the cards use; under way: the step; done: Done in green.
+                No "Start here": the button says it (Almaz, 20 Nov) */}
+            {b.fresh ? (
+              <>
+                <Clock aria-hidden="true" className="size-3.5" />
+                {`${b.lesson.minutes} min`}
+              </>
+            ) : (
+              <span className={cn(b.finished && "text-success")}>{b.label}</span>
             )}
-            {/* The facts that decide a start ride on the label's line, not a line of their own; the level is
-                the section under it. One span, so the flex gap (kept for the check) doesn't pad the dot */}
-            {/* Fresh, no "Start here": the button says it (Almaz, 20 Nov) */}
-            <span className="tabular-nums">{b.fresh ? `${b.steps} steps · ${b.lesson.minutes} min` : b.label}</span>
           </p>
-          <h2 id={titleId} className="mt-1.5 font-heading text-20 leading-6 font-normal tracking-tight text-foreground">
+          <h2 id={titleId} className={cn("mt-1.5 font-heading font-normal tracking-tight text-foreground", phone ? "text-20 leading-6" : "text-28 leading-8")}>
             {b.lesson.card.name}
           </h2>
-          <p className="mt-2 max-w-[44ch] text-16 leading-5 text-balance text-foreground/78">{b.line}</p>
-          {b.started ? (
-            <div className="mt-3 flex max-w-xs items-center gap-3">
-              <span aria-hidden="true" className="h-[3px] flex-1 overflow-hidden rounded-[2px] bg-border">
-                <span
-                  className="block h-full bg-[linear-gradient(90deg,#9945ff,#14f195)] transition-[width] duration-400 ease-[cubic-bezier(0.2,0,0,1)]"
-                  style={{ width: `${(b.done / b.steps) * 100}%` }}
-                />
-              </span>
-            </div>
-          ) : null}
+          <p className={cn("text-pretty text-muted-foreground", phone ? "mt-1 text-13 leading-5" : "mt-1.5 text-16 leading-6")}>{b.line}</p>
+          {/* No progress bar under the words: "Step 1 of 4" over the name says it (Almaz, 25 Nov) */}
           {/* On the phone the main button takes the card's width, a thumb's 48, as every phone call to action
               does. Only the main one: Open again stretched to a 48 row left a blank band under its words */}
-          <div className={cn("mt-6 flex flex-wrap items-center gap-x-4 gap-y-2", phone && "[&>button:first-child]:h-12 [&>button:first-child]:w-full [html.portrait_&>button:first-child]:w-auto [html.portrait_&>button:first-child]:min-w-60")}>
+          <div className={cn("mt-5 flex flex-wrap items-center gap-x-4 gap-y-2", phone && "[&>button:first-child]:h-12 [&>button:first-child]:w-full [html.portrait_&>button:first-child]:w-auto [html.portrait_&>button:first-child]:min-w-60")}>
             {b.finished ? (
               <>
                 {b.nextCard && (

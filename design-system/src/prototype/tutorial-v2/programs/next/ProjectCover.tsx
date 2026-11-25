@@ -1,13 +1,14 @@
 import { cn } from "@/lib/utils"
 
-import { TileCover } from "../../ui/TileCover"
+import { QUIET_SWEEP, TileCover } from "../../ui/TileCover"
 import type { Framework } from "../store"
 
 /* A project of your own: the tile cover the catalog and the lessons wear, in Solana's purple to green,
    with a picture of the framework it was started on. The framework's own logo on a grey tile was the
    last cover left in the old style (Almaz, 11 Nov) */
 
-const SWEEP: [string, string] = ["#B98CFF", "#14F195"]
+// Every cover in Programs, yours and the catalog's, in the tutorials' quiet grey (ui/TileCover.tsx)
+export const SWEEP = QUIET_SWEEP
 
 const ART: Record<Framework | "account" | "tutorial", string[]> = {
   anchor: [

@@ -24,7 +24,8 @@ const BRAND = { purple: "#9945FF", violet: "#7A56DA", green: "#14F195" } as cons
 /* Shaped to the words, not a straight edge: the title and the line need the left 45% up top, but
    under the facts only Start stands there, so the art comes in to just past it. The band is the
    bottom rows (from 60% down) cut to the right of the button, added to the side fade */
-const SIDE = "linear-gradient(90deg, transparent 42%, #000 54%)";
+// From 46%: just past the words' 20rem column (Almaz, 25 Nov)
+const SIDE = "linear-gradient(90deg, transparent 46%, #000 58%)";
 // Long ramps both ways: a short one read as a cut edge beside Start
 const BAND_X = "linear-gradient(90deg, transparent 21%, #000 50%)";
 const BAND_Y = "linear-gradient(180deg, transparent 56%, #000 78%)";

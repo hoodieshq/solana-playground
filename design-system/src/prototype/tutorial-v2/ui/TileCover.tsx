@@ -1,3 +1,5 @@
+import { Check } from "lucide-react"
+
 import { cn } from "@/lib/utils"
 
 import "./tileCover.css"
@@ -9,6 +11,10 @@ import "./tileCover.css"
    Only the lit tiles are drawn, on a dark patch with no outline: the faint rest of the grid and the
    patch's border made a frame in a frame inside the card's own (the art director, 11 Nov). The patch is
    flat: a glow in its corner made it a raised button (Almaz, 11 Nov) */
+
+/** The covers' one colour, a soft grey light to mid, for tutorials and programs alike: coloured pictures
+ * pulled the eye from the names (Almaz, 25 Nov; tried purple to green, lilac, blue) */
+export const QUIET_SWEEP: [string, string] = ["#D4D4D8", "#71717A"]
 
 /** Tiles a side */
 const N = 12
@@ -70,6 +76,17 @@ export function TileCover({ art, sweep: [from, to], className }: { art: string[]
         })}
         </g>
       </svg>
+    </span>
+  )
+}
+
+/** Over a finished program's cover, inside a box that clips to the cover's corners: the picture dimmed under
+ * a dark veil and a big green tick on it, so a done card reads at a glance; the line under the words says
+ * "Done" in words, with no second tick (Almaz, 25 Nov) */
+export function DoneVeil() {
+  return (
+    <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[#0c0d0e]/75">
+      <Check strokeWidth={2.5} className="size-6 text-success" />
     </span>
   )
 }
