@@ -106,9 +106,9 @@ function Type() {
     >
       <div className="rounded-card border border-border px-6">
         <TokenRow
-          name="text-40"
-          sample={<div className="font-heading text-40 leading-11 font-headline tracking-tight">Build your first program</div>}
-          detail="40 px · 400 · the home hero, once a screen"
+          name="text-36"
+          sample={<div className="font-heading text-36 leading-10 font-headline tracking-tight">Build your first program</div>}
+          detail="36 px · 400 · the home hero and a banner's name, once a screen"
         />
         <TokenRow
           name="text-28"

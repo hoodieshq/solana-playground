@@ -24,7 +24,7 @@ import { FOCUS } from "../ui/type"
    Tutorials and Programs have: Home is told from them at a glance, and comes alive in how it arrives */
 
 // The levels by size, every heading at the headline weight 400 (the team's weights: 320, 380, 400, 440):
-// the page 40, a section 17, a card's name 15, its meta 13. At 20/500 a section stood heavier than the
+// the page 36 (40 until 25 Nov), a section 17, a card's name 15, its meta 13. At 20/500 a section stood heavier than the
 // page's title and a step from the cards' 17 (Almaz, 20 Nov)
 const H2 = "font-heading text-20 leading-6 font-headline text-foreground"
 
@@ -72,7 +72,7 @@ function Hero({ phone }: { phone: boolean }) {
     <section ref={box} aria-labelledby="home-title" className={cn(wide ? "pt-12 pb-6" : "pt-3 pb-4")}>
       {/* The words keep a reading width; the card under them runs the page's, as the cards below do */}
       <div className={cn("min-w-0", l.state !== "started" && "max-w-[34rem]")}>
-        <h1 id="home-title" className={cn("font-heading font-normal tracking-tight text-balance text-foreground", wide ? "text-40 leading-11" : "text-28 leading-8")}>
+        <h1 id="home-title" className={cn("font-heading font-normal tracking-tight text-balance text-foreground", wide ? "text-36 leading-10" : "text-28 leading-8")}>
           {l.title}
         </h1>
         {/* Back to what you were doing, as one card: what it is and what comes next, with the button in it.

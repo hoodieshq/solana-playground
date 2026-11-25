@@ -39,7 +39,9 @@ export function Catalog({ phone = false }: { phone?: boolean }) {
     <>
       {/* No search (Almaz, 6 Nov): eleven programs in three sections read at a glance. On the phone the
           heading sits under the menu button as the Tutorials page's does */}
-      <h1 className={cn("font-heading font-normal tracking-tight text-foreground", phone ? "mb-1 flex h-11 items-center text-28" : "mt-6 mb-6 text-28 leading-8")}>Programs</h1>
+      {/* At the sections' 20: the banner under it leads the page at 36 (28 on the phone), and the nav already
+          says where you are (Almaz, 25 Nov); 16 to the banner, as a section's heading to its content */}
+      <h1 className={cn("font-heading text-20 leading-6 font-headline text-foreground", phone ? "mb-1 flex h-11 items-center" : "mt-6 mb-4")}>Programs</h1>
 
         {loading ? (
           <div aria-busy="true" className="grid grid-cols-1 gap-3 min-[720px]:grid-cols-2">

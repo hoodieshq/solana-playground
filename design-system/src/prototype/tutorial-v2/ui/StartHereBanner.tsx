@@ -127,8 +127,7 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
       <IsoVoxels corner={!wide} icon={b.icon} />
       <div className={cn("relative", phone ? "p-5" : "p-7")}>
         {/* As the Programs banner (Almaz, 25 Nov): a 20rem column, the line breaking once, long first; three
-            faces, the line over the name at 13 and the words at 16 both muted, the name at 28 (20 on the phone,
-            where the page's title is 28); 6 over and under the name and 20 to the button read as an even rhythm */}
+            faces, the line over the name at 13 and the words at 16 both muted, the name at 36 (28 on the phone); 6 over and under the name and 20 to the button read as an even rhythm */}
         <div className="max-w-[20rem] min-w-0">
           <p className="flex items-center gap-1.5 text-13 leading-5 text-muted-foreground tabular-nums">
             {/* Fresh: how long it takes, with the clock the cards use; under way: the step; done: Done in green.
@@ -142,10 +141,10 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
               <span className={cn(b.finished && "text-success")}>{b.label}</span>
             )}
           </p>
-          <h2 id={titleId} className={cn("mt-1.5 font-heading font-normal tracking-tight text-foreground", phone ? "text-20 leading-6" : "text-28 leading-8")}>
+          <h2 id={titleId} className={cn("mt-1.5 font-heading font-normal tracking-tight text-foreground", phone ? "text-28 leading-8" : "text-36 leading-10")}>
             {b.lesson.card.name}
           </h2>
-          <p className={cn("text-pretty text-muted-foreground", phone ? "mt-1 text-13 leading-5" : "mt-1.5 text-16 leading-6")}>{b.line}</p>
+          <p className="mt-1.5 text-pretty text-16 leading-6 text-muted-foreground">{b.line}</p>
           {/* No progress bar under the words: "Step 1 of 4" over the name says it (Almaz, 25 Nov) */}
           {/* On the phone the main button takes the card's width, a thumb's 48, as every phone call to action
               does. Only the main one: Open again stretched to a 48 row left a blank band under its words */}

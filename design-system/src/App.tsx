@@ -174,7 +174,7 @@ function App() {
 
           <main className="min-w-0 flex-1 pb-32">
             <section className="pt-14 pb-4">
-              <h1 className="font-heading text-40 leading-11 font-headline tracking-tight text-foreground">
+              <h1 className="font-heading text-36 leading-10 font-headline tracking-tight text-foreground">
                 Playground design system
               </h1>
               <p className="mt-4 max-w-2xl text-body font-read text-muted-foreground">

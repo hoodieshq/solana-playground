@@ -84,12 +84,11 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
         {/* The words keep to where the sculpture has faded out. 20rem: one row at 24 ran into the art, and 22
             balanced two short halves; here the line breaks once, long first, with no word left alone (Almaz, 25 Nov) */}
         <div className="max-w-[20rem] min-w-0">
-          {/* Three faces and no more, a clear step apart: the line over the name at 13, the name at 28, the
+          {/* Three faces and no more, a clear step apart: the line over the name at 13, the name at 36 (28 on the phone), the
               words at 16, all small text muted so the name leads (the minutes too: no colour, Almaz 25 Nov). The
               gaps are set by what the eye sees, not by the boxes: the 28's and the 16's line heights already add
               air, so 6 over and under the name and 20 to the button read as an even 16, 16, 24 (Almaz, 25 Nov,
-              after Claude's plugin banner). On the phone the page's own title is 28, so the name steps down to 20
-              and the words to 13, the line's size. One row, so the dot and the minutes sit on the state's line */}
+              after Claude's plugin banner). The page's own title above it is 20, so the banner leads (Almaz, 25 Nov). One row, so the dot and the minutes sit on the state's line */}
           <p className="flex items-center gap-1.5 text-13 leading-5 text-muted-foreground tabular-nums">
             {/* No "Start here": the button says it (Almaz, 20 Nov) */}
             {st && <StandingWord s={st} className="text-muted-foreground" />}
@@ -98,12 +97,12 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
             <Clock aria-hidden="true" className="size-3.5" />
             <span>{`${p.minutes} min`}</span>
           </p>
-          <h2 id={titleId} className={cn("mt-1.5 font-heading font-normal tracking-tight text-foreground", phone ? "text-20 leading-6" : "text-28 leading-8")}>
+          <h2 id={titleId} className={cn("mt-1.5 font-heading font-normal tracking-tight text-foreground", phone ? "text-28 leading-8" : "text-36 leading-10")}>
             {/* A heading, so the name takes a capital and words, not the slug's hyphens ("Create account"); the
                 cards keep the program's own name */}
             {(p.name.charAt(0).toUpperCase() + p.name.slice(1)).replace(/-/g, " ").replace(/\bsol\b/, "SOL")}
           </h2>
-          <p className={cn("text-pretty text-muted-foreground", phone ? "mt-1 text-13 leading-5" : "mt-1.5 text-16 leading-6")}>
+          <p className="mt-1.5 text-pretty text-16 leading-6 text-muted-foreground">
             {LINE[slug] ?? p.description}
           </p>
           {/* On the phone the button takes the card's width, a thumb's 48, as the Tutorials banner sets it; an

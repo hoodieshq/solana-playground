@@ -210,13 +210,13 @@
   /* The product's scale (Almaz and Nikita, 20 Nov): five sizes a step apart that the eye can tell, and a
      sixth for tags only. 15, 16 and 17 read as one size, so they are one now. Screens take these and
      nothing in between: no text-[…]. Each size brings a whole-pixel line height (11/16, 13/20, 16/24,
-     20/28, 28/32, 40/44); leading-* overrides it. Ratios gave 18.85 and 19.5 px lines (Almaz, 20 Nov).
+     20/28, 28/32, 36/40); leading-* overrides it. Ratios gave 18.85 and 19.5 px lines (Almaz, 20 Nov).
        11  tags and key caps only (BETA, ⌘K), never running text
        13  interface: controls, tabs, menus, meta, code
        16  reading: text, names, labels
        20  a card's or a section's heading
        28  a page's title
-       40  the home hero */
+       36  the home hero and a page banner's name, once a screen (was 40, Almaz 25 Nov) */
   --text-11: 0.6875rem;
   --text-11--line-height: 1rem;
   --text-13: 0.8125rem;
@@ -227,8 +227,8 @@
   --text-20--line-height: 1.75rem;
   --text-28: 1.75rem;
   --text-28--line-height: 2rem;
-  --text-40: 2.5rem;
-  --text-40--line-height: 2.75rem;
+  --text-36: 2.25rem;
+  --text-36--line-height: 2.5rem;
 
   /* The named sizes below sit on the scale. title and control are off it (17 and 15) and stay only for
      tutorial v1, which is frozen: nothing new uses them */
