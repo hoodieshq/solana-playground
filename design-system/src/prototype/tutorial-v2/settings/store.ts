@@ -21,6 +21,8 @@ export type Settings = {
   buildServer: string
   buildServerUrl: string
   vim: boolean
+  /** Sole, the cat on the assistant's field in an empty chat (ui/RoofCat) */
+  sole: boolean
 }
 
 const KEY = "oak.settings"
@@ -39,6 +41,7 @@ const DEFAULTS: Settings = {
   buildServer: "Foundation server",
   buildServerUrl: "",
   vim: false,
+  sole: true,
 }
 
 /** Whole lines on a 375 screen are the one Settings job a learner has, so the phone's screens wrap */

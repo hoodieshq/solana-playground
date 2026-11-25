@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils"
 import { ASSISTANT_KEYS, FILES_KEYS, MENU_KEYS, PRIMARY_KEYS, TERMINAL_KEYS } from "../../../desktop/keys"
 import { ChipRow } from "../../../ui/ChipRow"
 import { openExplorer } from "../../../ui/explorer"
+import { RoofCat } from "../../../ui/RoofCat"
 import { launch } from "../../../ui/turns/YouPill"
 import { showFailLine } from "./Talk"
 import { isMainnet, networkWord, useChoices } from "../../../desktop/navLit/choices"
@@ -350,7 +351,7 @@ function ModelPicker() {
 
 /** `context`: a quiet line under the field, as Claude Code's under its own: the network and the model, each
  * a pick, their words alone: no chevron, a press and the hover say it (Almaz, 25 Nov) */
-export function Ask({ p, phone = false, chips = [], context = false }: { p: Project; phone?: boolean; chips?: string[]; context?: boolean }) {
+export function Ask({ p, phone = false, chips = [], context = false, roof = false }: { p: Project; phone?: boolean; chips?: string[]; context?: boolean; roof?: boolean }) {
   const [text, setText] = useState("")
   const [focused, setFocused] = useState(false)
   // A chip's question flies from the chip into the thread, as in a tutorial
@@ -374,6 +375,9 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
     <div className={cn("shrink-0", phone ? "px-4 pt-3 pb-[calc(var(--safe-bottom)+12px)] [html.portrait_&]:px-8" : "px-5 pt-3 pb-5")}>
       {/* On a phone the chips go while the keyboard is up: the field needs the room */}
       {!(phone && focused) && <ChipRow chips={chips} phone={phone} onPick={pick} />}
+      {/* The composer's top edge is the roof Sole walks on while the chat is empty (ui/RoofCat) */}
+      <div className="relative">
+      <RoofCat key={p.id} id={p.id} on={roof} text={text} phone={phone} />
       <Composer
         onFocus={() => setFocused(true)}
         onBlur={(e) => {
@@ -414,6 +418,7 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
           </ComposerSend>
         </ComposerToolbar>
       </Composer>
+      </div>
       {context && (
         // The network and the model, each a pick of its own; no file name, the tab says it (Almaz, 25 Nov)
         <div className="mt-2 flex items-center justify-between gap-3 px-1 text-13 leading-5 text-muted-foreground">

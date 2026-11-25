@@ -7,6 +7,7 @@ import { IDEAS, IDEA_CHIPS, STARTER_ASK, WRITE_IT, ideaIn, optionIn, vagueBuild,
 import { STARTERS } from "./starters"
 import { withId } from "../check"
 import { markBuilt } from "../desktop/navLit/firstBuild"
+import { setSetting } from "../settings/store"
 
 /* The redesigned Programs flow's state: where it is (catalog, a preview, a project), the projects made
    from programs or from New project, and the runs inside them. One module level store, so New project
@@ -1057,9 +1058,22 @@ function nextStep(p: Project): string {
   }
 }
 
+/** "Hide the cat", "bring the cat back": Sole is switched off or on from the chat, as it is in Settings */
+function soleAsk(words: string): boolean | null {
+  if (!/\b(cat|kitty|kitten|sole)\b|кот|кош/.test(words)) return null
+  if (/\b(hide|remove|disable|dismiss|get rid|turn off|switch off)\b|убери|убрать|спрячь|скрой|выключи|отключи/.test(words)) return false
+  if (/\b(show|bring|enable|return|turn on|switch on)\b|верни|покажи|включи/.test(words)) return true
+  return null
+}
+
 export function ask(id: string, text: string) {
   const words = text.trim().toLowerCase()
   update(id, (p) => post(p, { k: "user", text }))
+  const sole = soleAsk(words)
+  if (sole !== null) {
+    setSetting("sole", sole)
+    return later(700, () => update(id, (q) => post(q, { k: "assistant", text: sole ? "Sole is back. You'll see it the next time a chat is empty." : "Done, Sole is off. Settings has the switch, or tell me to bring the cat back." })))
+  }
   const p = state.projects[id]
   if (p?.draft) return later(700, () => update(id, (q) => (q.draft ? draftReply(q, text) : q)))
   // Read mode: "next" runs the next stop and "call" the call card; "build" and "deploy" get the Why answer

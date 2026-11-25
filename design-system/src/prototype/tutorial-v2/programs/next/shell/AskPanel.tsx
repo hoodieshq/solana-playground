@@ -380,7 +380,7 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
         </div>
       </div>
       {count === 0 && !greet && <BriefNote text={brief.text} phone={phone} />}
-      <Ask p={p} phone={phone} chips={greet ? [] : chips} context={!p.opening} />
+      <Ask p={p} phone={phone} chips={greet ? [] : chips} context={!p.opening} roof={greet} />
     </>
   )
 }
