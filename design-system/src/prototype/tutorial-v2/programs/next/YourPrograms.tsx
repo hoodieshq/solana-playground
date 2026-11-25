@@ -23,9 +23,13 @@ import { deletable, deleteQuestion, startRename } from "./shell/GuideColumn"
 import { stagesOf } from "./shell/Stages"
 
 /** Where a project of yours stands: the words its catalog card says, from one place */
-function whereNow(p: Project): { where: string; done: boolean; failed: boolean } {
+function whereNow(p: Project): { where: string; done: boolean; failed: boolean; progress?: { done: number; of: number } } {
   const st = standing(p)
-  return { where: st.word, done: !!st.done, failed: !!st.failed }
+  // The steps passed, counted as standing counts them, for the ring before "Step 2 of 4"
+  const list = stagesOf(p)
+  const at = list.findIndex((s) => s.state !== "done" && s.state !== "stale")
+  const progress = !st.done && !p.read && at !== -1 ? { done: at, of: list.length } : undefined
+  return { where: st.word, done: !!st.done, failed: !!st.failed, progress }
 }
 
 const FRAMEWORK: Record<Project["framework"], string> = { anchor: "Anchor", native: "native Rust", pinocchio: "Pinocchio", quasar: "Quasar", "ts-client": "TypeScript client" }

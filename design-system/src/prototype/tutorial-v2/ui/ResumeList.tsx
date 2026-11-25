@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react"
 import { StatusDot } from "@/components/ui/status-dot"
 import { cn } from "@/lib/utils"
 
+import { StepRing } from "./StepRing"
 import { DoneVeil } from "./TileCover"
 
 
@@ -31,6 +32,8 @@ export type ResumeItem = {
   confirm?: ReactNode
   /** As cards: what it does, under the name, when it's known */
   line?: string
+  /** Under way: steps passed of all, for the ring before "Step 2 of 4" */
+  progress?: { done: number; of: number }
 }
 
 /** As cards: the catalog's card at its size, two before Show all */
@@ -216,8 +219,11 @@ function ResumeCards({ id, title, items, className }: { id: string; title: strin
                   {it.done ? (
                     <span className="text-success">Done</span>
                   ) : (
-                    // No dot before the step: the words say it, as the catalog's lines have no mark (Almaz, 25 Nov)
-                    <span className="truncate">{it.where}</span>
+                    // Before the step, the nav's progress ring, so how far it got shows at a glance (Almaz, 25 Nov)
+                    <>
+                      {it.progress && <StepRing done={it.progress.done} of={it.progress.of} className="size-3.5" />}
+                      <span className="truncate">{it.where}</span>
+                    </>
                   )}
                 </p>
               </div>

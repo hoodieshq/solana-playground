@@ -1463,5 +1463,40 @@ export function seedReturning() {
   }
 }
 
-// The save, read once everything it needs is declared (see `let state` above)
+/** What a first visit finds, so Programs never opens empty (Almaz, 25 Nov): two catalog programs done
+ * (counter and create-account), and a Pinocchio project of your own at Step 2 of 4. In Your projects the
+ * first row is one done and the one under way, as the page was reviewed; create-account is behind Show all */
+function seedDemo() {
+  const instant = { instant: true }
+  const finish = (id: string) => {
+    build(id, instant)
+    deploy(id, instant)
+    call(id, firstIx(state.projects[id]) ?? "initialize", "guide", instant)
+    // Instant runs share a millisecond, and a call counts only after the deploy it went to
+    update(id, (p) => ({ ...p, lastCallOkAt: p.lastCallOkAt + 1 }))
+  }
+  for (const slug of ["create-account", "counter"]) {
+    const p = ensureLive(post(makeFromProgram(programBySlug(slug)!), { k: "intro" }))
+    set({ ...state, projects: { ...state.projects, [p.id]: p } })
+    finish(p.id)
+  }
+  const starter = STARTERS.pinocchio
+  const mine = ensureLive(post({ ...blank("pinocchio-project", "pinocchio", "starter", starter.files), open: starter.main, idl: false }, { k: "intro" }))
+  set({ ...state, projects: { ...state.projects, [mine.id]: mine } })
+  // The order Your projects sorts by, last touched first: counter, then the Pinocchio one, then create-account
+  const t = Date.now()
+  update("counter", (p) => ({ ...p, lastCallOkAt: t + 20 }))
+  update(mine.id, (p) => ({ ...p, createdAt: t + 10 }))
+  set({ ...state, route: { at: "catalog" } })
+}
+
+// The save, read once everything it needs is declared (see `let state` above). No save yet is a first visit
+const firstVisit = (() => {
+  try {
+    return localStorage.getItem(KEY) === null
+  } catch {
+    return true
+  }
+})()
 state = loadState()
+if (firstVisit) seedDemo()
