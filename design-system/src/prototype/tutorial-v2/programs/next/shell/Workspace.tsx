@@ -339,11 +339,12 @@ export function Workspace({ p }: { p: Project }) {
     <section ref={box} aria-label="Project" className="flex min-w-0 flex-1 flex-col bg-surface-base">
       <div className="@container/bar flex h-11 shrink-0 items-center gap-1 border-b border-border pr-1.5 pl-2">
         {/* Every project goes back to Programs, as a lesson to Tutorials: yours are listed there too (Almaz, 10 Nov) */}
-        <Button variant="ghost" size="sm" aria-label="Programs" className="shrink-0 gap-0.5 pl-1.5 text-muted-foreground" onClick={() => go({ at: "catalog" })}>
+        <Button variant="ghost" size="sm" aria-label="Programs" className="shrink-0 gap-0.5 pl-1.5 text-muted-foreground @max-[1100px]/bar:px-1" onClick={() => go({ at: "catalog" })}>
           <ChevronLeft className="size-4" />
           <span className="@max-[1100px]/bar:hidden">Programs</span>
         </Button>
-        <ProjectName p={p} className="ml-1 min-w-0 shrink truncate text-13 text-foreground" />
+        {/* With the word gone the chevron alone is the button, so the name stands right by it (Almaz, 25 Nov) */}
+        <ProjectName p={p} className="ml-1 min-w-0 shrink truncate text-13 text-foreground @max-[1100px]/bar:ml-0" />
         {!p.opening && stagesOf(p).length > 1 && (
           <>
             {/* The bar's rules are one rule: 20 high, with 14 to the words on each side */}

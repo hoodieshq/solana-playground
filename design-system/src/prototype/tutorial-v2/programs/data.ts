@@ -476,7 +476,7 @@ const TITLES: Record<string, string> = {
   counter: "Counter",
   "create-account": "Create Account",
   "transfer-sol": "Transfer SOL",
-  favorites: "Favorites",
+  favorites: "Favorite Things",
   "spl-memo": "SPL Memo",
   "spl-noop": "SPL Noop",
   "spl-record": "SPL Record",
