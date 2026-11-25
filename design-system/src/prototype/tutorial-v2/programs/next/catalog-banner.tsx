@@ -87,7 +87,7 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
           {/* Three faces and no more, a clear step apart: the line over the name at 13, the name at 36 (28 on the phone), the
               words at 16, all small text muted so the name leads (the minutes too: no colour, Almaz 25 Nov). The
               gaps are set by what the eye sees, not by the boxes: the 28's and the 16's line heights already add
-              air, so 4 over the name, 2 under it and 20 to the button read, letter to letter, as 17, 16 and 25 (measured 25 Nov at 36) (Almaz, 25 Nov,
+              air, so 12 over the name, 2 under it and 20 to the button read, letter to letter, as 25, 16 and 25: the name and its words a tight pair, the line above and the button held off alike (Almaz, 25 Nov) (measured 25 Nov at 36) (Almaz, 25 Nov,
               after Claude's plugin banner). The page's own title above it is 20, so the banner leads (Almaz, 25 Nov). One row, so the dot and the minutes sit on the state's line */}
           <p className="flex items-center gap-1.5 text-13 leading-5 text-muted-foreground tabular-nums">
             {/* No "Start here": the button says it (Almaz, 20 Nov) */}
@@ -97,7 +97,7 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
             <Clock aria-hidden="true" className="size-3.5" />
             <span>{`${p.minutes} min`}</span>
           </p>
-          <h2 id={titleId} className={cn("mt-1 font-heading font-normal tracking-tight text-foreground", phone ? "text-28 leading-8" : "text-36 leading-10")}>
+          <h2 id={titleId} className={cn("mt-3 font-heading font-normal tracking-tight text-foreground", phone ? "text-28 leading-8" : "text-36 leading-10")}>
             {/* A heading, so the name takes a capital and words, not the slug's hyphens ("Create account"); the
                 cards keep the program's own name */}
             {(p.name.charAt(0).toUpperCase() + p.name.slice(1)).replace(/-/g, " ").replace(/\bsol\b/, "SOL")}

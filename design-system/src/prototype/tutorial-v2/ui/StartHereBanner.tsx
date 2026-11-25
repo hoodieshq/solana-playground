@@ -121,13 +121,13 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
         if (b.finished) b.open()
         else b.go()
       }}
-      className="relative isolate mb-4 cursor-pointer overflow-hidden rounded-card border border-border"
+      className="relative isolate mb-8 cursor-pointer overflow-hidden rounded-card border border-border"
     >
       <style>{BEAM_CSS}</style>
       <IsoVoxels corner={!wide} icon={b.icon} />
       <div className={cn("relative", phone ? "p-5" : "p-7")}>
         {/* As the Programs banner (Almaz, 25 Nov): a 20rem column, the line breaking once, long first; three
-            faces, the line over the name at 13 and the words at 16 both muted, the name at 36 (28 on the phone); 4 over the name, 2 under it and 20 to the button read, letter to letter, as 17, 16 and 25 */}
+            faces, the line over the name at 13 and the words at 16 both muted, the name at 36 (28 on the phone); 12 over the name, 2 under it and 20 to the button read, letter to letter, as 25, 16 and 25: the name and its words a tight pair, the line above and the button held off alike (Almaz, 25 Nov) */}
         <div className="max-w-[20rem] min-w-0">
           <p className="flex items-center gap-1.5 text-13 leading-5 text-muted-foreground tabular-nums">
             {/* Fresh: how long it takes, with the clock the cards use; under way: the step; done: Done in green.
@@ -141,7 +141,7 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
               <span className={cn(b.finished && "text-success")}>{b.label}</span>
             )}
           </p>
-          <h2 id={titleId} className={cn("mt-1 font-heading font-normal tracking-tight text-foreground", phone ? "text-28 leading-8" : "text-36 leading-10")}>
+          <h2 id={titleId} className={cn("mt-3 font-heading font-normal tracking-tight text-foreground", phone ? "text-28 leading-8" : "text-36 leading-10")}>
             {b.lesson.card.name}
           </h2>
           <p className="mt-0.5 text-pretty text-16 leading-6 text-muted-foreground">{b.line}</p>

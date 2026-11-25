@@ -6,19 +6,20 @@ import { playable } from "../lessons"
  * Playground repo: client/public/tutorials/<slug>/data.json, and for the three hello tutorials,
  * which have no data.json there, client/src/tutorials/<slug>/<slug>.ts. `parts` is the number of
  * pages in its pages folder, `by` its authors from the same file. The long ones are cut to one
- * line in the same plain voice (Nikita, 20 Nov) */
+ * line in the same plain voice (Nikita, 20 Nov); the short ones grew to fill a card's two lines, as
+ * every card's line does (Almaz, 25 Nov) */
 type About = { description: string; parts: number; by?: string }
 
 const ABOUT: Record<string, About> = {
-  "hello-anchor": { description: "Your first Anchor program.", parts: 4, by: "acheron" },
-  "hello-solana": { description: "Your first native Rust program.", parts: 3, by: "acheron" },
+  "hello-anchor": { description: "Your first Anchor program: write it, deploy it to devnet and call it.", parts: 4, by: "acheron" },
+  "hello-solana": { description: "Your first Solana program in native Rust, with no framework on top.", parts: 3, by: "acheron" },
   "counter-pda-tutorial": { description: "A counter that keeps how many times it was called.", parts: 10, by: "cleon" },
   "tiny-adventure": {
     description: "A tiny on-chain game: move a character left and right.",
     parts: 2,
     by: "Jonas Hahn",
   },
-  "tiny-adventure-two": { description: "Giving out SOL rewards to players.", parts: 4, by: "Jonas Hahn" },
+  "tiny-adventure-two": { description: "Tiny Adventure, part two: give out SOL rewards to the players.", parts: 4, by: "Jonas Hahn" },
   "expense-tracker": { description: "An expense tracker that stores each entry at a PDA.", parts: 5, by: "Bolt / Syed Aabis Akhtar" },
   "bank-simulator": { description: "A bank that pays interest on its own schedule.", parts: 5, by: "Bolt / Syed Aabis Akhtar" },
   "battle-coins": {
@@ -31,7 +32,7 @@ const ABOUT: Record<string, About> = {
     parts: 5,
     by: "Jonas Hahn and John",
   },
-  lumberjack: { description: "How to build an energy system on chain.", parts: 3, by: "Jonas Hahn" },
+  lumberjack: { description: "Chop trees with energy that refills over time: an on-chain energy system.", parts: 3, by: "Jonas Hahn" },
   "spl-token-vault": {
     description: "An SPL token with metadata and an icon, kept in a vault.",
     parts: 7,

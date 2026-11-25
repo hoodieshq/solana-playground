@@ -92,7 +92,7 @@ function Card({ t }: { t: Entry }) {
           6 under the name. Lines fill to the edge, plain wrapping: balanced, a line broke in half at the
           card's width, and pretty pulled a second word down to keep "framework." company, leaving the first
           line short with room beside it */}
-      <p className="col-span-2 col-start-2 mt-1.5 line-clamp-2 text-13 leading-5 text-foreground/78">{t.description}</p>
+      <p className="col-span-2 col-start-2 mt-1.5 line-clamp-2 min-h-10 text-13 leading-5 text-muted-foreground">{t.description}</p>
     </div>
   )
 }
@@ -110,32 +110,34 @@ export function TutorialLevels({ list }: { list: Entry[] }) {
         const id = `level-${g.level.toLowerCase()}`
         return (
           <section key={g.level} aria-labelledby={id}>
-            <div className="mb-2.5 flex min-h-9 items-center gap-2">
-              {/* A step under the banner's lesson name and over the cards': page 28, banner 24, section 20,
-                  card 18. At 24 and 500 it stood as tall as the banner and nearly as the page's title */}
+            {/* 16 from the heading to its cards, as Programs' sections (Almaz, 25 Nov) */}
+            <div className="mb-4 flex min-h-6 items-center gap-2">
+              {/* A step under the banner's lesson name and over the cards': banner 36, section 20, card 16.
+                  At 24 and 500 it stood as tall as the banner */}
               <h2 id={id} className="font-heading text-20 leading-6 font-headline text-foreground">
                 {g.level}
               </h2>
               {/* The count on a grey chip, as the first Oak had it: as plain grey text beside the heading it
                   went unnoticed, and Almaz looked for it (10 Nov) */}
               <span className="rounded-full bg-surface-hover px-2 text-13 leading-6 text-muted-foreground tabular-nums">{g.items.length}</span>
-              {/* Opens in place, so it points down, not on to another page */}
+              {/* Opens in place, so it points down, not on to another page. In the heading's own size and colour,
+                  as Your projects' Show all (Almaz, 25 Nov) */}
               {more && (
                 <button
                   type="button"
                   aria-expanded={open}
                   onClick={() => setOpened((o) => (open ? o.filter((l) => l !== g.level) : [...o, g.level]))}
-                  className={cn("-mr-2 ml-auto flex h-9 items-center gap-1 rounded-lg px-2 text-13 text-muted-foreground hover:text-foreground", FOCUS)}
+                  className={cn("-my-1.5 -mr-2 ml-auto flex h-9 items-center gap-1.5 rounded-lg px-2 font-heading text-20 leading-6 font-headline text-foreground transition-opacity duration-100 hover:opacity-75 motion-reduce:transition-none pointer-coarse:h-11", FOCUS)}
                 >
                   {open ? "Show less" : "Show all"}
                   <span
                     aria-hidden="true"
                     className={cn(
-                      "flex size-3.5 transition-transform duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] motion-reduce:transition-none [&>svg]:size-full",
+                      "flex size-5 transition-transform duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] motion-reduce:transition-none [&>svg]:size-full",
                       open ? "-rotate-90" : "rotate-90"
                     )}
                   >
-                    <ChevronRight aria-hidden="true" strokeWidth={1.5} className="size-full" />
+                    <ChevronRight aria-hidden="true" strokeWidth={1.75} className="size-full" />
                   </span>
                 </button>
               )}
