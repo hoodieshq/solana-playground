@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { ChevronDown, ChevronLeft, Folder, Terminal } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, Folder, Terminal } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ConsoleDrawer, ConsoleDrawerBar, ConsoleDrawerContent, ConsoleDrawerStatus } from "@/components/ui/console-drawer"
@@ -125,33 +125,66 @@ function treeOf(files: string[]): Entry[] {
   ]
 }
 
-/** The project's files by folder, the open one marked, a changed one with the warning dot. A file is its
- * name alone, set under its folder's name: the folder keeps the only glyph (Almaz, 18 Nov) */
+/** The project's files by folder, the open one marked, a changed one with the warning dot (Almaz, 25 Nov,
+ * after Cursor, Linear and Vercel): a folder folds on its chevron, its files sit a step in with a hairline
+ * down from the chevron, and every name, a folder's or a file's, starts on one line. A file is its name alone,
+ * no glyph (Almaz, 18 Nov). Rows 28, a faint ground under the pointer, the open file on the hover's grey. A
+ * folded folder with a changed file wears the file's dot */
 export function TreeList({ p, onPick, tall = false }: { p: Project; onPick: (file: string) => void; tall?: boolean }) {
   const changed = changedFiles(p)
+  const [folded, setFolded] = useState<string[]>([])
+  const toggle = (name: string) => setFolded((f) => (f.includes(name) ? f.filter((n) => n !== name) : [...f, name]))
+  const row = (depth: number) => ({ paddingLeft: `${8 + depth * 12}px` })
+  const fileRow = (path: string, depth: number) => {
+    const open = p.pane === "code" && p.open === path
+    return (
+      <button
+        key={path}
+        type="button"
+        role="treeitem"
+        aria-selected={open}
+        onClick={() => onPick(path)}
+        style={row(depth)}
+        className={cn(ROW, "gap-1.5 hover:bg-foreground/[0.04]", tall && "h-11 text-16", open ? "bg-surface-hover! text-foreground" : "text-muted-foreground")}
+      >
+        <span aria-hidden="true" className="size-3.5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate">{baseName(path)}</span>
+        {changed.includes(path) && <StatusDot variant="warning" aria-label="Changed" />}
+      </button>
+    )
+  }
+  const entries = treeOf(tabsOf(p))
   return (
     <div role="tree" aria-label="Files" className="flex flex-col gap-px">
-      {treeOf(tabsOf(p)).map((e) =>
-        e.kind === "folder" ? (
-          <div key={e.name} className={cn("flex h-7 items-center gap-2 px-2 text-13 text-muted-foreground", tall && "h-11 text-16")}>
-            <span className="flex size-4 [&>svg]:size-full"><Folder aria-hidden="true" strokeWidth={1.5} className="size-full" /></span>
-            {e.name}
+      {entries.map((e, i) => {
+        if (e.kind === "file" && e.depth === 0) return fileRow(e.path, 0)
+        if (e.kind === "file") return null
+        const open = !folded.includes(e.name)
+        const inside = entries.slice(i + 1).filter((x): x is Extract<Entry, { kind: "file" }> => x.kind === "file" && x.depth === 1 && x.path.startsWith(`${e.name}/`))
+        return (
+          <div key={e.name} className="flex flex-col gap-px">
+            <button
+              type="button"
+              role="treeitem"
+              aria-expanded={open}
+              onClick={() => toggle(e.name)}
+              style={row(0)}
+              className={cn(ROW, "gap-1.5 text-muted-foreground hover:bg-foreground/[0.04]", tall && "h-11 text-16")}
+            >
+              <ChevronRight aria-hidden="true" strokeWidth={1.75} className={cn("size-3.5 shrink-0 transition-transform duration-150 motion-reduce:transition-none", open && "rotate-90")} />
+              <span className="min-w-0 flex-1 truncate">{e.name}</span>
+              {!open && inside.some((f) => changed.includes(f.path)) && <StatusDot variant="warning" aria-label="Has changes" />}
+            </button>
+            {open && (
+              <div role="group" className="relative flex flex-col gap-px">
+                {/* The hairline down from the chevron's middle, as Cursor's indent guide */}
+                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-[15px] w-px bg-border" />
+                {inside.map((f) => fileRow(f.path, 1))}
+              </div>
+            )}
           </div>
-        ) : (
-          <button
-            key={e.path}
-            type="button"
-            role="treeitem"
-            aria-selected={p.pane === "code" && p.open === e.path}
-            onClick={() => onPick(e.path)}
-            style={{ paddingLeft: `${8 + e.depth * 24}px` }}
-            className={cn(ROW, tall && "h-11 text-16", p.pane === "code" && p.open === e.path ? "bg-surface-hover text-foreground" : "text-muted-foreground")}
-          >
-            <span className="min-w-0 flex-1 truncate">{baseName(e.path)}</span>
-            {changed.includes(e.path) && <StatusDot variant="warning" aria-label="Changed" />}
-          </button>
         )
-      )}
+      })}
     </div>
   )
 }
@@ -359,8 +392,9 @@ export function Workspace({ p }: { p: Project }) {
         {asking && <AskPanel p={p} onClose={() => setAsk(false)} className={cn("flex w-[360px] shrink-0 flex-col border-r border-border bg-surface-base", !askDocked && "absolute inset-y-0 left-0 z-10 max-w-full shadow-panel")} />}
         {wide && docked && !p.opening && (
           <nav aria-label="Files" className="flex w-[220px] shrink-0 flex-col border-r border-border bg-surface-base">
-            {/* A head as the editor's tabs and the assistant have, level with them: the name and Hide */}
-            <div className="flex h-10 shrink-0 items-center border-b border-border pr-1.5 pl-3.5">
+            {/* A head level with the editor's tabs: the name and Hide. No rule under it: the tree is the panel's
+                only content, and the line cut it off from its own title (Almaz, 25 Nov) */}
+            <div className="flex h-10 shrink-0 items-center pr-1.5 pl-3.5">
               <h2 className="flex-1 text-13 font-act text-foreground">Files</h2>
               <PanelHide what="files" keys={FILES_KEYS} onClick={toggleFiles} />
             </div>

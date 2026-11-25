@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -11,7 +11,8 @@ import { highlight } from "../ui/CodeView"
  * open question's answer will go: a dashed purple edge, with a ghost line on an empty one that isn't
  * part of the file. `jump` scrolls a line to a third of the height and can put the caret there.
  * `wrap` soft wraps long lines, for the phone, where a line cut off at the edge can't be read; a wrapped
- * line's number keeps to its first row. `error` is the line a failed build points at, with a wavy line under the token the compiler named;
+ * line's number keeps to its first row. `minimap` draws the file an eighth of its size at the right, as
+ * Monaco's (on by default unless wrapped, Almaz 25 Nov). `error` is the line a failed build points at, with a wavy line under the token the compiler named;
  * `lit` lights it while its compiler line is hovered. `chip` floats over the code's top right */
 export type EditorError = { line: number; column?: number; span?: number }
 
@@ -31,6 +32,7 @@ export function Editor({
   jump = null,
   chip,
   wrap = false,
+  minimap = !wrap,
 }: {
   code: string
   onChange?: (code: string) => void
@@ -47,6 +49,7 @@ export function Editor({
   jump?: { line: number; at: number; caret?: boolean; top?: boolean } | null
   chip?: ReactNode
   wrap?: boolean
+  minimap?: boolean
 }) {
   const lines = code.split("\n")
   // A ghost line below the end of the file: the rows up to it show, numbered, but aren't text
@@ -165,6 +168,7 @@ export function Editor({
           {chip}
         </div>
       )}
+      <div className="flex min-h-0 flex-1">
       <div
         ref={box}
         tabIndex={-1}
@@ -172,7 +176,7 @@ export function Editor({
         onMouseMove={onMouseMove}
         onMouseLeave={() => point(null)}
         className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain py-2 font-mono outline-none focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:ring-inset text-code leading-5 transition-opacity duration-150 has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-ring/50 has-[textarea:focus-visible]:ring-inset",
+          "flex min-h-0 min-w-0 flex-1 flex-col overflow-auto overscroll-contain py-2 font-mono outline-none focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:ring-inset text-code leading-5 transition-opacity duration-150 has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-ring/50 has-[textarea:focus-visible]:ring-inset",
           busy && "opacity-60"
         )}
       >
@@ -249,6 +253,58 @@ export function Editor({
           </div>
         </div>
       </div>
+      {minimap && <Minimap rows={rows} scroller={box} />}
+      </div>
+    </div>
+  )
+}
+
+/** The minimap's scale: a 20px line is 2.5px, a 72px column shows 576px of code across */
+const MAP_SCALE = 1 / 8
+
+/** The file at an eighth of its size beside the code, in its own colours, as Monaco's minimap (the product
+ * has one): its shape tells where you are in it. The light band is the part on screen, shown once the file
+ * is taller than the view; a press or a drag on the map scrolls the code there */
+function Minimap({ rows, scroller }: { rows: string[]; scroller: RefObject<HTMLDivElement | null> }) {
+  const [v, setV] = useState({ top: 0, view: 0, total: 0 })
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    const sync = () => setV({ top: el.scrollTop, view: el.clientHeight, total: el.scrollHeight })
+    sync()
+    el.addEventListener("scroll", sync, { passive: true })
+    const ro = new ResizeObserver(sync)
+    ro.observe(el)
+    if (el.firstElementChild) ro.observe(el.firstElementChild)
+    return () => {
+      el.removeEventListener("scroll", sync)
+      ro.disconnect()
+    }
+  }, [scroller])
+  const seek = (e: PointerEvent<HTMLDivElement>) => {
+    const el = scroller.current
+    if (!el) return
+    el.scrollTop = (e.clientY - e.currentTarget.getBoundingClientRect().top) / MAP_SCALE - el.clientHeight / 2
+  }
+  return (
+    <div
+      aria-hidden="true"
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId)
+        seek(e)
+      }}
+      onPointerMove={(e) => e.buttons === 1 && seek(e)}
+      className="relative w-[72px] shrink-0 overflow-hidden select-none"
+    >
+      <pre style={{ transform: `scale(${MAP_SCALE})` }} className="pointer-events-none m-0 origin-top-left py-2 pl-3 font-mono text-code leading-5 whitespace-pre text-syntax-plain opacity-70">
+        {rows.map((line, i) => (
+          <div key={i}>
+            {highlight(line)}
+            {line === "" && "​"}
+          </div>
+        ))}
+      </pre>
+      {v.total > v.view + 1 && <div style={{ top: v.top * MAP_SCALE, height: v.view * MAP_SCALE }} className="pointer-events-none absolute inset-x-0 bg-foreground/[0.07]" />}
     </div>
   )
 }
