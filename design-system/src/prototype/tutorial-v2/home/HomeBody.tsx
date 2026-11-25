@@ -1,5 +1,6 @@
 import { ArrowRight, ArrowUp, Check, CirclePlay } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentType } from "react"
+import { toast } from "sonner"
 
 import { BrandButton, BrandButtonIcon } from "@/components/ui/brand-button"
 import { Spinner } from "@/components/ui/spinner"
@@ -15,6 +16,8 @@ import { describeUnavailable, useEnv } from "../newProject/next/model"
 import { describeCreate, expressCreate, openFirstLight } from "../newProject/next/open"
 import { GitHubMark } from "../newProject/next/SourceRail"
 import { YourPrograms } from "../programs/next/YourPrograms"
+import { soleAsk } from "../programs/store"
+import { setSetting } from "../settings/store"
 import { useStore } from "../store"
 import { CATALOG, shownName } from "../ui/catalog"
 import { FOCUS } from "../ui/type"
@@ -162,6 +165,13 @@ function StartBox() {
   const send = async () => {
     const t = text.trim()
     if (!t || sending) return
+    // "Hide the cat" is a word to the assistant, not a program to build: no project comes of it
+    const sole = soleAsk(t.toLowerCase())
+    if (sole !== null) {
+      setSetting("sole", sole)
+      setText("")
+      return void toast(sole ? "Sole is back. It sits on the assistant's field in an empty chat." : "Sole is hidden. Search or Settings bring it back.")
+    }
     if (describeUnavailable(env)) return openFirstLight({ entry: "home-tile", source: "describe", text: t })
     setSending(true)
     await describeCreate(t, env)

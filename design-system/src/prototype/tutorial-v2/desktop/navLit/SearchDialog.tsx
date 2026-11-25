@@ -11,6 +11,7 @@ import { useInProject } from "../../programs"
 import { stagesOf } from "../../programs/next/shell/Stages"
 import { onChain, setPane, usePrograms } from "../../programs/store"
 import { openSettings, openShortcuts, sectionFor, SETTINGS_KEYWORDS } from "../../settings/open"
+import { setSetting, useSettings } from "../../settings/store"
 import { HELP_LINKS } from "../../settings/links"
 import { CATALOG, shownName } from "../../ui/catalog"
 import { PROGRAMS } from "../../ui/programs"
@@ -60,6 +61,7 @@ const HEADING =
  * set in Playground's own ground, type and icons */
 export function SearchDialog({ open, onOpenChange, lessons, projects, onTutorial, onPlace, onNewProject }: Props) {
   const [query, setQuery] = useState("")
+  const { sole } = useSettings()
   const empty = query.trim() === ""
   // In a project its steps are actions too: "deploy" found nothing, ⌘K only went places (Nikita, 20 Nov)
   const inProject = useInProject()
@@ -101,6 +103,8 @@ export function SearchDialog({ open, onOpenChange, lessons, projects, onTutorial
     <Row key="a:home" value="action Go to Home" icon="home" label="Go to Home" onSelect={pick(() => onPlace("home"))} />,
     <Row key="a:tutorials" value="action Browse tutorials" icon="tutorials" label="Browse tutorials" onSelect={pick(() => onPlace("gallery"))} />,
     <Row key="a:assistant" value="action Connect the assistant" icon="profile" label="Connect the assistant" onSelect={pick(soon)} />,
+    // The cat on the assistant's field: off and back on from any page, Home too
+    <Row key="a:sole" value="action Sole the cat" icon="settings" label={sole ? "Hide Sole the cat" : "Bring back Sole the cat"} words={["cat", "sole", "pet", "kitty", "hide", "show"]} onSelect={pick(() => setSetting("sole", !sole))} />,
     // Opens at the group a setting's word names: "mainnet" at Network, "vim" with Advanced unfolded
     <Row
       key="a:settings"

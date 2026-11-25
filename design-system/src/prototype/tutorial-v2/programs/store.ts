@@ -1059,7 +1059,7 @@ function nextStep(p: Project): string {
 }
 
 /** "Hide the cat", "bring the cat back": Sole is switched off or on from the chat, as it is in Settings */
-function soleAsk(words: string): boolean | null {
+export function soleAsk(words: string): boolean | null {
   if (!/\b(cat|kitty|kitten|sole)\b|кот|кош/.test(words)) return null
   if (/\b(hide|remove|disable|dismiss|get rid|turn off|switch off)\b|убери|убрать|спрячь|скрой|выключи|отключи/.test(words)) return false
   if (/\b(show|bring|enable|return|turn on|switch on)\b|верни|покажи|включи/.test(words)) return true

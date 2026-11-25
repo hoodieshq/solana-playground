@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils"
 import { ASSISTANT_KEYS, FILES_KEYS, MENU_KEYS, PRIMARY_KEYS, TERMINAL_KEYS } from "../../../desktop/keys"
 import { ChipRow } from "../../../ui/ChipRow"
 import { openExplorer } from "../../../ui/explorer"
-import { RoofCat } from "../../../ui/RoofCat"
+import { RoofCat, SoleToggle } from "../../../ui/RoofCat"
 import { launch } from "../../../ui/turns/YouPill"
 import { showFailLine } from "./Talk"
 import { isMainnet, networkWord, useChoices } from "../../../desktop/navLit/choices"
@@ -423,6 +423,8 @@ export function Ask({ p, phone = false, chips = [], context = false, roof = fals
         // The network and the model, each a pick of its own; no file name, the tab says it (Almaz, 25 Nov)
         <div className="mt-2 flex items-center justify-between gap-3 px-1 text-13 leading-5 text-muted-foreground">
           <NetworkPicker />
+          {/* While the chat is empty, the cat's own switch sits by the model (Almaz, 25 Nov) */}
+          {roof && <SoleToggle className="-mr-2 ml-auto" />}
           <ModelPicker />
         </div>
       )}

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 
-import { useSettings } from "../settings/store"
+import { setSetting, useSettings } from "../settings/store"
 import { reducedMotion } from "./type"
 
 /* Sole, the cat on the roof (Almaz, 25 Nov). The composer's top edge is a roof ridge: in an empty chat a small grey
@@ -10,17 +10,18 @@ import { reducedMotion } from "./type"
    message. Grey on purpose, in the interface's own tones: the motion already draws the eye, and purple and green
    mean "current" and "success" here. Board and rules: prototype/review-high/sole-character/roof.html.
    ?sole=full|short|off overrides the once a day rule for a review. Settings has its switch (Assistant, "Sole the
-   cat"), and the assistant turns it off or back on when asked (programs/store.ts, soleAsk) */
+   cat"), the assistant turns it off or back on when asked (programs/store.ts, soleAsk), ⌘K has the action, and a
+   small cat under the field (SoleToggle) does both right where it lives */
 
 const CSS = `
 .sole-cat svg { display: block; shape-rendering: crispEdges; }
-.sole-cat .b { fill: var(--text-tertiary); }
-.sole-cat .s { fill: color-mix(in srgb, var(--text-tertiary) 80%, var(--surface-base)); }
-.sole-cat .f { fill: color-mix(in srgb, var(--text-tertiary) 62%, var(--surface-base)); }
-.sole-cat .l { fill: color-mix(in srgb, var(--text-tertiary) 50%, var(--surface-base)); }
+.sole-cat .b { fill: color-mix(in srgb, var(--text-tertiary) 72%, var(--surface-base)); }
+.sole-cat .s { fill: color-mix(in srgb, var(--text-tertiary) 58%, var(--surface-base)); }
+.sole-cat .f { fill: color-mix(in srgb, var(--text-tertiary) 46%, var(--surface-base)); }
+.sole-cat .l { fill: color-mix(in srgb, var(--text-tertiary) 36%, var(--surface-base)); }
 .sole-cat .e { fill: color-mix(in srgb, var(--foreground) 88%, var(--surface-base)); }
 .sole-cat .o { fill: var(--muted-foreground); }
-.sole-cat .y { fill: var(--text-tertiary); }`
+.sole-cat .y { fill: color-mix(in srgb, var(--text-tertiary) 72%, var(--surface-base)); }`
 
 type Cell = [x: number, y: number, tone: string]
 type Sprite = { cells: Cell[]; box: string; side?: boolean; w?: number; h?: number }
@@ -164,7 +165,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   const cat = { el: el(), x: 0, v: 0, dir: 1, target: null as number | null, vmax: WALK, odo: 0, follow: false, air: false, flip: false }
   const ball = { el: el(), x: 0, h: 0, vx: 0, vh: 0, on: false, spin: 0, odo: 0, held: false, squash: 0 }
-  cat.el.title = "Sole. Turn it off in Settings, or ask the assistant to hide the cat"
+  cat.el.title = "Sole. The cat under the field hides it"
   ball.el.style.transformOrigin = "50% 100%"
   ball.el.style.padding = "8px 8px 0"
   const W = () => stage.clientWidth
@@ -300,6 +301,10 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   const throwBall = (x: number, h: number, vx = 0) => {
     Object.assign(ball, { x, h, vx, vh: 0, on: true, held: false })
+    // Placed now, not on the next tick: it showed for a frame at the roof's left end
+    ball.el.style.left = `${x}px`
+    ball.el.style.transform = `translate(-50%, ${-h}px)`
+    cat.el.style.left = `${cat.x}px`
     ball.el.style.opacity = "1"
     draw(ball.el.firstChild as SVGElement, ballSprite(ball.spin))
   }
@@ -579,6 +584,31 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     },
     stop,
   }
+}
+
+/** The cat's own switch, in the line under the field beside the network and the model, while the chat is empty: its
+ * head, awake when it's on, ears down and eyes shut when it's off. Hiding and bringing back happen in one place */
+export function SoleToggle({ className }: { className?: string }) {
+  const on = useSettings().sole
+  const head = front(on ? {} : { eyes: "blink", ears: "flat" }).cells.filter(([, y]) => y <= 7)
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      aria-label="Sole the cat"
+      title={on ? "Hide Sole the cat" : "Bring Sole the cat back"}
+      onClick={() => setSetting("sole", !on)}
+      // As tall as the network and the model beside it; the tap area reaches 44 without moving the line
+      className={`sole-cat relative flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md before:absolute before:-inset-x-1 before:-inset-y-2.5 hover:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple ${on ? "" : "opacity-55 hover:opacity-100"} ${className ?? ""}`}
+    >
+      <svg viewBox="0 0 11 8" width="16.5" height="12" aria-hidden="true">
+        {head.map(([x, y, c], i) => (
+          // The eyes are drawn over the head, so a cell can come twice
+          <rect key={i} x={x} y={y} width="1" height="1" className={c} />
+        ))}
+      </svg>
+    </button>
+  )
 }
 
 /**
