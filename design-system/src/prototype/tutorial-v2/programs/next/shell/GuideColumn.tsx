@@ -15,6 +15,7 @@ import { ASSISTANT_KEYS, FILES_KEYS, MENU_KEYS, PRIMARY_KEYS, TERMINAL_KEYS } fr
 import { ChipRow } from "../../../ui/ChipRow"
 import { openExplorer } from "../../../ui/explorer"
 import { RoofCat, SoleToggle } from "../../../ui/RoofCat"
+import { setSetting, useSettings } from "../../../settings/store"
 import { launch } from "../../../ui/turns/YouPill"
 import { showFailLine } from "./Talk"
 import { isMainnet, networkWord, useChoices } from "../../../desktop/navLit/choices"
@@ -351,8 +352,29 @@ function ModelPicker() {
 
 /** `context`: a quiet line under the field, as Claude Code's under its own: the network and the model, each
  * a pick, their words alone: no chevron, a press and the hover say it (Almaz, 25 Nov) */
-export function Ask({ p, phone = false, chips = [], context = false, roof = false }: { p: Project; phone?: boolean; chips?: string[]; context?: boolean; roof?: boolean }) {
+export function Ask({ p, phone = false, chips = [], context = false, roof = false, turns = 0 }: { p: Project; phone?: boolean; chips?: string[]; context?: boolean; roof?: boolean; turns?: number }) {
   const [text, setText] = useState("")
+  // Sole: in an empty chat its switch is the setting; in a started one a press calls it to play until the next
+  // message. The chips step aside while it is on the field, and for the moment it takes to run off
+  const { sole } = useSettings()
+  const [called, setCalled] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  const there = roof ? sole : called
+  const was = useRef({ turns, there, id: p.id })
+  const gone = useRef(0)
+  useEffect(() => {
+    const before = was.current
+    was.current = { turns, there, id: p.id }
+    if (before.id !== p.id) return setCalled(false)
+    if (before.turns === turns) return
+    setCalled(false)
+    if (!before.there) return
+    // Not cleared when this runs again a moment later (the call ending re-runs it), only when the field goes
+    setLeaving(true)
+    window.clearTimeout(gone.current)
+    gone.current = window.setTimeout(() => setLeaving(false), 1500)
+  }, [turns, there, p.id])
+  useEffect(() => () => window.clearTimeout(gone.current), [])
   const [focused, setFocused] = useState(false)
   // A chip's question flies from the chip into the thread, as in a tutorial
   const pick = (label: string, button?: HTMLElement) => {
@@ -374,10 +396,10 @@ export function Ask({ p, phone = false, chips = [], context = false, roof = fals
   return (
     <div className={cn("shrink-0", phone ? "px-4 pt-3 pb-[calc(var(--safe-bottom)+12px)] [html.portrait_&]:px-8" : "px-5 pt-3 pb-5")}>
       {/* On a phone the chips go while the keyboard is up: the field needs the room */}
-      {!(phone && focused) && <ChipRow chips={chips} phone={phone} onPick={pick} />}
+      {!(phone && focused) && !called && !leaving && <ChipRow chips={chips} phone={phone} onPick={pick} />}
       {/* The composer's top edge is the roof Sole walks on while the chat is empty (ui/RoofCat) */}
       <div className="relative">
-      <RoofCat key={p.id} id={p.id} on={roof} text={text} phone={phone} />
+      <RoofCat key={p.id} id={p.id} on={roof} called={called} sent={turns} text={text} phone={phone} />
       <Composer
         onFocus={() => setFocused(true)}
         onBlur={(e) => {
@@ -423,11 +445,11 @@ export function Ask({ p, phone = false, chips = [], context = false, roof = fals
         // The network and the model, each a pick of its own; no file name, the tab says it (Almaz, 25 Nov)
         <div className="mt-2 flex items-center justify-between gap-3 px-1 text-13 leading-5 text-muted-foreground">
           <NetworkPicker />
-          {/* While the chat is empty, the cat's own switch closes the line, after the model (Almaz, 25 Nov). The
-              spacer keeps the model by it: three things spread evenly would leave the model in the middle */}
-          {roof && <span className="flex-1" />}
+          {/* The cat's own switch closes the line, after the model (Almaz, 25 Nov). The spacer keeps the model by
+              it: three things spread evenly would leave the model in the middle */}
+          <span className="flex-1" />
           <ModelPicker />
-          {roof && <SoleToggle className="-mr-1.5" />}
+          <SoleToggle on={there} started={!roof} onToggle={() => (roof ? setSetting("sole", !sole) : setCalled((v) => !v))} className="-mr-1.5" />
         </div>
       )}
     </div>
