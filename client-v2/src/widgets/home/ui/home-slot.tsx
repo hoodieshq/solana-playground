@@ -15,6 +15,7 @@ import PhoneHome from "./PhoneHome";
  */
 export interface HomeAsk {
   hint: string | undefined;
+  /** Sent to the panel to run, now or after a sign-in; else only placed there */
   sends: boolean;
 }
 
@@ -37,9 +38,9 @@ export const homeSlot = (
 ): HomeSlot | undefined => {
   if (view === "work") return undefined;
   return ({ openAssistant }) => {
-    // The panel takes the question: sent at once when a model can answer,
-    // else left in its composer under the off row, which asks for the
-    // sign-in or the key
+    // The panel takes the question: sent at once when a model can answer, or
+    // after the sign-in when that is all it lacks (`useTurn` keeps it); else
+    // left in its composer under the off row, which asks for a key
     const onAsk = (text: string) => {
       openAssistant();
       PgAssistant.requestPrompt(text, { send: ask.sends });

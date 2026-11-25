@@ -301,6 +301,8 @@ export interface Turn {
   addKey(): void;
   /** A requested prompt waits in the composer for a backend to be connected */
   promptWaiting: boolean;
+  /** That prompt lacks only a sign-in, and sends by itself once one comes */
+  sendsOnSignIn: boolean;
   /** Bumped whenever the composer's input should take focus */
   focusRequest: number;
 }
@@ -450,6 +452,10 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
   // the panel's job, not the conversation's: a notice item would outlive the
   // connect and be stored with the thread
   const [promptWaiting, setPromptWaiting] = useState(false);
+  // A requested prompt a sign-in was all it lacked (Home's ask box, signed
+  // out): it goes by itself once a user arrives or a backend connects, if the
+  // composer still holds it as it was asked
+  const [onSignIn, setOnSignIn] = useState<string | undefined>(undefined);
 
   const provider = useRef<HeldProvider | undefined>(undefined);
   // A turn still running keeps its own copy until it ends (this hook's
@@ -918,6 +924,24 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
   const startRef = useRef(start);
   startRef.current = start;
 
+  // The prompt waiting on a sign-in goes once a user arrives (`start`
+  // connects the default for them) or a key connects. Once only: a composer
+  // the user has changed or sent since keeps what it holds
+  useEffect(() => {
+    if (onSignIn === undefined) return;
+    let gone = false;
+    const go = () => {
+      if (gone || (!PgSession.get() && !usableConnection())) return;
+      gone = true;
+      setOnSignIn(undefined);
+      if (draft.get() !== onSignIn) return;
+      startRef.current(onSignIn).catch(reportButtonFailure("send the prompt"));
+    };
+    go();
+    const subs = [PgSession.onDidChange(go), PgAssistant.onDidChange(go)];
+    return () => subs.forEach((sub) => sub.dispose());
+  }, [onSignIn, draft]);
+
   /**
    * Aborting the request is not enough on its own: a tool waiting on an
    * approval holds the agent loop open, so deny whatever is pending too.
@@ -1027,6 +1051,14 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
               run(request);
               return;
             }
+            // A sign-in is all it lacks: the off row asks for it, so no
+            // Connect a model on top, and the prompt sends once it comes
+            if (backend.state === "present" && !signedIn) {
+              place(request.text);
+              setPromptWaiting(true);
+              setOnSignIn(request.text);
+              return;
+            }
             // Focused first, so Connect a model gives focus back to the
             // composer holding the prompt when it closes
             place(request.text);
@@ -1060,6 +1092,7 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
     openConnect,
     addKey,
     promptWaiting,
+    sendsOnSignIn: onSignIn !== undefined,
     focusRequest,
   };
 };

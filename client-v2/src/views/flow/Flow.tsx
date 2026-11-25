@@ -543,7 +543,8 @@ const FlowFrame = () => {
             (p) => catalogPage.open(p, "home"),
             {
               hint: aiOff && AI_OFF_SEND_HINT[aiOff],
-              sends: aiOff === undefined,
+              // Signed out, the panel keeps it and sends it after the sign-in
+              sends: aiOff === undefined || aiOff === "signed-out",
             }
           )}
           keepWork={page.workKept}

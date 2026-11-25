@@ -56,6 +56,8 @@ export interface BaseAiOffRowProps {
   reason: AiOffReason;
   /** A requested prompt waits in the composer */
   promptWaiting: boolean;
+  /** It sends by itself once the user signs in or adds a key */
+  sendsOnSignIn?: boolean;
   /** Why the last sign-in from the row failed, if it did */
   signInError?: string;
   /** A sign-in is under way, so a second press would only join it */
@@ -76,6 +78,7 @@ export interface BaseAiOffRowProps {
 export function BaseAiOffRow({
   reason,
   promptWaiting,
+  sendsOnSignIn = false,
   signInError,
   signingIn,
   retrying,
@@ -94,7 +97,10 @@ export function BaseAiOffRow({
       <CalloutTitle>{title}</CalloutTitle>
       <CalloutDescription>
         {text}
-        {promptWaiting && " Your prompt is waiting in the composer."}
+        {promptWaiting &&
+          (sendsOnSignIn
+            ? " Your question waits in the composer and sends once you're in."
+            : " Your prompt is waiting in the composer.")}
         {action === "sign-in" && signInError && (
           <span className="block">{signInError}</span>
         )}
