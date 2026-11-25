@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, ChevronRight } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import { useState } from "react"
 
 import { cn } from "@/lib/utils"
@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils"
 import { useOpenTutorial, useProgress } from "../host"
 import { LESSONS } from "../lessons"
 import { byLevel, shownName, upstreamName, type Entry } from "../ui/catalog"
+import { StepRing } from "../ui/StepRing"
+import { DoneVeil } from "../ui/TileCover"
 import { TutorialCover } from "../ui/TutorialCover"
 
 /* The desktop tutorials list, as client-v2's tutorials page draws it (views/flow/gallery/TutorialsTab.tsx
@@ -23,9 +25,10 @@ export function TutorialThumb({ t, className }: { t: Entry; className?: string }
   return <TutorialCover name={upstreamName(t)} framework={t.framework} level={t.level} className={cn("size-11 rounded-[9px]", className)} />
 }
 
-/** One tutorial: the cover, the name, what it is, then the framework and who wrote it. The corner
- * square is the card's one button, stretched over the whole card; it only shows what a press does:
- * the arrow out to the tutorial, a tick once it's done */
+/** One tutorial, laid out as a program's card (Almaz, 25 Nov): the cover at 56, the name, two lines of what
+ * it teaches, and one line under them in the same muted style: the framework it's written in, the step
+ * with the nav's ring once started, Done in green once finished, when the cover wears the done veil too.
+ * The whole card is its one button, with nothing drawn: the corner square with an arrow went */
 function Card({ t }: { t: Entry }) {
   const open = useOpenTutorial()
   const p = useProgress(t.slug)
@@ -38,61 +41,33 @@ function Card({ t }: { t: Entry }) {
   const press = () => open(t.slug)
 
   return (
-    // 16 at the sides and 16 above and below: every vertical gap in the card is four fifths of what it was
-    // (20, 6 and 12), so it reads as compact as the list wants without changing its proportions. Its rows
-    // keep to the top: a card stretched to its neighbour's height shared the extra between them and pushed
-    // the description 10 further down
-    <div className="group/card relative grid grid-cols-[auto_minmax(0,1fr)_auto] content-start items-start gap-x-3.5 rounded-panel border border-border bg-surface-panel px-4 py-4 transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none">
-      {/* Laid out as Claude's connector cards: a 44 square at the top of the text, its top on the head's,
-          and all the words in one column beside it. The cover takes both rows, so the description keeps to
-          the text's edge instead of running under it. A pixel cover is drawn to whole pixels at 56 by
-          42 and has no 44 square in it, so the picture sits whole in a 44 frame, its sides cropped, with the
-          1px left over above filled in its sky and below in its ground, the colours of its own edge rows */}
-      <TutorialThumb t={t} className="row-span-2 size-14 rounded-xl" />
-      {/* Set as the Continue banner over the list is: a word in regular grey, the name in the headline face
-          at regular weight and tight tracking, then what it teaches in the text's 78%. All of it about seven
-          eighths of the banner's (12, 18 and 13 against 13, 24 and 15), so a card reads as a list item, not
-          a second banner */}
-      <div className="min-w-0">
-        {/* The framework alone: the author and the progress beside it made the line a list of facts */}
-        <p className="text-13 leading-4 text-muted-foreground">{t.framework}</p>
-        <h3 className="mt-1 line-clamp-2 font-heading text-16 leading-5 font-normal tracking-tight text-foreground">
-          {name}
-          {/* How far a lesson under way is, beside its name, a tier under it */}
-          {started && done > 0 && (
-            <span className="ml-2 align-baseline font-sans text-13 leading-none tracking-normal text-muted-foreground tabular-nums">
-              {done} of {steps}
-            </span>
-          )}
-        </h3>
-      </div>
+    <div className="group/card relative flex flex-col overflow-hidden rounded-panel border border-border bg-surface-panel transition-colors duration-100 hover:border-border-strong hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none">
       <button
         type="button"
         onClick={press}
         aria-label={finished ? `${name} completed. Open it` : `${started ? "Continue" : "Open"} ${name}`}
-        className={cn(
-          "flex size-7 items-center justify-center rounded-lg after:absolute after:inset-0 after:rounded-panel after:content-['']",
-          FOCUS,
-          // A 28 square under the arrow, as the action on Claude's connector cards, a shade paler than
-          // theirs so it doesn't pull from the name. The arrow only shows under the pointer or the focus:
-          // the whole card is the button, and an arrow on every card said nothing. The tick stays, it's news
-          finished
-            ? "bg-brand-green/12 text-brand-green"
-            : "bg-foreground/[0.06] text-muted-foreground/70 opacity-0 transition-[color,background-color,opacity] duration-100 group-hover/card:bg-foreground/[0.1] group-hover/card:text-foreground group-hover/card:opacity-100 focus-visible:text-foreground focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
-        )}
-      >
-        {finished ? (
-          <Check aria-hidden="true" strokeWidth={2.25} className="size-4" />
-        ) : (
-          <ArrowUpRight aria-hidden="true" strokeWidth={2} className="size-4" />
-        )}
-      </button>
-      {/* What it teaches, under the name in the text's column and on under the arrow too, which only the
-          head row needs: between the cover and the arrow it had 180px on a phone and broke after three words.
-          6 under the name. Lines fill to the edge, plain wrapping: balanced, a line broke in half at the
-          card's width, and pretty pulled a second word down to keep "framework." company, leaving the first
-          line short with room beside it */}
-      <p className="col-span-2 col-start-2 mt-1.5 line-clamp-2 min-h-10 text-13 leading-5 text-muted-foreground">{t.description}</p>
+        className={cn("absolute inset-0 cursor-pointer rounded-panel", FOCUS)}
+      />
+      <div className="pointer-events-none grid flex-1 grid-cols-[auto_minmax(0,1fr)] content-start items-start gap-x-3.5 p-4">
+        <div data-done={finished || undefined} className="relative row-span-3 size-14 overflow-hidden rounded-xl">
+          <TutorialThumb t={t} className="size-14 rounded-none" />
+          {finished && <DoneVeil />}
+        </div>
+        <h3 className="line-clamp-1 min-w-0 font-heading text-16 leading-5 font-normal tracking-tight text-foreground">{name}</h3>
+        <p className="col-start-2 mt-1 line-clamp-2 min-h-10 text-13 leading-5 text-muted-foreground">{t.description}</p>
+        <span className="col-start-2 mt-2 inline-flex items-center gap-1.5 text-13 leading-5 text-muted-foreground tabular-nums">
+          {finished ? (
+            <span className="text-success">Done</span>
+          ) : started ? (
+            <>
+              <StepRing done={done} of={steps} className="size-3.5" />
+              {`Step ${Math.min(steps, done + 1)} of ${steps}`}
+            </>
+          ) : (
+            t.framework
+          )}
+        </span>
+      </div>
     </div>
   )
 }

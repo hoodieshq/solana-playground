@@ -1,4 +1,4 @@
-import { Ellipsis } from "lucide-react"
+import { Ellipsis, PencilLine, Pin, PinOff, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 
 import { LESSON } from "../../data"
 import { soon } from "../../desktop/Catalog"
+import { MENU_ITEM, MENU_STROKE } from "../../desktop/navLit/AccountMenu"
 import { setPinned, usePins } from "../../desktop/navLit/pins"
 import { TutorialThumb } from "../../desktop/TutorialList"
 import { useOpenTutorial } from "../../host"
@@ -69,26 +70,33 @@ function RowMenu({ p, onDelete }: { p: Project; onDelete: () => void }) {
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-44">
+      {/* Set as the account menu (navLit/AccountMenu): a glyph leading every row, 32 high, the panel's corner
+          and shadow, so the prototype's menus read as one (Almaz, 25 Nov) */}
+      <DropdownMenuContent align="end" sideOffset={6} className="w-52 rounded-(--radius-panel) p-1 shadow-panel">
         <DropdownMenuItem
+          className={MENU_ITEM}
           onSelect={() => {
             setPinned(p.name, !pinned)
             toast(pinned ? "Unpinned from the sidebar" : "Pinned to the sidebar")
           }}
         >
+          {pinned ? <PinOff strokeWidth={MENU_STROKE} /> : <Pin strokeWidth={MENU_STROKE} />}
           {pinned ? "Unpin from sidebar" : "Pin to sidebar"}
         </DropdownMenuItem>
         <DropdownMenuItem
+          className={MENU_ITEM}
           onSelect={() => {
             go({ at: "project", id: p.id })
             // The head listens once the project is on screen
             requestAnimationFrame(() => requestAnimationFrame(() => startRename(p.id)))
           }}
         >
+          <PencilLine strokeWidth={MENU_STROKE} />
           Rename
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+        <DropdownMenuItem variant="destructive" className={MENU_ITEM} onSelect={onDelete}>
+          <Trash2 strokeWidth={MENU_STROKE} className="text-destructive!" />
           Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
