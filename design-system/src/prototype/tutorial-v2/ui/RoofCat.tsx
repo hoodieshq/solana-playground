@@ -27,7 +27,7 @@ type Cell = [x: number, y: number, tone: string]
 type Sprite = { cells: Cell[]; box: string; side?: boolean; w?: number; h?: number }
 type Eyes = "open" | "blink" | "happy" | "left" | "right" | "up" | "down"
 type Front = { back?: boolean; dy?: number; sq?: boolean; eyes?: Eyes; tail?: "up" | "mid" | "down"; ears?: "up" | "perk" | "flat"; paw?: 0 | 1 | 2; z?: 0 | 1 | 2 }
-type Step = "stand" | "w1" | "w2" | "w3" | "g1" | "g2" | "g3" | "skid" | "trap" | "roll1" | "roll2" | "crouch" | "leap" | "wind" | "hit" | "follow"
+type Step = "stand" | "w1" | "w2" | "w3" | "g1" | "g2" | "g3" | "skid" | "trap" | "roll1" | "roll2" | "up1" | "up2" | "crouch" | "leap" | "wind" | "hit" | "follow"
 type Side = { f?: Step; tail?: "up" | "mid" | "low" | "run"; eyes?: "open" | "blink" | "down" }
 
 /* Both views share one 20 by 16 box, a head 6 rows tall under 2 rows of ear, 2 by 2 eyes, a body 4 rows thick and
@@ -82,6 +82,24 @@ export function front(pose: Front): Sprite {
 export function side(pose: Side): Sprite {
   const p = { f: "stand", tail: "up", eyes: "open", ...pose }
   const out: Cell[] = []
+  // Up on its hind legs, looking up, front paws out: low for the wait, high for the hit
+  if (p.f === "up1" || p.f === "up2") {
+    const at = (x: number, y: number, c = "b") => out.push([x, y, c])
+    for (let y = 6; y <= 11; y++) for (let x = 5; x <= 9; x++) at(x, y, y === 11 ? "s" : "b")
+    for (const x of [5, 6, 8, 9]) at(x, 12, "s")
+    for (const [x, y] of [[4, 11], [3, 11], [2, 10], [1, 9]]) at(x, y)
+    at(1, 8, "e")
+    for (let x = 6; x <= 12; x++) {
+      at(x, 0)
+      at(x, 5)
+    }
+    for (let y = 1; y <= 4; y++) for (let x = 5; x <= 13; x++) at(x, y)
+    for (const [x, y] of [[6, -1], [7, -1], [6, -2], [10, -1], [11, -1], [11, -2]]) at(x, y)
+    for (const [x, y] of [[10, 1], [11, 1], [10, 2], [11, 2]]) at(x, y, "e")
+    const paws = p.f === "up1" ? [[10, 7], [11, 7], [12, 7], [13, 6]] : [[10, 6], [11, 6], [12, 6], [13, 6], [14, 5], [14, 4]]
+    for (const [x, y] of paws) at(x, y, "s")
+    return { cells: out, box: "-2.5 -3 20 16", side: true }
+  }
   /* The run is a gallop in three frames: gathered (back humped, all four feet under it), stretched (in the air, front
      legs out ahead, hind legs trailing), and landed on the front feet. Head low, ears back, tail straight out */
   const run = p.f === "g1" || p.f === "g2" || p.f === "g3"
@@ -197,9 +215,9 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     stage.append(d)
     return d
   }
-  const cat = { el: el(), x: 0, v: 0, dir: 1, target: null as number | null, vmax: WALK, odo: 0, follow: false, air: false, flip: false }
+  const cat = { el: el(), x: 0, v: 0, dir: 1, target: null as number | null, vmax: WALK, odo: 0, follow: false, air: false, flip: false, carry: false }
   const ball = { el: el(), x: 0, h: 0, vx: 0, vh: 0, on: false, spin: 0, odo: 0, held: false, squash: 0 }
-  cat.el.title = "Sole. The cat under the field hides it"
+  cat.el.title = "Sole. Click it and it plays"
   ball.el.style.transformOrigin = "50% 100%"
   ball.el.style.padding = "8px 8px 0"
   const W = () => stage.clientWidth
@@ -269,7 +287,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
           if (!cat.air) S()
         }
       } else {
-        if (d > 2) cat.dir = dx > 0 ? 1 : -1
+        // Not for the last few px: a stop that runs a little past its mark would turn it round, ball and all
+        if (d > 8) cat.dir = dx > 0 ? 1 : -1
         const running = cat.vmax > 100, acc = running ? BURST : ACCEL
         const want = cat.dir * Math.min(cat.vmax, Math.sqrt(2 * acc * d) + 12)
         cat.v += Math.max(-acc * dt, Math.min(acc * dt, want - cat.v))
@@ -284,6 +303,10 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
           }
         }
       }
+    }
+    if (cat.carry) {
+      ball.x = cat.x + cat.dir * 24
+      ball.h = 12
     }
     cat.el.style.left = `${cat.x}px`
     ball.el.style.left = `${ball.x}px`
@@ -307,6 +330,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     cat.air = false
     cat.v = 0
     cat.flip = false
+    if (cat.carry) ball.h = 0
+    cat.carry = false
     ball.held = false
     resting = false
     asleep = false
@@ -555,13 +580,125 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     }
     await hold(id, 800)
   }
-  const pet = async (id: number) => {
-    for (const [dy, ms] of [[-2, 140], [1, 90], [-1, 140]]) {
-      F({ eyes: "happy", dy })
-      await wait(ms, id)
+  /** Up on its hind legs, keeping the ball in the air with its front paws; the fifth time it gets away */
+  const juggle = async (id: number) => {
+    if (!ball.on) return
+    const dir = ball.x < cat.x ? -1 : 1
+    await turn(id, dir)
+    if (Math.abs(cat.x - (ball.x - dir * 21)) > 5) await goTo(id, ball.x - dir * 21, WALK)
+    cat.dir = dir
+    S({ f: "crouch", eyes: "down" })
+    await wait(180, id)
+    ball.vx = 0
+    ball.x = cat.x + dir * 21
+    ball.h = 4
+    ball.vh = 310
+    for (let i = 0; i < 4; i++) {
+      S({ f: "up1" })
+      await until(() => ball.vh < 0 && ball.h <= 31, id)
+      S({ f: "up2" })
+      ball.h = 31
+      ball.vh = 230 + Math.random() * 60
+      draw(ball.el.firstChild as SVGElement, ballSprite(++ball.spin))
+      await wait(100, id)
     }
-    F({ eyes: "happy" })
-    await wait(700, id)
+    S({ f: "up1" })
+    ball.vx = dir * 80
+    await until(() => ball.h === 0, id)
+    S({ f: "crouch", tail: "mid" })
+    await wait(150, id)
+    S()
+    await watch(id, 300)
+  }
+  /** An ambush: it drops behind the field until only its ears and eyes show, watches the ball, and springs on it */
+  const ambush = async (id: number) => {
+    if (!ball.on) return
+    const dir = ball.x < cat.x ? -1 : 1
+    const gap = Math.abs(ball.x - cat.x)
+    if (gap < 55 || gap > 120) {
+      const spot = clamp(ball.x - dir * 80)
+      await turn(id, spot < cat.x ? -1 : 1)
+      await goTo(id, spot, WALK)
+    }
+    const look: Eyes = ball.x < cat.x ? "left" : "right"
+    F({ eyes: look, ears: "perk" })
+    await wait(220, id)
+    for (const dy of [3, 7]) {
+      F({ dy, eyes: look, ears: "flat" })
+      await wait(90, id)
+    }
+    for (let i = 0; i < 5; i++) {
+      F({ dy: 7, eyes: i === 2 ? "blink" : look, ears: i % 2 ? "perk" : "up" })
+      await wait(i === 2 ? 120 : 260, id)
+    }
+    F({ dy: 2, eyes: look, ears: "perk" })
+    await wait(70, id)
+    cat.dir = ball.x < cat.x ? -1 : 1
+    await leap(id, clamp(ball.x - cat.dir * 20), 280, "trap")
+    ball.vx = 0
+    ball.held = true
+    await wait(320, id)
+    ball.held = false
+  }
+  /** It walks the ball along the roof with small taps, keeping just behind it, toward the roof's longer side */
+  const dribble = async (id: number) => {
+    if (!ball.on) return
+    const dir = ball.x > W() / 2 ? -1 : 1
+    const spot = clamp(ball.x - dir * REACH)
+    if (Math.sign(cat.x - ball.x) === dir) await leap(id, spot, 260)
+    else {
+      await turn(id, spot < cat.x ? -1 : 1)
+      await goTo(id, spot, 70)
+    }
+    cat.dir = dir
+    for (let i = 0; i < 4 && ball.on; i++) {
+      S({ f: "hit", eyes: "down" })
+      ball.vx = dir * (105 + Math.random() * 30)
+      await wait(80, id)
+      cat.vmax = 95
+      cat.follow = true
+      await until(() => !ball.on || (Math.abs(ball.vx) < 25 && Math.abs((cat.target ?? cat.x) - cat.x) < 3), id)
+      cat.follow = false
+      cat.target = null
+      cat.v = 0
+    }
+    S()
+  }
+  /** It takes the ball in its mouth, carries it to the other side of the roof, and puts it down */
+  const carry = async (id: number) => {
+    if (!ball.on) return
+    const dir = ball.x < cat.x ? -1 : 1
+    await turn(id, dir)
+    if (Math.abs(cat.x - (ball.x - dir * 24)) > 5) await goTo(id, ball.x - dir * 24, WALK)
+    cat.dir = dir
+    S({ f: "trap", eyes: "down" })
+    await wait(240, id)
+    ball.vx = 0
+    ball.held = true
+    cat.carry = true
+    S()
+    await wait(160, id)
+    const to = cat.x > W() / 2 ? W() * 0.22 : W() * 0.78
+    await turn(id, to < cat.x ? -1 : 1)
+    await goTo(id, to, 80)
+    S({ f: "trap", eyes: "down" })
+    await wait(220, id)
+    cat.carry = false
+    ball.held = false
+    ball.h = 0
+    S()
+    await wait(220, id)
+  }
+  /* The games, taken in turn so the same one doesn't come twice running. A phone has no room to run */
+  const GAMES = phone ? [backPlay, juggle, ambush] : [(id: number) => playWith(id, 1), backPlay, juggle, ambush, dribble, carry]
+  let next = Math.floor(Math.random() * GAMES.length)
+  const game = async (id: number) => {
+    if (!ball.on) {
+      throwBall(clamp(cat.x + (cat.x > W() / 2 ? -60 : 60)), 120, 0)
+      await watch(id)
+    }
+    await GAMES[next++ % GAMES.length](id)
+    await hold(id, 700)
   }
   const sleep = async (id: number) => {
     asleep = true
@@ -600,16 +737,13 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   const rest = async (id: number) => {
     resting = true
     idle = window.setTimeout(() => id === act && !pointer && play(sleep), 40000)
-    // Now and then it plays by itself, three times at most in one chat: a round with the ball, or on its back
+    // Now and then it plays by itself, three times at most in one chat, a different game each time
     if (solo < 3 && ball.on && !gone)
       fun = window.setTimeout(() => {
         if (id !== act || gone || !ball.on) return
         solo++
         play(async (i) => {
-          if (Math.random() < 0.45) await backPlay(i)
-          else if (phone) await pat(i, 2)
-          else await playWith(i, 1)
-          await hold(i, 700)
+          await game(i)
         })
       }, 14000 + Math.random() * 12000)
     try {
@@ -649,7 +783,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     ball.vh = 240
     play(after)
   }
-  cat.el.onclick = () => !gone && play(pet)
+  cat.el.onclick = () => !gone && play(game)
 
   function stop() {
     dead = true
