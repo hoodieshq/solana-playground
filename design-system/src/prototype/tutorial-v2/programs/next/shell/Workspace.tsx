@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { ChevronDown, ChevronLeft, ChevronRight, Folder, Terminal } from "lucide-react"
+import { ChevronLeft, ChevronRight, Folder, Terminal } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ConsoleDrawer, ConsoleDrawerBar, ConsoleDrawerContent, ConsoleDrawerStatus } from "@/components/ui/console-drawer"
@@ -400,8 +400,8 @@ export function Workspace({ p }: { p: Project }) {
                 <PopoverAnchor asChild>
                   <EditorTabs variant="quiet" className="h-full min-w-0 flex-1 border-b-0!">
                     {tabs.map((tab) => (
-                      <EditorTab key={tab} active={tab === active} className="shrink-0 px-0! before:hidden data-active:bg-(--code-ground)">
-                        <EditorTabTrigger className={cn("gap-1.5 px-2.5", (tabs.length > 1 || (tab === active && !wide)) && "pr-0.5")} onClick={() => openFile(id, tab)}>
+                      <EditorTab key={tab} active={tab === active} className="shrink-0 gap-0 px-0! before:hidden data-active:bg-(--code-ground)">
+                        <EditorTabTrigger className={cn("gap-1.5 px-2.5", tabs.length > 1 && "pr-0.5")} onClick={() => openFile(id, tab)}>
                           <EditorTabLabel>{baseName(tab)}</EditorTabLabel>
                           {changed.includes(tab) && (
                             <>
@@ -410,20 +410,7 @@ export function Workspace({ p }: { p: Project }) {
                             </>
                           )}
                         </EditorTabTrigger>
-                        {/* Too narrow to dock the tree: the arrow beside the open file's name brings it as a list */}
-                        {tab === active && !wide && (
-                          <button
-                            type="button"
-                            aria-label="Files"
-                            aria-expanded={filesShown}
-                            onClick={toggleFiles}
-                            data-files-toggle=""
-                            className="mr-1.5 grid size-6 shrink-0 place-items-center self-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            <ChevronDown aria-hidden="true" className={cn("size-3.5 transition-transform duration-150 ease-standard motion-reduce:transition-none", filesShown && "rotate-180")} />
-                          </button>
-                        )}
-                        {tabs.length > 1 && <EditorTabClose aria-label={`Close ${baseName(tab)}`} onClick={() => close(tab)} className={cn("mr-1 size-6 self-center opacity-100", tab !== active && "text-muted-foreground/60")} />}
+                        {tabs.length > 1 && <EditorTabClose aria-label={`Close ${baseName(tab)}`} onClick={() => close(tab)} className={cn("mr-1 self-center opacity-100", tab !== active && "text-muted-foreground/60")} />}
                       </EditorTab>
                     ))}
                   </EditorTabs>
