@@ -378,7 +378,9 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
     if (!phone && !matchMedia("(pointer: coarse)").matches) input.current?.focus({ preventScroll: true })
   }, [p.id, phone])
   return (
-    <div className={cn("shrink-0", phone ? "px-4 pt-3 pb-[calc(var(--safe-bottom)+12px)] [html.portrait_&]:px-8" : "px-5 pt-3 pb-5")}>
+    // With Sole on the field the block is taller at its head, so the cat stands in the field's own room, 12 clear
+    // over its ears: it used to stand over the thread's foot, and a scrolled line ran under it (Almaz, 25 Nov)
+    <div className={cn("shrink-0", phone ? "px-4 pt-3 pb-[calc(var(--safe-bottom)+12px)] [html.portrait_&]:px-8" : "px-5 pt-3 pb-5", sole && !p.draft && !p.opening && "pt-11")}>
       {/* On a phone the chips go while the keyboard is up: the field needs the room */}
       {p.draft && !(phone && focused) && <ChipRow chips={chips} phone={phone} onPick={pick} />}
       {/* The composer's top edge is the roof Sole sits on (ui/RoofCat). Not in a draft, where the chips are */}

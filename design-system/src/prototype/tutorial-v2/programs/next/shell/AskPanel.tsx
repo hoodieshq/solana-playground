@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { ASSISTANT_KEYS } from "../../../desktop/keys"
 import { useChoices } from "../../../desktop/navLit/choices"
 import { AssistantMark } from "../../../ui/AssistantMark"
+import { useSettings } from "../../../settings/store"
 import { LANDING_CHIPS } from "../../read"
 import { Prose } from "../../../ui/Prose"
 import { ApplyCardView } from "../../../ui/turns/ApplyCard"
@@ -326,9 +327,12 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
   const chips = chipsOf(p, turns, brief.ask)
   // Nothing said yet in a program with code: the greeting holds the column, and its questions leave the field
   const greet = count === 0 && !p.draft && !p.opening
+  const cat = useSettings().sole && !p.draft && !p.opening
   return (
     <>
-      <div ref={scroller} className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain pt-[22px]", phone ? "pb-6" : "pb-13", phone ? "px-4" : "px-5")}>
+      {/* The field's block holds Sole's room when the cat is on it (GuideColumn, Ask), so the thread ends sooner:
+          the same 64 of air over the field beside the code, 52 on a phone */}
+      <div ref={scroller} className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain pt-[22px]", cat ? (phone ? "pb-2" : "pb-5") : phone ? "pb-6" : "pb-13", phone ? "px-4" : "px-5")}>
         {greet && <Greeting p={p} asks={chips.filter((c) => c !== "Show me the line")} phone={phone} />}
         <div role="log" aria-live="polite" aria-label="Assistant" className="flex flex-col gap-[15px]">
           {/* The tutorial thread's rhythm: 15 from a question to its answer, 24 before the next question */}
