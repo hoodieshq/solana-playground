@@ -582,15 +582,37 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       if (reducedMotion()) stop()
       else play(leave)
     },
+    /** Switched off under the field, in Settings or by a word: a small hop and it drops behind the field, as if
+     * behind a stage, the way it came (Almaz, 25 Nov: the run off the roof's end was too much for a switch) */
+    duck() {
+      if (dead) return
+      gone = true
+      window.clearTimeout(typed)
+      if (reducedMotion()) return stop()
+      play(async (id) => {
+        ball.on = false
+        ball.el.style.transition = "opacity 160ms"
+        ball.el.style.opacity = "0"
+        for (const [dy, ms] of [[1, 70], [-2, 110], [3, 70], [8, 70], [13, 90]]) {
+          F({ dy, ears: dy > 0 ? "flat" : "up" })
+          await wait(ms, id)
+        }
+        stop()
+      })
+    },
     stop,
   }
 }
 
-/** The cat's own switch, in the line under the field beside the network and the model, while the chat is empty: its
- * head, awake when it's on, ears down and eyes shut when it's off. Hiding and bringing back happen in one place */
+/* The switch's own drawing, 9 by 7 at two px a cell so every cell lands on whole pixels: the same head, ears up in
+   both states, since the ears are what say "cat". On, the eyes are open; off, they are two shut lines and the
+   head is dim */
+const ICON = ["X.......X", "XX.....XX", "XXXXXXXXX", "XooXXXooX", "XccXXXccX", "XXXXXXXXX", ".XXXXXXX."]
+
+/** The cat's own switch, in the line under the field beside the network and the model, while the chat is empty.
+ * Hiding and bringing back happen in one place */
 export function SoleToggle({ className }: { className?: string }) {
   const on = useSettings().sole
-  const head = front(on ? {} : { eyes: "blink", ears: "flat" }).cells.filter(([, y]) => y <= 7)
   return (
     <button
       type="button"
@@ -599,13 +621,16 @@ export function SoleToggle({ className }: { className?: string }) {
       title={on ? "Hide Sole the cat" : "Bring Sole the cat back"}
       onClick={() => setSetting("sole", !on)}
       // As tall as the network and the model beside it; the tap area reaches 44 without moving the line
-      className={`sole-cat relative flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md before:absolute before:-inset-x-1 before:-inset-y-2.5 hover:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple ${on ? "" : "opacity-55 hover:opacity-100"} ${className ?? ""}`}
+      className={`relative flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md before:absolute before:-inset-x-1 before:-inset-y-2.5 hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple ${on ? "text-muted-foreground" : "text-muted-foreground/45"} ${className ?? ""}`}
     >
-      <svg viewBox="0 0 11 8" width="16.5" height="12" aria-hidden="true">
-        {head.map(([x, y, c], i) => (
-          // The eyes are drawn over the head, so a cell can come twice
-          <rect key={i} x={x} y={y} width="1" height="1" className={c} />
-        ))}
+      <svg viewBox="0 0 9 7" width="18" height="14" shapeRendering="crispEdges" aria-hidden="true">
+        {ICON.flatMap((row, y) =>
+          [...row].map((c, x) => {
+            // The eyes are cut out of the head, so they read on any ground: two by two when open, one shut line when off
+            if (c === "." || c === "c" || (on && c === "o")) return null
+            return <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="currentColor" />
+          })
+        )}
       </svg>
     </button>
   )
@@ -617,7 +642,12 @@ export function SoleToggle({ className }: { className?: string }) {
  */
 export function RoofCat({ id, on: empty, text, phone = false }: { id: string; on: boolean; text: string; phone?: boolean }) {
   // Off in Settings, or by asking the assistant: it walks off as it does on a first message, and stays away
-  const on = useSettings().sole && empty
+  const shown = useSettings().sole
+  const on = shown && empty
+  const off = useRef(!shown)
+  off.current = !shown
+  // Whether the switch was off a moment ago: then it hops back up from behind the field, not just "is there"
+  const wasOff = useRef(!shown)
   const stage = useRef<HTMLDivElement>(null)
   const cat = useRef<ReturnType<typeof start> | null>(null)
   const wanted = useRef(on)
@@ -637,7 +667,8 @@ export function RoofCat({ id, on: empty, text, phone = false }: { id: string; on
     const seeing = new IntersectionObserver(([e]) => {
       if (!e.isIntersecting || c) return
       seeing.disconnect()
-      const mode = entered.has(id) ? "there" : want === "full" ? "full" : want === "short" || seen ? "short" : "full"
+      const mode = entered.has(id) ? (wasOff.current ? "short" : "there") : want === "full" ? "full" : want === "short" || seen ? "short" : "full"
+      wasOff.current = false
       c = start(el, (el.closest("aside, [data-sole-panel]") as HTMLElement | null) ?? el, phone, mode, () => entered.add(id))
       cat.current = c
     }, { threshold: 0.6 })
@@ -648,10 +679,15 @@ export function RoofCat({ id, on: empty, text, phone = false }: { id: string; on
       if (cat.current === c) cat.current = null
       // The chat stopped being empty: the cat walks off by itself and clears up after. An unmount ends it now
       if (wanted.current) return c.stop()
-      window.setTimeout(c.stop, 2600)
-      c.leave()
+      // Switched off: it drops behind the field. The first message: it runs to the roof's end and jumps
+      window.setTimeout(c.stop, off.current ? 700 : 2600)
+      if (off.current) c.duck()
+      else c.leave()
     }
   }, [id, on, phone])
+  useEffect(() => {
+    if (!shown) wasOff.current = true
+  }, [shown])
   useEffect(() => {
     if (text) cat.current?.typing()
   }, [text])
