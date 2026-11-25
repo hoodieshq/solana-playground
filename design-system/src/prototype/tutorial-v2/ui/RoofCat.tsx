@@ -717,20 +717,6 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     F({ dy: -1, ears: "perk" })
     await wait(160, id)
   }
-  const leave = async (id: number) => {
-    await turn(id, 1)
-    await goTo(id, HI(), RUN)
-    cat.dir = 1
-    S({ f: "crouch" })
-    await wait(160, id)
-    S({ f: "leap" })
-    cat.el.animate([{ transform: "translateX(-50%)", opacity: 1 }, { transform: "translate(-10%, -16px)", opacity: 1, offset: 0.4 }, { transform: "translate(60%, 90px)", opacity: 0 }], { duration: 520, easing: "ease-in", fill: "forwards" })
-    ball.on = false
-    ball.el.style.opacity = "0"
-    await wait(520, id)
-    stop()
-  }
-
   /* Sitting: blink, a sway of the tail, the eyes on the pointer. Forty seconds with the pointer out of the panel
      and it lies down to sleep */
   const gaze = (): Eyes => (pointer ? (pointer.y > 0 && Math.abs(pointer.x - cat.x) < 30 ? "down" : pointer.x < cat.x - 14 ? "left" : pointer.x > cat.x + 14 ? "right" : "open") : "open")
@@ -816,23 +802,18 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     /** A key in the field: it stops where it is, sits and listens, and doesn't move while you type */
     typing() {
       if (gone || dead || reducedMotion()) return
+      // What it held or tossed is let go where it is
+      if (ball.on) ball.h = Math.max(0, ball.h)
       const id = ++act
       halt()
       F({ ears: "perk", eyes: "down" })
       window.clearTimeout(typed)
       typed = window.setTimeout(() => id === act && rest(id), 1600)
     },
-    /** The first message is sent: off the roof's end, and that is all of it until the next empty chat */
-    leave() {
-      if (gone || dead) return
-      gone = true
-      window.clearTimeout(typed)
-      if (reducedMotion()) stop()
-      else play(leave)
-    },
-    /** Switched off under the field, in Settings or by a word: a small hop and it drops behind the field, as if
-     * behind a stage, the way it came (Almaz, 25 Nov: the run off the roof's end was too much for a switch) */
-    duck() {
+    /** Off the field: switched off, sent away, or a message was sent. Whatever it was doing, it stops, shows its
+     * back and jumps away behind the field, as if behind a stage (Almaz, 25 Nov: it used to run for the roof's end
+     * on a message, now left, now right). `quick` on a message: no turn through its side first */
+    duck(quick = false) {
       if (dead) return
       gone = true
       window.clearTimeout(typed)
@@ -841,15 +822,16 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
         ball.on = false
         ball.el.style.transition = "opacity 160ms"
         ball.el.style.opacity = "0"
-        // It doesn't go back down the way it came up: it turns round, shows its back, and jumps away from you
         cat.flip = false
         cat.dir = 1
-        S({ tail: "mid" })
-        await wait(150, id)
+        if (!quick) {
+          S({ tail: "mid" })
+          await wait(150, id)
+        }
         F({ back: true })
-        await wait(230, id)
+        await wait(quick ? 130 : 230, id)
         F({ back: true, dy: 1, ears: "flat" })
-        await wait(130, id)
+        await wait(quick ? 90 : 130, id)
         for (const [dy, ms] of [[-3, 120], [-1, 70], [4, 70], [9, 70], [13, 90]]) {
           F({ back: true, dy })
           await wait(ms, id)
@@ -940,11 +922,10 @@ export function RoofCat({ id, on: empty, called = false, sent = 0, text, phone =
       if (cat.current === c) cat.current = null
       // The chat stopped being empty: the cat walks off by itself and clears up after. An unmount ends it now
       if (wanted.current) return c.stop()
-      // Switched off or sent away: it jumps behind the field. A message: it runs to the roof's end and jumps
+      // Switched off, sent away or a message sent: it jumps behind the field, quicker on a message
       const switched = mail.current === had
-      window.setTimeout(c.stop, switched ? 1400 : 2600)
-      if (switched) c.duck()
-      else c.leave()
+      window.setTimeout(c.stop, 1400)
+      c.duck(!switched)
     }
   }, [id, on, phone])
   useEffect(() => {

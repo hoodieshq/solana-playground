@@ -372,7 +372,7 @@ export function Ask({ p, phone = false, chips = [], context = false, roof = fals
     // Not cleared when this runs again a moment later (the call ending re-runs it), only when the field goes
     setLeaving(true)
     window.clearTimeout(gone.current)
-    gone.current = window.setTimeout(() => setLeaving(false), 1500)
+    gone.current = window.setTimeout(() => setLeaving(false), 900)
   }, [turns, there, p.id])
   useEffect(() => () => window.clearTimeout(gone.current), [])
   const [focused, setFocused] = useState(false)
