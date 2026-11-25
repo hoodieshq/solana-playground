@@ -64,7 +64,9 @@ function EditorTabs({
         className={cn(
           "flex h-10 items-stretch overflow-x-auto border-b border-border bg-surface-base [scrollbar-width:none]",
           variant === "quiet" && "h-11",
-          fade && "fade-edges *:data-[slot=editor-tab]:scroll-mx-8",
+          // Sideways only. A tab's 44px tap area reaches below the strip, the strip then reads as scrolled short of
+          // its foot, and the foot fade came on over the tabs themselves
+          fade && "fade-edges data-[more-bottom]:[--fade-b:0px]! data-[more-top]:[--fade-t:0px]! *:data-[slot=editor-tab]:scroll-mx-8",
           inBar && "h-full min-w-0 flex-1 border-b-0",
           className
         )}

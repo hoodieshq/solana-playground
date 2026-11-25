@@ -352,29 +352,13 @@ function ModelPicker() {
 
 /** `context`: a quiet line under the field, as Claude Code's under its own: the network and the model, each
  * a pick, their words alone: no chevron, a press and the hover say it (Almaz, 25 Nov) */
-export function Ask({ p, phone = false, chips = [], context = false, roof = false, turns = 0 }: { p: Project; phone?: boolean; chips?: string[]; context?: boolean; roof?: boolean; turns?: number }) {
+export function Ask({ p, phone = false, chips = [], context = false }: { p: Project; phone?: boolean; chips?: string[]; context?: boolean; roof?: boolean; turns?: number }) {
   const [text, setText] = useState("")
-  // Sole: in an empty chat its switch is the setting; in a started one a press calls it to play until the next
-  // message. The chips step aside while it is on the field, and for the moment it takes to run off
+  // Sole sits on the field in every chat until its switch under the field hides it (Almaz, 25 Nov)
   const { sole } = useSettings()
-  const [called, setCalled] = useState(false)
-  const [leaving, setLeaving] = useState(false)
-  const there = roof ? sole : called
-  const was = useRef({ turns, there, id: p.id })
-  const gone = useRef(0)
-  useEffect(() => {
-    const before = was.current
-    was.current = { turns, there, id: p.id }
-    if (before.id !== p.id) return setCalled(false)
-    if (before.turns === turns) return
-    setCalled(false)
-    if (!before.there) return
-    // Not cleared when this runs again a moment later (the call ending re-runs it), only when the field goes
-    setLeaving(true)
-    window.clearTimeout(gone.current)
-    gone.current = window.setTimeout(() => setLeaving(false), 900)
-  }, [turns, there, p.id])
-  useEffect(() => () => window.clearTimeout(gone.current), [])
+  // The row of chips over the field is gone (Almaz, 25 Nov): the field itself offers one question, the first the
+  // moment calls for, and Tab takes it. A draft keeps its chips: there they are the answers to what was asked
+  const hint = p.draft ? undefined : chips[0]
   const [focused, setFocused] = useState(false)
   // A chip's question flies from the chip into the thread, as in a tutorial
   const pick = (label: string, button?: HTMLElement) => {
@@ -396,10 +380,10 @@ export function Ask({ p, phone = false, chips = [], context = false, roof = fals
   return (
     <div className={cn("shrink-0", phone ? "px-4 pt-3 pb-[calc(var(--safe-bottom)+12px)] [html.portrait_&]:px-8" : "px-5 pt-3 pb-5")}>
       {/* On a phone the chips go while the keyboard is up: the field needs the room */}
-      {!(phone && focused) && !called && !leaving && <ChipRow chips={chips} phone={phone} onPick={pick} />}
-      {/* The composer's top edge is the roof Sole walks on while the chat is empty (ui/RoofCat) */}
+      {p.draft && !(phone && focused) && <ChipRow chips={chips} phone={phone} onPick={pick} />}
+      {/* The composer's top edge is the roof Sole sits on (ui/RoofCat). Not in a draft, where the chips are */}
       <div className="relative">
-      <RoofCat key={p.id} id={p.id} on={roof} called={called} sent={turns} text={text} phone={phone} />
+      <RoofCat key={p.id} id={p.id} on={!p.draft && !p.opening} text={text} phone={phone} />
       <Composer
         onFocus={() => setFocused(true)}
         onBlur={(e) => {
@@ -426,7 +410,15 @@ export function Ask({ p, phone = false, chips = [], context = false, roof = fals
             if (!v) setTall(false)
             else if (!tall && (v.includes("\n") || e.target.scrollHeight > 46)) setTall(true)
           }}
-          placeholder={p.read ? "Ask about this program" : p.draft ? "Reply, or say what to build" : `Ask about ${titleOf(p)}`}
+          onKeyDown={(e) => {
+            if (e.key !== "Tab" || e.shiftKey || text || !hint) return
+            e.preventDefault()
+            if (hint === "Show me the line") return pick(hint)
+            setText(hint)
+            // The composer learns it is no longer empty from its own input event
+            requestAnimationFrame(() => input.current?.dispatchEvent(new Event("input", { bubbles: true })))
+          }}
+          placeholder={hint ?? (p.read ? "Ask about this program" : p.draft ? "Reply, or say what to build" : `Ask about ${titleOf(p)}`)}
           aria-label={p.read ? "Ask about this program" : p.draft ? "Reply to the assistant" : `Ask about ${titleOf(p)}`}
           enterKeyHint="send"
           // 13, the interface's size, as the lines under the field (Almaz, 25 Nov: 16 stood louder than the panel)
@@ -449,7 +441,7 @@ export function Ask({ p, phone = false, chips = [], context = false, roof = fals
               it: three things spread evenly would leave the model in the middle */}
           <span className="flex-1" />
           <ModelPicker />
-          <SoleToggle on={there} started={!roof} onToggle={() => (roof ? setSetting("sole", !sole) : setCalled((v) => !v))} className="-mr-1.5" />
+          {!p.draft && <SoleToggle on={sole} onToggle={() => setSetting("sole", !sole)} className="-mr-1.5" />}
         </div>
       )}
     </div>

@@ -387,14 +387,24 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
 
 export function AskPanel({ p, onClose, className }: { p: Project; onClose: () => void; className?: string }) {
   // The head as every panel's: its name, and Hide with the panel's own key (Nikita, 20 Nov)
+  // Before anything is said the greeting's own sign names the assistant, so the head keeps only Hide; once you are
+  // talking the sign is gone from the column and the head takes it, small, beside the name (Almaz, 25 Nov)
+  const greeting = chat(p).length === 0 && !p.draft && !p.opening
   return (
     <aside aria-label="Assistant" className={className}>
       {/* No rule under the head (Almaz, 18 Nov: one line too many). The column's own left edge frames it, and
           the thread starts a clear step below */}
       <div className="flex h-10 shrink-0 items-center gap-2 pr-1.5 pl-5">
-        <AssistantMark strokeWidth={1.75} className="text-muted-foreground" />
         {/* The name alone: the model sits under the field now, where it is changed (Almaz, 25 Nov) */}
-        <h2 className="flex-1 text-13 font-act text-foreground">Assistant</h2>
+        {greeting ? (
+          <h2 className="sr-only">Assistant</h2>
+        ) : (
+          <>
+            <AssistantMark className="text-muted-foreground" />
+            <h2 className="text-13 font-act text-foreground">Assistant</h2>
+          </>
+        )}
+        <span className="flex-1" />
         <PanelHide what="the assistant" keys={ASSISTANT_KEYS} onClick={onClose} />
       </div>
       <AskThread p={p} />

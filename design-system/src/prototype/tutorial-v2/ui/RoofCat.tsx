@@ -3,15 +3,16 @@ import { useEffect, useRef } from "react"
 import { useSettings } from "../settings/store"
 import { reducedMotion } from "./type"
 
-/* Sole, the cat on the roof (Almaz, 25 Nov). The composer's top edge is a roof ridge: in an empty chat a small grey
-   pixel cat climbs onto it and, the first time in a day, plays with a ball of yarn; every chat after it only hops up
-   and sits. It is there to make the panel feel lived in, not to help: after the entrance it only blinks, it moves
-   again only when you touch the ball, it sleeps once the pointer has left the panel, and it is gone with the first
-   message. Grey on purpose, in the interface's own tones: the motion already draws the eye, and purple and green
-   mean "current" and "success" here. Board and rules: prototype/review-high/sole-character/roof.html.
-   ?sole=full|short|off overrides the once a day rule for a review. Settings has its switch (Assistant, "Sole the
-   cat"), the assistant turns it off or back on when asked (programs/store.ts, soleAsk), ⌘K has the action, and a
-   small cat under the field (SoleToggle) does both right where it lives */
+/* Sole, the cat on the roof (Almaz, 25 Nov). The composer's top edge is a roof ridge, and a small grey pixel cat
+   lives on it in every chat of a project or a program, until its switch under the field hides it. The first time in
+   a day it climbs up and plays a round with a ball of yarn; after that it only hops up, and a ball drops beside it.
+   It is there to make the panel feel lived in, not to help: it blinks, follows the pointer with its eyes, listens
+   while you type, plays one of six games when you press it or its ball, plays by itself now and then, and sleeps
+   once the pointer has left the panel. Grey on purpose, in the interface's own tones: the motion already draws the
+   eye, and purple and green mean "current" and "success" here. Board: prototype/review-high/sole-character/roof.html.
+   ?sole=full|short|off overrides the once a day rule for a review. It is switched by the small cat under the field
+   (SoleToggle), in Settings (Assistant, "Sole the cat"), from ⌘K, or by asking the assistant (programs/store.ts,
+   soleAsk) */
 
 const CSS = `
 .sole-cat svg { display: block; shape-rendering: crispEdges; }
@@ -211,7 +212,11 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   const el = () => {
     const d = document.createElement("div")
     d.style.cssText = "position:absolute;bottom:0;left:0;transform:translateX(-50%);pointer-events:auto;cursor:pointer"
-    d.append(document.createElementNS(NS, "svg"))
+    // Sized nought until it is drawn: an undrawn svg is 300 by 150, and it took presses over the chat
+    const svg = document.createElementNS(NS, "svg")
+    svg.setAttribute("width", "0")
+    svg.setAttribute("height", "0")
+    d.append(svg)
     stage.append(d)
     return d
   }
@@ -848,15 +853,14 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
    head is dim */
 const ICON = ["X.......X", "XX.....XX", "XXXXXXXXX", "XooXXXooX", "XccXXXccX", "XXXXXXXXX", ".XXXXXXX."]
 
-/** The cat's own switch, at the end of the line under the field. In an empty chat it is the setting: the cat shows
- * in empty chats or it doesn't. Once the chat has started it calls the cat to play, until the next message */
-export function SoleToggle({ on, started = false, onToggle, className }: { on: boolean; started?: boolean; onToggle: () => void; className?: string }) {
+/** The cat's own switch, at the end of the line under the field: it hides the cat and brings it back, in every chat */
+export function SoleToggle({ on, onToggle, className }: { on: boolean; onToggle: () => void; className?: string }) {
   return (
     <button
       type="button"
       aria-pressed={on}
       aria-label="Sole the cat"
-      title={started ? (on ? "Send Sole away" : "Call Sole to play") : on ? "Hide Sole the cat" : "Bring Sole the cat back"}
+      title={on ? "Hide Sole the cat" : "Bring Sole the cat back"}
       onClick={onToggle}
       // As tall as the network and the model beside it; the tap area reaches 44 without moving the line
       className={`relative flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md before:absolute before:-inset-x-1 before:-inset-y-2.5 hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple ${on ? "text-muted-foreground" : "text-muted-foreground/45"} ${className ?? ""}`}
@@ -878,15 +882,11 @@ export function SoleToggle({ on, started = false, onToggle, className }: { on: b
  * The cat over the composer. `id` names the chat, `on` while the chat is empty; when it turns false the cat leaves. `text` is the field's
  * value, so it can listen while you type. The parent must be `relative`, with the composer as the roof under it
  */
-export function RoofCat({ id, on: empty, called = false, sent = 0, text, phone = false }: { id: string; on: boolean; called?: boolean; sent?: number; text: string; phone?: boolean }) {
-  // In an empty chat it follows its switch. Once the chat has started it comes only when called, and goes with the
-  // next message. `sent` counts the messages: it tells a message (it runs off) from a switch (it ducks away)
+export function RoofCat({ id, on: here, text, phone = false }: { id: string; on: boolean; text: string; phone?: boolean }) {
+  // It sits on the field in every chat, empty or not, until its switch hides it (Almaz, 25 Nov: it used to leave
+  // with the first message). `here` is false only where the field has something else over it
   const shown = useSettings().sole
-  const on = called || (shown && empty)
-  const mail = useRef(sent)
-  mail.current = sent
-  const summon = useRef(called)
-  summon.current = called
+  const on = shown && here
   // Whether the switch was off a moment ago: then it hops back up from behind the field, not just "is there"
   const wasOff = useRef(!shown)
   const stage = useRef<HTMLDivElement>(null)
@@ -896,7 +896,7 @@ export function RoofCat({ id, on: empty, called = false, sent = 0, text, phone =
   useEffect(() => {
     const el = stage.current
     const want = asked()
-    if (!on || !el || (want === "off" && !called)) return
+    if (!on || !el || want === "off") return
     let seen = false
     try {
       seen = localStorage.getItem(DAY) === new Date().toDateString()
@@ -905,13 +905,11 @@ export function RoofCat({ id, on: empty, called = false, sent = 0, text, phone =
     }
     // On a phone the chat is mounted beside the code, out of view: it climbs up when you get there, not before
     let c: ReturnType<typeof start> | null = null
-    let had = mail.current
     const seeing = new IntersectionObserver(([e]) => {
       if (!e.isIntersecting || c) return
       seeing.disconnect()
-      const mode = summon.current ? "short" : entered.has(id) ? (wasOff.current ? "short" : "there") : want === "full" ? "full" : want === "short" || seen ? "short" : "full"
+      const mode = entered.has(id) ? (wasOff.current ? "short" : "there") : want === "full" ? "full" : want === "short" || seen ? "short" : "full"
       wasOff.current = false
-      had = mail.current
       c = start(el, (el.closest("aside, [data-sole-panel]") as HTMLElement | null) ?? el, phone, mode, () => entered.add(id))
       cat.current = c
     }, { threshold: 0.6 })
@@ -922,10 +920,9 @@ export function RoofCat({ id, on: empty, called = false, sent = 0, text, phone =
       if (cat.current === c) cat.current = null
       // The chat stopped being empty: the cat walks off by itself and clears up after. An unmount ends it now
       if (wanted.current) return c.stop()
-      // Switched off, sent away or a message sent: it jumps behind the field, quicker on a message
-      const switched = mail.current === had
+      // Switched off: it shows its back and jumps behind the field
       window.setTimeout(c.stop, 1400)
-      c.duck(!switched)
+      c.duck()
     }
   }, [id, on, phone])
   useEffect(() => {
