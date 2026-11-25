@@ -274,6 +274,12 @@ export function hashFiles(files: Record<string, string>) {
 
 export const metaOf = (p: Project): ProgramMeta | undefined => (p.slug ? programBySlug(p.slug) : undefined)
 
+/** The name people read: a catalog program keeps the catalog's title until you rename it (Almaz, 25 Nov) */
+export const titleOf = (p: Project) => {
+  const m = metaOf(p)
+  return m && p.name === m.name ? m.title : p.name
+}
+
 /** Where a project's instructions are handled: a catalog program's main file, or its starter's */
 const mainFileOf = (p: Project) => {
   const meta = metaOf(p)

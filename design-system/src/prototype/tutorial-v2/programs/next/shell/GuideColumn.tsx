@@ -21,7 +21,7 @@ import { Choose } from "../../../desktop/navLit/StatusChip"
 import { useEnv } from "../../../newProject/next/model"
 import { openSettings } from "../../../settings/open"
 import { pinToSidebar, usePins } from "../../../desktop/navLit/pins"
-import { ask, build, busy, deleteProject, deploy, go, ixsOf, metaOf, onChain, renameProject, type Project } from "../../store"
+import { ask, build, busy, deleteProject, deploy, go, ixsOf, metaOf, onChain, renameProject, titleOf, type Project } from "../../store"
 import { WALLET_KEY, fakeKey } from "../../data"
 import { BUILD_KEYS } from "./Stages"
 import { copyText, onFocusComposer } from "./util"
@@ -134,7 +134,7 @@ export const startRename = (id: string) => window.dispatchEvent(new CustomEvent(
 
 /** A delete's question, the words Your projects' rows use. A deployed program stays on devnet: deleting
  * the project doesn't take it down or hand its SOL back */
-export const deleteQuestion = (p: Project) => `Delete ${p.name}? Its files go too.${onChain(p) ? " The program stays on devnet." : ""}`
+export const deleteQuestion = (p: Project) => `Delete ${titleOf(p)}? Its files go too.${onChain(p) ? " The program stays on devnet." : ""}`
 
 /** Only your own projects can go; a read example isn't one, and an unsaved one leaves on its own */
 export const deletable = (p: Project) => !p.read && !p.example && !p.opening
@@ -143,30 +143,31 @@ export const deletable = (p: Project) => !p.read && !p.example && !p.opening
 export function removeProject(p: Project) {
   deleteProject(p)
   go({ at: "catalog" })
-  toast(`Deleted ${p.name}`)
+  toast(`Deleted ${titleOf(p)}`)
 }
 const renamable = (p: Project) => !p.read && !p.example && !p.opening
 
 export function ProjectName({ p, className }: { p: Project; className: string }) {
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(p.name)
+  const title = titleOf(p)
+  const [draft, setDraft] = useState(title)
   useEffect(() => {
     const on = (e: Event) => {
       if ((e as CustomEvent<string>).detail !== p.id) return
-      setDraft(p.name)
+      setDraft(title)
       setEditing(true)
     }
     window.addEventListener(RENAME, on)
     return () => window.removeEventListener(RENAME, on)
-  }, [p.id, p.name])
+  }, [p.id, title])
   if (!editing)
     return (
       <h1 className={className} onDoubleClick={renamable(p) ? () => startRename(p.id) : undefined}>
-        {p.name}
+        {title}
       </h1>
     )
   const done = (save: boolean) => {
-    if (save) renameProject(p.id, draft)
+    if (save && draft.trim() !== title) renameProject(p.id, draft)
     setEditing(false)
   }
   return (
@@ -364,6 +365,11 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
   const [tall, setTall] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
   useEffect(() => onFocusComposer(() => input.current?.focus()), [])
+  // A program opens with the caret in the field, as a chat does when you switch to it (Almaz, 25 Nov). Not on
+  // touch: there the focus would pull the keyboard up over the code
+  useEffect(() => {
+    if (!phone && !matchMedia("(pointer: coarse)").matches) input.current?.focus({ preventScroll: true })
+  }, [p.id, phone])
   return (
     <div className={cn("shrink-0", phone ? "px-4 pt-3 pb-[calc(var(--safe-bottom)+12px)] [html.portrait_&]:px-8" : "px-5 pt-3 pb-5")}>
       {/* On a phone the chips go while the keyboard is up: the field needs the room */}
@@ -381,7 +387,9 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
           // The composer sizes itself from its own input event, which clearing the value doesn't fire
           requestAnimationFrame(() => input.current?.dispatchEvent(new Event("input", { bubbles: true })))
         }}
-        className={cn(!tall && "flex-row items-center")}
+        // Focused from the start, so the caret says it: the purple ring stood lit on every open (Almaz, 25 Nov)
+        // 12, not the composer's 16: at 42 high 16 read as a pill (Almaz, 25 Nov)
+        className={cn("rounded-xl focus-within:border-foreground/20 focus-within:ring-0", !tall && "flex-row items-center")}
       >
         <ComposerInput
           ref={input}
@@ -392,8 +400,8 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
             if (!v) setTall(false)
             else if (!tall && (v.includes("\n") || e.target.scrollHeight > 46)) setTall(true)
           }}
-          placeholder={p.read ? "Ask about this program" : p.draft ? "Reply, or say what to build" : `Ask about ${p.name}`}
-          aria-label={p.read ? "Ask about this program" : p.draft ? "Reply to the assistant" : `Ask about ${p.name}`}
+          placeholder={p.read ? "Ask about this program" : p.draft ? "Reply, or say what to build" : `Ask about ${titleOf(p)}`}
+          aria-label={p.read ? "Ask about this program" : p.draft ? "Reply to the assistant" : `Ask about ${titleOf(p)}`}
           enterKeyHint="send"
           // 13, the interface's size, as the lines under the field (Almaz, 25 Nov: 16 stood louder than the panel)
           className={cn("text-13 leading-5 font-normal", !tall && "min-h-10 pt-2.5 pb-2.5", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}

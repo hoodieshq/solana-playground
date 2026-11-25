@@ -26,7 +26,7 @@ const readAll = () => {
 }
 
 /** A project as Mine draws it: the state's row, or a finished lesson's code, which opens its lesson */
-export type ProjectEntry = ProjectRow & { onOpen?: () => void }
+export type ProjectEntry = ProjectRow & { onOpen?: () => void; /** What the row reads, where `name` keys its pin */ title?: string }
 
 /** A lesson as Mine reads it: where it is, of how many, the next step, finished */
 export type LessonItem = { name: string; at: number; of: number; next?: string; done: boolean; pinned: boolean; current: boolean; onOpen: () => void }
@@ -66,7 +66,7 @@ function ProjectItem({ p, onPick }: { p: ProjectEntry; onPick: () => void }) {
     <NavRow
       kind="item"
       glyph={<LitIcon name="project" />}
-      label={p.name}
+      label={p.title ?? p.name}
       name={notSynced ? `${p.name}, not synced` : undefined}
       attention={notSynced ? "Not synced" : undefined}
       tip={notSynced ? "Not saved to your account yet. We'll keep trying." : undefined}

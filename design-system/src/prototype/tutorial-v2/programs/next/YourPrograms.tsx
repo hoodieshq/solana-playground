@@ -17,7 +17,7 @@ import { progressOf, savedProgress, useStore } from "../../store"
 import { CATALOG as CATALOG_TUTORIALS, shownName } from "../../ui/catalog"
 import { ResumeList, type ResumeItem } from "../../ui/ResumeList"
 import { CATALOG } from "../data"
-import { deleteProject, go, openSaved, usePrograms, type Project } from "../store"
+import { deleteProject, go, openSaved, titleOf, usePrograms, type Project } from "../store"
 import { ProgramIcon, standing } from "./catalog-parts"
 import { ProjectCover } from "./ProjectCover"
 import { deletable, deleteQuestion, startRename } from "./shell/GuideColumn"
@@ -123,7 +123,7 @@ export function YourPrograms() {
         // Every cover on one 44 tile in the tile style: a catalog program's picture, or the framework yours
         // was started on (Almaz, 11 Nov: the framework's logo was the last old cover left)
         cover: meta ? <ProgramIcon p={meta} className="shrink-0" /> : <ProjectCover framework={p.framework} />,
-        name: p.name,
+        name: titleOf(p),
         ...whereNow(p),
         // A catalog program's words, as its card says them; yours, what it is and what's next (Almaz, 25 Nov)
         line: meta?.description ?? lineOf(p),
@@ -143,7 +143,7 @@ export function YourPrograms() {
                 onClick={() => {
                   setAsking(null)
                   deleteProject(p)
-                  toast(`Deleted ${p.name}`)
+                  toast(`Deleted ${titleOf(p)}`)
                 }}
                 className="pointer-coarse:h-11"
               >

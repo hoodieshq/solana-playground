@@ -34,7 +34,7 @@ import { StatusChip, chipCalm } from "./StatusChip"
 import "./navLit.css"
 import { toCatalog, useInProject } from "../../programs"
 import { openSettings } from "../../settings/open"
-import { go as goProgram, usePrograms } from "../../programs/store"
+import { go as goProgram, titleOf, usePrograms } from "../../programs/store"
 import { deletable } from "../../programs/next/shell/GuideColumn"
 
 // The open or folded choice is the same one the current nav keeps, so switching designs keeps it
@@ -272,6 +272,7 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
     .filter((p) => (pins[p.name] || deletable(p)) && !(rows !== "loading" && rows.some((r) => r.name === p.name)))
     .map((p) => ({
       name: p.name,
+      title: titleOf(p),
       pinned: !!pins[p.name],
       onOpen: go(() => {
         goProgram({ at: "project", id: p.id })

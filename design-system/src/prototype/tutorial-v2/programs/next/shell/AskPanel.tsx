@@ -262,7 +262,12 @@ function Greeting({ p, asks, phone }: { p: Project; asks: string[]; phone: boole
     ? brief.ask
     : [...asks.filter(own), ...asks.filter((a) => !own(a))].filter((a) => !done || (a !== "What does a deploy cost?" && a !== "Is it safe to deploy?")).slice(0, 3)
   return (
-    <div className="flex min-h-full flex-col justify-end">
+    // Nothing asked yet: the greeting stands a little over the panel's middle, not low over an empty half; the
+    // first question turns it into the thread, which sits low over the field (Almaz, 25 Nov). The mark gives it a
+    // top where a second "Assistant" would repeat the head
+    <div className="flex min-h-full flex-col">
+      <span aria-hidden="true" className="flex-[2]" />
+      <AssistantMark strokeWidth={1.5} className="mb-4 size-7 text-muted-foreground" />
       <p className="text-13 leading-5 text-muted-foreground">{`${meta?.title ?? p.name} · ${FRAMEWORK_WORD[p.framework]}`}</p>
       {brief.text && (
         <p className={cn(READ, "mt-2")}>
@@ -271,7 +276,7 @@ function Greeting({ p, asks, phone }: { p: Project; asks: string[]; phone: boole
       )}
       {rows.length > 0 && (
         // The rows' fills on the field's own edges, left and right, their words 16 in as the field's (Almaz, 25 Nov)
-        // The rows are the field's suggestions: 24 from the words above, 12 to the field below (Almaz, 25 Nov)
+        // 24 from the words above; the field keeps 64 of air over it, as Claude Code's (Almaz, 25 Nov)
         <div className={cn("mt-6 flex flex-col gap-1", phone && "mt-5")}>
           {rows.map((a) => (
             <button
@@ -285,6 +290,7 @@ function Greeting({ p, asks, phone }: { p: Project; asks: string[]; phone: boole
           ))}
         </div>
       )}
+      <span aria-hidden="true" className="flex-[3]" />
     </div>
   )
 }
@@ -322,7 +328,7 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
   const greet = count === 0 && !p.draft && !p.opening
   return (
     <>
-      <div ref={scroller} className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain pt-[22px]", greet ? "pb-0" : "pb-3", phone ? "px-4" : "px-5")}>
+      <div ref={scroller} className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain pt-[22px]", phone ? "pb-6" : "pb-13", phone ? "px-4" : "px-5")}>
         {greet && <Greeting p={p} asks={chips.filter((c) => c !== "Show me the line")} phone={phone} />}
         <div role="log" aria-live="polite" aria-label="Assistant" className="flex flex-col gap-[15px]">
           {/* The tutorial thread's rhythm: 15 from a question to its answer, 24 before the next question */}
