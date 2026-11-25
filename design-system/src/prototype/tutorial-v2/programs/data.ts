@@ -19,6 +19,9 @@ export type Ix = {
 
 export type ProgramMeta = Program & {
   slug: string
+  /** The name people read on its card and the banner, in Title Case as the tutorials' (Almaz, 25 Nov);
+   * `name` stays the program's folder, the project's name once opened */
+  title: string
   level: Level
   minutes: number
   /** Devnet SOL a first deploy takes */
@@ -251,7 +254,7 @@ pub struct SetFavorites<'info> {
 }
 `
 
-type MetaEntry = Omit<ProgramMeta, keyof Program | "slug" | "topic" | "kind">
+type MetaEntry = Omit<ProgramMeta, keyof Program | "slug" | "title" | "topic" | "kind">
 
 /** An Anchor basic: its entry, with its lib.rs and a README as its files */
 function anchorBasic(slug: string, path: string, librs: string, m: Omit<MetaEntry, "repo" | "path" | "devnetId" | "own">): MetaEntry {
@@ -467,16 +470,34 @@ const LINES: Record<string, string> = {
   "spl-name-service": "Issues and manages names on Solana: domains, public keys, URLs and handles.",
 }
 
+/** The programs' names for people: the folders' names read as code (Almaz, 25 Nov) */
+const TITLES: Record<string, string> = {
+  "hello-solana": "Hello Solana",
+  counter: "Counter",
+  "create-account": "Create Account",
+  "transfer-sol": "Transfer SOL",
+  favorites: "Favorites",
+  "spl-memo": "SPL Memo",
+  "spl-noop": "SPL Noop",
+  "spl-record": "SPL Record",
+  "spl-shared-memory": "SPL Shared Memory",
+  "spl-binary-option": "SPL Binary Option",
+  "spl-binary-oracle-pair": "SPL Binary Oracle Pair",
+  "spl-stateless-asks": "SPL Stateless Asks",
+  "spl-feature-proposal": "SPL Feature Proposal",
+  "spl-name-service": "SPL Name Service",
+}
+
 export const CATALOG: ProgramMeta[] = [...BASIC_PROGRAMS, ...PROGRAMS]
   .filter((p) => p.name in META)
-  .map((p) => ({ ...p, description: LINES[p.name] ?? p.description, slug: p.name, topic: TOPIC[p.name], kind: p.framework === "Anchor" ? ("anchor" as const) : ("native" as const), ...META[p.name] }))
+  .map((p) => ({ ...p, description: LINES[p.name] ?? p.description, slug: p.name, title: TITLES[p.name] ?? p.name, topic: TOPIC[p.name], kind: p.framework === "Anchor" ? ("anchor" as const) : ("native" as const), ...META[p.name] }))
   .sort((a, b) => LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level))
 
 /** The catalog a search leaves: name, line, framework and topic */
 export function searchCatalog(query: string) {
   const q = query.trim().toLowerCase()
   if (!q) return CATALOG
-  return CATALOG.filter((p) => [p.name, p.description, p.framework, p.topic].some((f) => f.toLowerCase().includes(q)))
+  return CATALOG.filter((p) => [p.name, p.title, p.description, p.framework, p.topic].some((f) => f.toLowerCase().includes(q)))
 }
 
 export const programBySlug = (slug: string) => CATALOG.find((p) => p.slug === slug)

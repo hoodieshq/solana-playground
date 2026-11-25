@@ -125,7 +125,7 @@ function ProgramCard({ p }: { p: ProgramMeta }) {
         type="button"
         data-open
         onClick={() => openProgram(p.slug)}
-        aria-label={st ? `${p.name}, ${st.word.toLowerCase()}. Open` : `Open ${p.name}`}
+        aria-label={st ? `${p.title}, ${st.word.toLowerCase()}. Open` : `Open ${p.title}`}
         className={cn("absolute inset-0 cursor-pointer rounded-panel", FOCUS)}
       />
       <div className="grid flex-1 grid-cols-[auto_minmax(0,1fr)_auto] content-start items-start gap-x-3.5 p-4">
@@ -135,8 +135,8 @@ function ProgramCard({ p }: { p: ProgramMeta }) {
           {st?.done && <DoneVeil />}
         </div>
         {/* No eyebrow (it said "SPL", as the name does) and no arrow square: the whole card is the button */}
-        <h4 title={p.name} className="pointer-events-none line-clamp-1 min-w-0 font-heading text-16 leading-5 font-normal tracking-tight text-foreground">
-          {p.name}
+        <h4 title={p.title} className="pointer-events-none line-clamp-1 min-w-0 font-heading text-16 leading-5 font-normal tracking-tight text-foreground">
+          {p.title}
         </h4>
         {/* Two faces in a card, the name and the rest: the words and the state below them share one muted
             style, so the name stands apart (Almaz, 25 Nov, after Claude's skill cards) */}

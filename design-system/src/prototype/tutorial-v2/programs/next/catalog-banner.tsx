@@ -98,9 +98,8 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
             <span>{`${p.minutes} min`}</span>
           </p>
           <h2 id={titleId} className={cn("mt-3 font-heading font-normal tracking-tight text-foreground", phone ? "text-28 leading-8" : "text-36 leading-10")}>
-            {/* A heading, so the name takes a capital and words, not the slug's hyphens ("Create account"); the
-                cards keep the program's own name */}
-            {(p.name.charAt(0).toUpperCase() + p.name.slice(1)).replace(/-/g, " ").replace(/\bsol\b/, "SOL")}
+            {/* The program's title, as its card says it ("Create Account") */}
+            {p.title}
           </h2>
           <p className="mt-0.5 text-pretty text-16 leading-6 text-muted-foreground">
             {LINE[slug] ?? p.description}
