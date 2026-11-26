@@ -699,8 +699,9 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     if (ball.on) return
     const end = ball.x > W() / 2 ? 1 : -1
     const edge = end > 0 ? HI() : LO
-    // Its place: where it stood, or a little way in if that was the edge itself
-    const place = Math.abs(cat.x - edge) < 70 ? edge - end * 90 : cat.x
+    // Its place: where it stood, but no nearer the edge than a little way in, and no further than a short walk:
+    // on a tablet's long field the walk back took ten seconds, the toy still missing all that time
+    const place = edge - end * Math.max(90, Math.min(200, Math.abs(cat.x - edge)))
     await turn(id, end)
     await goTo(id, edge, phone ? 80 : RUN)
     S({ f: "skid" })
