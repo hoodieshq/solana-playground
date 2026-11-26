@@ -19,7 +19,7 @@ import { type Ix } from "../../data"
 import { CALL_MS, ask, behind, busy, call, deploy, firstIx, ixsOf, onChain, setPane, setValue, uploadIdl, valuesFor, type Project, type Turn } from "../../store"
 import { SOURCE_WORD, accountOf, idlJson } from "./GuideColumn"
 import { IdlGuide } from "./IdlGuide"
-import { Actions, QUIET, shortKeys } from "./parts"
+import { Actions, CopyQuiet, QUIET, shortKeys } from "./parts"
 import { shortKey } from "./util"
 
 /* The Call panel (research/call-panel-redesign/CONSENSUS.md): a toolbar with Form | IDL, then one
@@ -161,7 +161,6 @@ export function CallPanel({ p }: { p: Project }) {
                 JSON
               </SegmentedItem>
             </Segmented>
-            <CopyButton value={json} label="Copy IDL" />
           </div>
         )}
       </div>
@@ -207,8 +206,14 @@ export function CallPanel({ p }: { p: Project }) {
             />
           ) : (
             <section aria-label="IDL JSON" className={CARD}>
-              <div className="flex h-10 items-center px-4 font-mono text-13 text-muted-foreground">{`${programOf(p)}.json`}</div>
-              <div tabIndex={0} aria-label="IDL JSON, read only" className={cn("max-h-[calc(100dvh-16rem)] overflow-auto py-1 font-mono text-13 leading-5 outline-none", FOCUS)}>
+              {/* Copy stands right after the file it copies, with its word: a bare icon beside Schema and JSON in the
+                  bar didn't say what it took, and at the column's far edge it hung in the middle of the tab
+                  (Almaz, 26 Nov) */}
+              <div className="flex h-10 items-center gap-4 px-4 text-13 text-muted-foreground">
+                <span className="truncate font-mono">{`${programOf(p)}.json`}</span>
+                <CopyQuiet value={json} label="Copy" />
+              </div>
+              <div tabIndex={0} aria-label="IDL JSON, read only" className={cn("overflow-x-auto py-1 font-mono text-13 leading-5 outline-none", FOCUS)}>
                 {json.split("\n").map((line, i) => (
                   <div key={i} className="flex">
                     <span className="w-10 shrink-0 pr-3 text-right text-syntax-comment select-none">{i + 1}</span>
