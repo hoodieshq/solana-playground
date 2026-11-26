@@ -28,7 +28,7 @@ const CSS = `
 
 type Cell = [x: number, y: number, tone: string]
 type Sprite = { cells: Cell[]; box: string; side?: boolean; w?: number; h?: number }
-type Eyes = "open" | "blink" | "happy" | "left" | "right" | "up" | "down"
+type Eyes = "open" | "blink" | "happy" | "left" | "right" | "up" | "down" | "dl" | "dr"
 type Front = { back?: boolean; dy?: number; sq?: boolean; eyes?: Eyes; tail?: "up" | "mid" | "down"; ears?: "up" | "perk" | "flat"; paw?: 0 | 1 | 2; z?: 0 | 1 | 2 }
 type Step = "stand" | "w1" | "w2" | "w3" | "g1" | "g2" | "g3" | "skid" | "trap" | "roll1" | "roll2" | "up1" | "up2" | "crouch" | "leap" | "wind" | "hit" | "follow" | "peer1" | "peer2" | "stalk1" | "stalk2"
 type Side = { f?: Step; tail?: "up" | "mid" | "low" | "run"; eyes?: "open" | "blink" | "down" }
@@ -75,7 +75,7 @@ export function front(pose: Front): Sprite {
   else if (p.eyes === "blink") E([[lx, ey + 1], [lx + 1, ey + 1], [rx, ey + 1], [rx + 1, ey + 1]], "l")
   else if (p.eyes === "happy") E([[lx - 1, ey + 1], [lx, ey], [lx + 1, ey + 1], [rx, ey + 1], [rx + 1, ey], [rx + 2, ey + 1]])
   else {
-    const [dx, dy] = ({ left: [-1, 0], right: [1, 0], down: [0, 1], up: [0, -1] } as Record<string, number[]>)[p.eyes] ?? [0, 0]
+    const [dx, dy] = ({ left: [-1, 0], right: [1, 0], down: [0, 1], up: [0, -1], dl: [-1, 1], dr: [1, 1] } as Record<string, number[]>)[p.eyes] ?? [0, 0]
     E([lx, rx].flatMap((x) => [[x + dx, ey + dy], [x + 1 + dx, ey + dy], [x + dx, ey + 1 + dy], [x + 1 + dx, ey + 1 + dy]]))
   }
   if (!p.back) put(5, ey + 2, "l")
@@ -484,7 +484,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   /* Which way to look, for a cat facing you. Sat with its tail the other way the whole drawing is mirrored, eyes and
      all, so left and right change places: without this it followed the pointer and its toys the wrong way after
      any game that left it mirrored (Sergey, 26 Nov, on a recording) */
-  const side2 = (e: Eyes): Eyes => (!cat.flip ? e : e === "left" ? "right" : e === "right" ? "left" : e)
+  const side2 = (e: Eyes): Eyes => (!cat.flip ? e : e === "left" ? "right" : e === "right" ? "left" : e === "dl" ? "dr" : e === "dr" ? "dl" : e)
   const eyesOn = (x: number, h = 0): Eyes => (h > 26 ? "up" : side2(x < cat.x - 14 ? "left" : x > cat.x + 14 ? "right" : "down"))
   const goTo = async (id: number, x: number, vmax = WALK) => {
     cat.vmax = vmax
@@ -1372,14 +1372,16 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   } else play(mode === "full" ? show : again)
 
   return {
-    /** A key in the field: it stops where it is, sits and listens, and doesn't move while you type */
-    typing() {
+    /** A key in the field: it stops where it is, sits and listens, and doesn't move while you type. Its eyes go
+     * down to the caret, at `at` on the window's x, and follow it along the line (Sergey, 27 Nov) */
+    typing(at?: number) {
       if (gone || dead || reducedMotion()) return
       // What it held or tossed is let go where it is
       if (ball.on) ball.h = Math.max(0, ball.h)
       const id = ++act
       halt()
-      F({ ears: "perk", eyes: "down" })
+      const x = at === undefined ? cat.x : (at - stage.getBoundingClientRect().left) / SCALE
+      F({ ears: "perk", eyes: Math.abs(x - cat.x) < 24 ? "down" : side2(x < cat.x ? "dl" : "dr") })
       window.clearTimeout(typed)
       typed = window.setTimeout(() => id === act && rest(id), 1600)
     },
@@ -1453,6 +1455,19 @@ export function SoleToggle({ on, onToggle, className }: { on: boolean; onToggle:
  * The cat over the composer. `id` names the chat, `on` while the chat is empty; when it turns false the cat leaves. `text` is the field's
  * value, so it can listen while you type. The parent must be `relative`, with the composer as the roof under it
  */
+/** Where the caret stands in a field, on the window's x: the text before it laid out in a copy of the field */
+function caretX(ta: HTMLTextAreaElement) {
+  const cs = getComputedStyle(ta)
+  const copy = document.createElement("div")
+  copy.style.cssText = `position:absolute;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box;width:${ta.clientWidth}px;font:${cs.font};letter-spacing:${cs.letterSpacing};padding:${cs.padding}`
+  copy.textContent = ta.value.slice(0, ta.selectionStart)
+  const mark = copy.appendChild(document.createElement("span"))
+  document.body.appendChild(copy)
+  const x = ta.getBoundingClientRect().left + mark.offsetLeft
+  copy.remove()
+  return x
+}
+
 export function RoofCat({ id, on: here, text, phone = false }: { id: string; on: boolean; text: string; phone?: boolean }) {
   // It sits on the field in every chat, empty or not, until its switch hides it (Almaz, 25 Nov: it used to leave
   // with the first message). `here` is false only where the field has something else over it
@@ -1500,7 +1515,9 @@ export function RoofCat({ id, on: here, text, phone = false }: { id: string; on:
     if (!shown) wasOff.current = true
   }, [shown])
   useEffect(() => {
-    if (text) cat.current?.typing()
+    if (!text) return
+    const ta = stage.current?.closest(".sole-cat")?.parentElement?.querySelector("textarea")
+    cat.current?.typing(ta ? caretX(ta) : undefined)
   }, [text])
   return (
     <div aria-hidden="true" className="sole-cat pointer-events-none absolute inset-x-0 bottom-[calc(100%-1px)] z-10 h-[35px]">
