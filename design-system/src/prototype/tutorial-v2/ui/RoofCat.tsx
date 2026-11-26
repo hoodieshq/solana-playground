@@ -112,7 +112,7 @@ export function side(pose: Side): Sprite {
      legs out ahead, hind legs trailing), and landed on the front feet. Head low, ears back, tail straight out */
   const run = p.f === "g1" || p.f === "g2" || p.f === "g3"
   const air = p.f === "leap" || p.f === "g2"
-  // On its back: the body on the roof, the head lifted to look, and the legs in the air, one pair higher each frame
+  // On its back: the body on the roof, the head turned nose up, and the legs in the air, one pair higher each frame
   const roll = p.f === "roll1" || p.f === "roll2"
   /* About to spring: belly on the roof, legs folded under it, front paws out flat, head low, and its rump up,
      swinging from side to side between the two frames (Almaz, 27 Nov: on its feet it did not look ready) */
@@ -133,7 +133,10 @@ export function side(pose: Side): Sprite {
   const fx = peer === 1 ? 3 : stalk ? 1 : 0
   const nod = peer === 1 ? 3 : stalk ? 2 : p.f === "wind" || p.f === "hit" || p.f === "trap" || run ? 1 : 0
   // Drawn level first, then turned a quarter round its back corner and hung beyond the paws
-  const H = (x: number, y: number, c = "b") => (peer === 2 ? put(12 + (7 - y), 6 + (x - 7), c) : put(x + fx, y + nod, c))
+  /* On its back the head is turned nose up, the back of it on the roof and the ears away from the body, to watch
+     the ball over its paws; level, it looked like a standing cat's head on a lying body (Sergey, 27 Nov) */
+  const H = (x: number, y: number, c = "b") =>
+    roll ? put(10 + (7 - y), 17 - x, c) : peer === 2 ? put(12 + (7 - y), 6 + (x - 7), c) : put(x + fx, y + nod, c)
   // The neck, from the shoulders out to the head
   if (peer === 1) for (let y = 7; y <= 7; y++) for (let x = 8; x <= 10; x++) put(x, y)
   if (peer === 2) for (const [x, y] of [[8, 7], [9, 7], [10, 7], [9, 6], [10, 6], [11, 6], [11, 7], [11, 8], [11, 9]]) put(x, y)
