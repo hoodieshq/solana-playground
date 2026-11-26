@@ -18,16 +18,18 @@ type BarProps = { viewing: number | null; onPick: (step: number) => void }
 export function StepBar({ viewing, onPick }: BarProps) {
   const { s } = useStore()
   const finished = s.passed.every(Boolean)
-  const where = !s.started ? `${STEPS.length} steps` : finished ? "Done" : `Step ${s.step + 1} of ${STEPS.length}`
-  const name = s.started && !finished ? STEPS[s.step].short : null
+  const where = finished ? "Done" : `Step ${s.step + 1} of ${STEPS.length}`
+  const name = !finished ? STEPS[s.step].short : null
+  // Before Start the empty ring read as a radio button, and the intro under it already lists the steps
+  // (Almaz, 26 Nov): the track comes in with step 1
+  if (!s.started) return null
 
   return (
     <nav aria-label="Tutorial steps" className="shrink-0 px-5 py-3">
       <DropdownMenu>
         <DropdownMenuTrigger
-          disabled={!s.started}
           className={cn(
-            "group -mx-1.5 flex h-6 items-center gap-1.5 rounded-md px-1.5 text-13 leading-5 font-label outline-none hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
+            "group -mx-1.5 flex h-6 items-center gap-1.5 rounded-md px-1.5 text-13 leading-5 font-label outline-none hover:bg-surface-hover data-[state=open]:bg-surface-hover",
             FOCUS
           )}
         >

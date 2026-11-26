@@ -402,7 +402,7 @@ export function Workspace({ p }: { p: Project }) {
                 <PopoverAnchor asChild>
                   <EditorTabs variant="quiet" className="h-full min-w-0 flex-1 border-b-0!">
                     {tabs.map((tab) => (
-                      <EditorTab key={tab} active={tab === active} className="shrink-0 gap-0 px-0! before:hidden data-active:bg-(--code-ground)">
+                      <EditorTab key={tab} active={tab === active} className="shrink-0 gap-0 px-0! before:hidden bg-(--code-ground)">
                         <EditorTabTrigger className={cn("gap-1.5 px-2.5", tabs.length > 1 && "pr-0.5")} onClick={() => openFile(id, tab)}>
                           <EditorTabLabel>{baseName(tab)}</EditorTabLabel>
                           {changed.includes(tab) && (

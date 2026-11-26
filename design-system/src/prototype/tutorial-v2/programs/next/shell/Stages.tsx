@@ -232,7 +232,8 @@ export function InteractTab({ p, className }: { p: Project; className?: string }
       onClick={() => setPane(p.id, "call")}
       className={cn(
         "flex h-full shrink-0 items-center gap-1.5 px-3 text-13 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:text-subtle",
-        on ? "bg-(--code-ground) text-foreground" : "text-muted-foreground enabled:hover:text-foreground",
+        "bg-(--code-ground)",
+        on ? "text-foreground" : "text-muted-foreground enabled:hover:text-foreground",
         className
       )}
     >

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 
-import { useSettings } from "../settings/store"
+import { catShown, useSettings } from "../settings/store"
 import { reducedMotion } from "./type"
 
 /* Sole, the cat on the roof (Almaz, 25 Nov). The composer's top edge is a roof ridge, and a small grey pixel cat
@@ -885,7 +885,7 @@ export function SoleToggle({ on, onToggle, className }: { on: boolean; onToggle:
 export function RoofCat({ id, on: here, text, phone = false }: { id: string; on: boolean; text: string; phone?: boolean }) {
   // It sits on the field in every chat, empty or not, until its switch hides it (Almaz, 25 Nov: it used to leave
   // with the first message). `here` is false only where the field has something else over it
-  const shown = useSettings().sole
+  const shown = catShown(useSettings())
   const on = shown && here
   // Whether the switch was off a moment ago: then it hops back up from behind the field, not just "is there"
   const wasOff = useRef(!shown)

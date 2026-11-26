@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils"
 
 import { ASSISTANT_KEYS } from "../../../desktop/keys"
 import { useChoices } from "../../../desktop/navLit/choices"
-import { AssistantMark } from "../../../ui/AssistantMark"
-import { useSettings } from "../../../settings/store"
+import { AssistantMark, AssistantSign } from "../../../ui/AssistantMark"
+import { catShown, useSettings } from "../../../settings/store"
 import { LANDING_CHIPS } from "../../read"
 import { Prose } from "../../../ui/Prose"
 import { ApplyCardView } from "../../../ui/turns/ApplyCard"
@@ -51,7 +51,7 @@ const NOTES: Record<string, string> = {
 /** The same for a program with no note of its own, from its instructions */
 function codeNote(p: Project): string {
   const meta = metaOf(p)
-  if (!meta) return "Ask about any line, or about an error when a build stops."
+  if (!meta) return ""
   if (NOTES[meta.slug]) return NOTES[meta.slug]
   const names = meta.ixs.map((ix) => `\`${ix.name}\``)
   if (names.length === 0) return `${meta.description.replace(/\.$/, "")}.`
@@ -242,8 +242,6 @@ function EventLine({ t }: { t: Event }) {
   )
 }
 
-const FRAMEWORK_WORD: Record<Project["framework"], string> = { anchor: "Anchor", native: "Native Rust", pinocchio: "Pinocchio", quasar: "Quasar", "ts-client": "TypeScript client" }
-
 /** What an open program finds before anything is said, as judged on 25 Nov after a UX architect's and a UI
  * designer's passes: anchored to the field, on the column's own left edge. A quiet line with the program and its
  * framework (no mark: the head has it; no "Ask about": the field says it; no step: the bar says it), then the
@@ -268,10 +266,14 @@ function Greeting({ p, asks, phone }: { p: Project; asks: string[]; phone: boole
     // top where a second "Assistant" would repeat the head
     <div className="flex min-h-full flex-col">
       <span aria-hidden="true" className="flex-[2]" />
-      <AssistantMark strokeWidth={1.5} className="mb-4 size-7 text-muted-foreground" />
-      <p className="text-13 leading-5 text-muted-foreground">{`${meta?.title ?? p.name} · ${FRAMEWORK_WORD[p.framework]}`}</p>
+      <AssistantSign className="mb-4 self-start" />
+      {/* Who this is and what it is for, before the program's own words: the mark alone didn't say it (Almaz, 26 Nov).
+          The program's name and framework went, the bar above has both */}
+      {/* 20 over the brief's 16 and the line's 13: at 16 the title was no louder than the brief under it (Almaz, 26 Nov) */}
+      <h3 className="text-20 leading-7 font-act text-foreground">Assistant</h3>
+      <p className="mt-1 text-13 leading-5 text-pretty text-muted-foreground">Ask about any line, an error or the next step.</p>
       {brief.text && (
-        <p className={cn(READ, "mt-2")}>
+        <p className={cn(READ, "mt-6")}>
           <Prose text={brief.text} chip="p-0! mr-0! text-16! leading-6!" ink="text-current" />
         </p>
       )}
@@ -327,7 +329,7 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
   const chips = chipsOf(p, turns, brief.ask)
   // Nothing said yet in a program with code: the greeting holds the column, and its questions leave the field
   const greet = count === 0 && !p.draft && !p.opening
-  const cat = useSettings().sole && !p.draft && !p.opening
+  const cat = catShown(useSettings()) && !p.draft && !p.opening
   return (
     <>
       {/* The field's block holds Sole's room when the cat is on it (GuideColumn, Ask), so the thread ends sooner:
@@ -383,7 +385,7 @@ export function AskThread({ p, phone = false }: { p: Project; phone?: boolean })
           })}
         </div>
       </div>
-      {count === 0 && !greet && <BriefNote text={brief.text} phone={phone} />}
+      {count === 0 && !greet && brief.text && <BriefNote text={brief.text} phone={phone} />}
       <Ask p={p} phone={phone} chips={greet ? [] : chips} context={!p.opening} roof={greet} turns={count} />
     </>
   )

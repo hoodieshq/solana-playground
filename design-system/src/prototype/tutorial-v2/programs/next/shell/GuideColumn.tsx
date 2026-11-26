@@ -15,7 +15,7 @@ import { ASSISTANT_KEYS, FILES_KEYS, MENU_KEYS, PRIMARY_KEYS, TERMINAL_KEYS } fr
 import { ChipRow } from "../../../ui/ChipRow"
 import { openExplorer } from "../../../ui/explorer"
 import { RoofCat, SoleToggle } from "../../../ui/RoofCat"
-import { setSetting, useSettings } from "../../../settings/store"
+import { catShown, setCatShown, useSettings } from "../../../settings/store"
 import { launch } from "../../../ui/turns/YouPill"
 import { showFailLine } from "./Talk"
 import { isMainnet, networkWord, useChoices } from "../../../desktop/navLit/choices"
@@ -354,8 +354,11 @@ function ModelPicker() {
  * a pick, their words alone: no chevron, a press and the hover say it (Almaz, 25 Nov) */
 export function Ask({ p, phone = false, chips = [], context = false }: { p: Project; phone?: boolean; chips?: string[]; context?: boolean; roof?: boolean; turns?: number }) {
   const [text, setText] = useState("")
-  // Sole sits on the field in every chat until its switch under the field hides it (Almaz, 25 Nov)
-  const { sole } = useSettings()
+  // Settings' switch puts the cat's icon under the field; the icon puts the cat on the field or takes it off
+  // (Almaz, 26 Nov)
+  const settings = useSettings()
+  const { sole, soleOn } = settings
+  const cat = catShown(settings)
   // The row of chips over the field is gone (Almaz, 25 Nov): the field itself offers one question, the first the
   // moment calls for, and Tab takes it. A draft keeps its chips: there they are the answers to what was asked
   const hint = p.draft ? undefined : chips[0]
@@ -380,7 +383,7 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
   return (
     // With Sole on the field the block is taller at its head, so the cat stands in the field's own room, 12 clear
     // over its ears: it used to stand over the thread's foot, and a scrolled line ran under it (Almaz, 25 Nov)
-    <div className={cn("shrink-0", phone ? "px-4 pt-3 pb-[calc(var(--safe-bottom)+12px)] [html.portrait_&]:px-8" : "px-5 pt-3 pb-5", sole && !p.draft && !p.opening && "pt-11")}>
+    <div className={cn("shrink-0", phone ? "px-4 pt-3 pb-[calc(var(--safe-bottom)+12px)] [html.portrait_&]:px-8" : "px-5 pt-3 pb-5", cat && !p.draft && !p.opening && "pt-11")}>
       {/* On a phone the chips go while the keyboard is up: the field needs the room */}
       {p.draft && !(phone && focused) && <ChipRow chips={chips} phone={phone} onPick={pick} />}
       {/* The composer's top edge is the roof Sole sits on (ui/RoofCat). Not in a draft, where the chips are */}
@@ -423,8 +426,10 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
           placeholder={hint ?? (p.read ? "Ask about this program" : p.draft ? "Reply, or say what to build" : `Ask about ${titleOf(p)}`)}
           aria-label={p.read ? "Ask about this program" : p.draft ? "Reply to the assistant" : `Ask about ${titleOf(p)}`}
           enterKeyHint="send"
-          // 13, the interface's size, as the lines under the field (Almaz, 25 Nov: 16 stood louder than the panel)
-          className={cn("text-13 leading-5 font-normal", !tall && "min-h-10 pt-2.5 pb-2.5", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
+          // The thread's own type, 16 on 24 in the reading weight: what you type is the bubble it becomes, so it
+          // must not change size on Send, as in ChatGPT, Claude and Cursor (Almaz, 26 Nov; it was 13 on 25 Nov, to
+          // match the lines under the field, which stay 13). The field keeps its 42
+          className={cn("text-16 leading-6 font-read tracking-normal", !tall && "min-h-10 pt-[9px] pb-[9px]", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
         />
         <ComposerToolbar className={cn(!tall && "py-1 pr-1")}>
           {/* The arrow alone, no disc: the disc comes under the pointer (Almaz, 25 Nov). Grey with nothing to send,
@@ -443,7 +448,7 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
               it: three things spread evenly would leave the model in the middle */}
           <span className="flex-1" />
           <ModelPicker />
-          {!p.draft && <SoleToggle on={sole} onToggle={() => setSetting("sole", !sole)} className="-mr-1.5" />}
+          {sole && !p.draft && <SoleToggle on={soleOn} onToggle={() => setCatShown(!soleOn)} className="-mr-1.5" />}
         </div>
       )}
     </div>

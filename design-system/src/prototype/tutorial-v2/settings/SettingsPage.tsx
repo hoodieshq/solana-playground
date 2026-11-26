@@ -17,7 +17,7 @@ import type { Scene } from "./bar"
 import { NetworkGroup } from "./NetworkGroup"
 import type { Section } from "./open"
 import { GROUP_PANEL, GROUP_TITLE, PhoneCtx, Row } from "./Row"
-import { setSetting, useSettings } from "./store"
+import { setSetting, setSole, useSettings } from "./store"
 
 /** A titled group: its head, then its rows on one panel. Advanced brings its own head, which folds it,
  * and its own panel under it */
@@ -103,7 +103,7 @@ export function SettingsPage({ scene, section, rpcForm, onClose }: { scene: Scen
               <AssistantGroup scene={scene} />
               {/* The cat that sits on the assistant's field while a chat is empty. The assistant turns it off too, when asked */}
               <Row label="Sole the cat" htmlFor="oak-sole">
-                <Switch id="oak-sole" checked={settings.sole} onCheckedChange={(v) => setSetting("sole", v)} />
+                <Switch id="oak-sole" checked={settings.sole} onCheckedChange={setSole} />
               </Row>
             </Group>
 

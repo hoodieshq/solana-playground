@@ -7,7 +7,7 @@ import { IDEAS, IDEA_CHIPS, STARTER_ASK, WRITE_IT, ideaIn, optionIn, vagueBuild,
 import { STARTERS } from "./starters"
 import { withId } from "../check"
 import { markBuilt } from "../desktop/navLit/firstBuild"
-import { setSetting } from "../settings/store"
+import { setCatShown } from "../settings/store"
 
 /* The redesigned Programs flow's state: where it is (catalog, a preview, a project), the projects made
    from programs or from New project, and the runs inside them. One module level store, so New project
@@ -1071,7 +1071,7 @@ export function ask(id: string, text: string) {
   update(id, (p) => post(p, { k: "user", text }))
   const sole = soleAsk(words)
   if (sole !== null) {
-    setSetting("sole", sole)
+    setCatShown(sole)
     return later(700, () => update(id, (q) => post(q, { k: "assistant", text: sole ? "Sole is back. You'll see it the next time a chat is empty." : "Done, Sole is off. Settings has the switch, or tell me to bring the cat back." })))
   }
   const p = state.projects[id]

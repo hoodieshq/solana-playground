@@ -11,7 +11,7 @@ import { useInProject } from "../../programs"
 import { stagesOf } from "../../programs/next/shell/Stages"
 import { onChain, setPane, usePrograms } from "../../programs/store"
 import { openSettings, openShortcuts, sectionFor, SETTINGS_KEYWORDS } from "../../settings/open"
-import { setSetting, useSettings } from "../../settings/store"
+import { setSole, useSettings } from "../../settings/store"
 import { HELP_LINKS } from "../../settings/links"
 import { CATALOG, shownName } from "../../ui/catalog"
 import { PROGRAMS } from "../../ui/programs"
@@ -104,7 +104,7 @@ export function SearchDialog({ open, onOpenChange, lessons, projects, onTutorial
     <Row key="a:tutorials" value="action Browse tutorials" icon="tutorials" label="Browse tutorials" onSelect={pick(() => onPlace("gallery"))} />,
     <Row key="a:assistant" value="action Connect the assistant" icon="profile" label="Connect the assistant" onSelect={pick(soon)} />,
     // The cat on the assistant's field: off and back on from any page, Home too
-    <Row key="a:sole" value="action Sole the cat" icon="settings" label={sole ? "Hide Sole the cat" : "Bring back Sole the cat"} words={["cat", "sole", "pet", "kitty", "hide", "show"]} onSelect={pick(() => setSetting("sole", !sole))} />,
+    <Row key="a:sole" value="action Sole the cat" icon="settings" label={sole ? "Hide Sole the cat" : "Bring back Sole the cat"} words={["cat", "sole", "pet", "kitty", "hide", "show"]} onSelect={pick(() => setSole(!sole))} />,
     // Opens at the group a setting's word names: "mainnet" at Network, "vim" with Advanced unfolded
     <Row
       key="a:settings"

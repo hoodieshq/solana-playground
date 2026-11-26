@@ -17,7 +17,7 @@ import { describeCreate, expressCreate, openFirstLight } from "../newProject/nex
 import { GitHubMark } from "../newProject/next/SourceRail"
 import { YourPrograms } from "../programs/next/YourPrograms"
 import { soleAsk } from "../programs/store"
-import { setSetting } from "../settings/store"
+import { setCatShown } from "../settings/store"
 import { useStore } from "../store"
 import { CATALOG, shownName } from "../ui/catalog"
 import { FOCUS } from "../ui/type"
@@ -168,7 +168,7 @@ function StartBox() {
     // "Hide the cat" is a word to the assistant, not a program to build: no project comes of it
     const sole = soleAsk(t.toLowerCase())
     if (sole !== null) {
-      setSetting("sole", sole)
+      setCatShown(sole)
       setText("")
       return void toast(sole ? "Sole is back. It sits on the assistant's field in an empty chat." : "Sole is hidden. Search or Settings bring it back.")
     }

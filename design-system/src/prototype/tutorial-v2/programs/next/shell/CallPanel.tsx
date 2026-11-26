@@ -23,19 +23,21 @@ import { Actions, QUIET, shortKeys } from "./parts"
 import { shortKey } from "./util"
 
 /* The Call panel (research/call-panel-redesign/CONSENSUS.md): a toolbar with Form | IDL, then one
-   720 column of cards in the feed's language, parts under hairlines, facts as key and value, actions
+   720 column of parts in the feed's language, parts under hairlines, facts as key and value, actions
    in a foot bar. Form: the picker, the request (arguments with their type, accounts with their
    roles and what fills them, Call), the response in every state. IDL: the schema as readable cards,
    the JSON as the second reading */
 
 type T<K extends Turn["k"]> = Extract<Turn, { k: K }>
 
-const CARD = "flex flex-col overflow-hidden rounded-panel border border-border bg-(--card-ground)"
-const HEAD = "flex flex-col gap-1 p-4"
-const PART = "flex flex-col gap-3 border-t border-border px-4 py-3"
-// A foot holding a primary button stays on the card's ground under its hairline: on the grey the purple
-// read as pasted on (Almaz, 6 Nov). Grey is for the bars of quiet actions only
-const FOOT = "flex flex-wrap items-center gap-3 border-t border-border px-4 py-3"
+/* No box round a block: the request, the response and the schema lie on the tab's own ground as the code does.
+   The black card on the grey read as brought in from elsewhere (Almaz, 26 Nov). One rule only, between blocks:
+   inside a block the parts are set apart by room, 16 over each, where seven rules a screen read as litter */
+const CARD = "flex flex-col border-b border-border pb-2 last:border-b-0"
+const HEAD = "flex flex-col gap-1 px-4 pt-4"
+const PART = "flex flex-col gap-2 px-4 pt-4"
+// The primary button stays on the tab's ground: on a grey bar the purple read as pasted on (Almaz, 6 Nov)
+const FOOT = "flex flex-wrap items-center gap-3 px-4 pt-5 pb-4"
 const LABEL = "flex items-baseline gap-1.5 text-13 leading-5 font-act text-muted-foreground"
 const COUNT = "text-13 font-normal text-muted-foreground/70 tabular-nums"
 /* The panel reads its own width (a phone's sheet, a tablet's pane), not the window's: under 560 a label
@@ -45,13 +47,16 @@ const ROW = "grid grid-cols-1 gap-x-4 gap-y-1.5 @min-[560px]/call:grid-cols-[12r
 const PAIR = "grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 @min-[560px]/call:grid-cols-[12rem_minmax(0,1fr)]"
 /** A schema table's name, type and example */
 const TRIPLE = "grid grid-cols-[minmax(0,1fr)_5rem_minmax(0,1fr)] gap-x-3 @min-[560px]/call:grid-cols-[12rem_6rem_minmax(0,1fr)] @min-[560px]/call:gap-x-4"
-/** An account: its name, its roles, then what fills it, each in a column of its own so a name never
- * gives way to its chips */
-const ACCOUNT_ROW = "grid min-h-8 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 py-1.5 @min-[560px]/call:grid-cols-[10rem_8.5rem_minmax(0,1fr)] @min-[560px]/call:py-0"
+/** An account: its name with its roles, as an argument has its type, and what fills it on the right. From 560 the
+ * value starts on the arguments' field line; under it the value keeps to the right edge, its source over its key,
+ * since the row has the room and a value under the name read as one more label (Almaz, 26 Nov) */
+const ACCOUNT_ROW = "grid min-h-8 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 py-1.5 @min-[560px]/call:grid-cols-[12rem_minmax(0,1fr)] @min-[560px]/call:items-center @min-[560px]/call:py-0"
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
-const CHIP = "inline-flex h-[18px] shrink-0 items-center rounded-[5px] px-1.5 text-13 leading-4"
-const TYPE_CHIP = cn(CHIP, "bg-surface-raised font-mono text-syntax-type")
-const ROLE = cn(CHIP, "border border-border text-muted-foreground")
+/* A type and an account's roles are words beside the name, the type in the code's own colour: as plates they were
+   one more outline in a panel that had four (Almaz, 26 Nov) */
+const TYPE_CHIP = "shrink-0 font-mono text-13 text-syntax-type"
+const ROLE = "shrink-0 text-13 text-muted-foreground"
+const rolesOf = (r: { signer?: boolean; writable?: boolean }, readOnly = false) => [r.signer && "signer", r.writable ? "writable" : readOnly && "read only"].filter(Boolean).join(" · ")
 const NOTE = "text-13 leading-5 text-muted-foreground"
 
 /** The compute budget a transaction gets by default, for "4,518 of 200,000" */
@@ -148,7 +153,7 @@ export function CallPanel({ p }: { p: Project }) {
         )}
         {view === "idl" && (
           <div className="ml-auto flex items-center gap-2">
-            <Segmented aria-label="IDL reading" value={reading} onValueChange={(v) => v && setReading(v as "schema" | "json")}>
+            <Segmented variant="quiet" aria-label="IDL reading" value={reading} onValueChange={(v) => v && setReading(v as "schema" | "json")}>
               <SegmentedItem value="schema" className="cursor-pointer">
                 Schema
               </SegmentedItem>
@@ -161,11 +166,11 @@ export function CallPanel({ p }: { p: Project }) {
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="flex w-full max-w-[720px] flex-col gap-4 px-4 pt-4 pb-10 @min-[560px]/call:px-6">
+        <div className="flex w-full max-w-[720px] flex-col gap-2 px-0 pt-2 pb-10 @min-[560px]/call:px-2">
           {behind(p) && chain && (
             <div className="flex min-h-10 items-center gap-2.5 rounded-panel border border-border bg-surface-panel px-4 py-2 text-13 leading-5">
               <StatusDot variant="warning" />
-              <span className="min-w-0 flex-1 text-foreground/90">The code changed since the last deploy. Calls go to the deployed version.</span>
+              <span className="min-w-0 flex-1 text-foreground">The code changed since the last deploy. Calls go to the deployed version.</span>
               <button type="button" onClick={() => deploy(p.id)} disabled={busy(p)} className={QUIET}>
                 Deploy again
               </button>
@@ -174,18 +179,19 @@ export function CallPanel({ p }: { p: Project }) {
           {view === "form" ? (
             <>
               {ixs.length > 1 && (
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className={LABEL}>Instruction</span>
+                // The picker is the title: the picked name stood twice, in its chip and in the head under it. No
+                // outlines, the picked one on a fill as Form is in the bar above (Almaz, 26 Nov)
+                <div className="-mb-1 px-[5px] pt-3">
                   <Segmented variant="chips" tone="neutral" aria-label="Instruction" value={ix.name} onValueChange={(v) => v && setPane(p.id, "call", v)}>
                     {ixs.map((i) => (
-                      <SegmentedItem key={i.name} value={i.name} className="cursor-pointer font-mono text-code">
+                      <SegmentedItem key={i.name} value={i.name} className="cursor-pointer border-transparent font-mono text-code data-[state=on]:border-transparent data-[state=on]:text-syntax-function">
                         {i.name}
                       </SegmentedItem>
                     ))}
                   </Segmented>
                 </div>
               )}
-              <Request key={ix.name} p={p} ix={ix} deployed={!!chain} />
+              <Request key={ix.name} p={p} ix={ix} deployed={!!chain} titled={ixs.length === 1} />
               {/* No empty "No response yet" card before the first call: it shows once there is something to show */}
               {chain && (p.calling?.ix === ix.name || latestFor(p, ix.name)) && <Response p={p} ix={ix} />}
             </>
@@ -202,7 +208,7 @@ export function CallPanel({ p }: { p: Project }) {
           ) : (
             <section aria-label="IDL JSON" className={CARD}>
               <div className="flex h-10 items-center px-4 font-mono text-13 text-muted-foreground">{`${programOf(p)}.json`}</div>
-              <div tabIndex={0} aria-label="IDL JSON, read only" className={cn("max-h-[calc(100dvh-16rem)] overflow-auto border-t border-border bg-surface-well py-2 font-mono text-13 leading-5 outline-none", FOCUS)}>
+              <div tabIndex={0} aria-label="IDL JSON, read only" className={cn("max-h-[calc(100dvh-16rem)] overflow-auto py-1 font-mono text-13 leading-5 outline-none", FOCUS)}>
                 {json.split("\n").map((line, i) => (
                   <div key={i} className="flex">
                     <span className="w-10 shrink-0 pr-3 text-right text-syntax-comment select-none">{i + 1}</span>
@@ -223,7 +229,7 @@ export function CallPanel({ p }: { p: Project }) {
 /** Accounts shown before "Show N more", from five up */
 const ACCOUNTS_FIRST = 3
 
-function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean }) {
+function Request({ p, ix, deployed, titled }: { p: Project; ix: Ix; deployed: boolean; titled: boolean }) {
   const id = p.id
   const values = valuesFor(p, ix.name)
   const sending = p.calling?.ix === ix.name
@@ -258,12 +264,12 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
         }
       }}
     >
-      <div className={HEAD}>
-        <h3 className="font-mono text-16 leading-5 font-act break-words">
+      <div className={cn(HEAD, !titled && "pt-2")}>
+        <h3 className={cn("font-mono text-16 leading-5 font-act break-words", !titled && "sr-only")}>
           <span className="font-normal text-muted-foreground">{programOf(p)}.</span>
           <span className="text-syntax-function">{ix.name}</span>
         </h3>
-        <p className="text-13 leading-5 text-pretty text-foreground/80">{ix.line}</p>
+        <p className="text-13 leading-5 text-pretty text-muted-foreground">{ix.line}</p>
         {!ix.args.length && !ix.accounts.length && <p className={NOTE}>No arguments. Signed by your wallet.</p>}
       </div>
 
@@ -331,7 +337,7 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
         <div className={PART}>
           <span className={LABEL}>
             Accounts
-            <span className="ml-auto font-normal">Filled in for you</span>
+            <span className="font-normal">· filled in for you</span>
           </span>
           <div className="flex flex-col">
             {accounts.map((name) => {
@@ -339,18 +345,19 @@ function Request({ p, ix, deployed }: { p: Project; ix: Ix; deployed: boolean })
               const key = roles.key
               return (
                 <div key={name} className={ACCOUNT_ROW}>
-                  <code title={name} className="truncate font-mono text-13 text-foreground">
-                    {name}
-                  </code>
-                  <span className="flex items-center gap-1.5">
-                    {roles.signer && <span className={ROLE}>signer</span>}
-                    {roles.writable && <span className={ROLE}>writable</span>}
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                    <code title={name} className="truncate font-mono text-13 text-foreground">
+                      {name}
+                    </code>
+                    {rolesOf(roles) && <span className={ROLE}>{rolesOf(roles)}</span>}
                   </span>
-                  <span className="col-span-2 flex min-w-0 items-center gap-2 text-13 @min-[560px]/call:col-span-1">
-                    <span className="shrink-0 text-foreground">{SOURCE_WORD[roles.source]}</span>
-                    <code title={key} className="truncate font-mono text-muted-foreground">
+                  {/* The key first, so every value starts on one line as the argument's field does; where it came from
+                      trails it, quiet. With the word first the keys started in three places (Almaz, 26 Nov) */}
+                  <span className="flex min-w-0 flex-col items-end text-13 leading-5 @min-[560px]/call:flex-row @min-[560px]/call:items-center @min-[560px]/call:gap-2">
+                    <code title={key} className="max-w-full truncate font-mono text-foreground">
                       {shortKey(key)}
                     </code>
+                    <span className="shrink-0 text-muted-foreground">{SOURCE_WORD[roles.source]}</span>
                   </span>
                 </div>
               )
@@ -417,9 +424,9 @@ function latestFor(p: Project, ix: string) {
 
 function Facts({ rows }: { rows: [string, ReactNode][] }) {
   return (
-    <dl className="flex flex-col border-t border-border px-4 py-2 text-13 tabular-nums">
+    <dl className="flex flex-col px-4 pt-3 text-13 tabular-nums">
       {rows.map(([k, v]) => (
-        <div key={k} className="grid min-h-8 grid-cols-[7rem_minmax(0,1fr)] items-center gap-3">
+        <div key={k} className="grid min-h-8 grid-cols-[7rem_minmax(0,1fr)] items-center gap-x-4 @min-[560px]/call:grid-cols-[12rem_minmax(0,1fr)]">
           <dt className="text-muted-foreground">{k}</dt>
           <dd className="min-w-0 truncate text-foreground">{v}</dd>
         </div>
@@ -428,12 +435,13 @@ function Facts({ rows }: { rows: [string, ReactNode][] }) {
   )
 }
 
-/** The whole log in a framed well: the runtime's lines muted, what the program said bright */
+/** The whole log as lines on the tab's ground, the runtime's muted and what the program said bright. The framed
+ * black well was the last box here (Almaz, 26 Nov; 10 Nov: output as plain mono lines) */
 function Logs({ lines, bright }: { lines: string[]; bright?: (line: string) => boolean }) {
   return (
     <div className={PART}>
       <span className={LABEL}>Logs</span>
-      <div className="max-h-48 overflow-auto rounded-control border border-border bg-surface-well px-3 py-2.5 font-mono text-13 leading-5 break-words">
+      <div className="max-h-48 overflow-auto font-mono text-13 leading-5 break-words">
         {lines.map((l, i) => (
           <p key={i} className={(bright ?? ((x) => x.startsWith("Program log: ")))(l) ? "text-foreground" : "text-muted-foreground"}>
             {shortKeys(l)}
@@ -446,9 +454,10 @@ function Logs({ lines, bright }: { lines: string[]; bright?: (line: string) => b
 
 function StatusHead({ icon, title, meta, right }: { icon: ReactNode; title: string; meta?: ReactNode; right?: ReactNode }) {
   return (
-    <div className="flex h-12 items-center gap-2 px-4">
+    <div className="flex min-h-6 items-center gap-2 px-4 pt-4">
       {icon}
-      <span className="font-heading text-16 leading-6 font-act text-foreground">{title}</span>
+      {/* The text face, as every other line here: the headline face made the word a third family */}
+      <span className="text-16 leading-6 font-act text-foreground">{title}</span>
       {meta && <span className="min-w-0 truncate text-13 text-muted-foreground">{meta}</span>}
       {right && <span className="ml-auto shrink-0 text-13 text-muted-foreground">{right}</span>}
     </div>
@@ -478,7 +487,7 @@ function Response({ p, ix }: { p: Project; ix: Ix }) {
         <>
           <div className={PART}>
             <span className={LABEL}>Logs</span>
-            <div aria-hidden="true" className="flex flex-col gap-2 rounded-control border border-border bg-surface-well px-3 py-3">
+            <div aria-hidden="true" className="flex flex-col gap-2 py-1">
               <Skeleton className="h-3 w-2/3 motion-reduce:animate-none" />
               <Skeleton className="h-3 w-1/2 motion-reduce:animate-none" />
             </div>
@@ -507,7 +516,7 @@ function Response({ p, ix }: { p: Project; ix: Ix }) {
                 : []),
             ]}
           />
-          <Actions copy={{ label: "Copy signature", value: result.sig }} className="border-t border-border bg-surface-panel px-4" />
+          <Actions copy={{ label: "Copy signature", value: result.sig }} className="mt-1 px-4" />
         </>
       ) : result.kind === "network" ? (
         <>
@@ -527,7 +536,7 @@ function Response({ p, ix }: { p: Project; ix: Ix }) {
               ["Changed", "Nothing on chain except the fee"],
             ]}
           />
-          <div className="flex h-10 items-center gap-4 border-t border-border bg-surface-panel px-4">
+          <div className="mt-1 flex h-10 items-center gap-4 px-4">
             <button type="button" onClick={() => ask(id, "Explain the error")} className={QUIET}>
               Ask why it failed
             </button>
@@ -552,7 +561,7 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
         const shown = !fold || open.has(ix.name)
         return (
           <section key={ix.name} id={`ix-${ix.name}`} aria-label={ix.name} className={CARD}>
-            <div className="flex items-start gap-3 p-4">
+            <div className="flex items-start gap-3 px-4 pt-4">
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 {fold ? (
                   <button
@@ -568,7 +577,7 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
                 ) : (
                   <IxTitle p={p} ix={ix} />
                 )}
-                <p className="text-13 leading-5 text-pretty text-foreground/80">{ix.line}</p>
+                <p className="text-13 leading-5 text-pretty text-muted-foreground">{ix.line}</p>
               </div>
               <button type="button" onClick={() => onOpen(ix.name)} className={cn(QUIET, "shrink-0 pt-0.5 text-13")}>
                 Open in form
@@ -577,15 +586,12 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
             </div>
             {shown && (
               <>
+                {/* A part that is empty is one quiet line, with no label over it; and the rows carry no Name, Type,
+                    Role header: a name, its type and its roles say which is which (Almaz, 26 Nov) */}
                 <div className={PART}>
-                  <span className={LABEL}>Arguments</span>
+                  {ix.args.length > 0 && <span className={LABEL}>Arguments</span>}
                   {ix.args.length ? (
                     <div className="flex flex-col text-13">
-                      <div className={cn(TRIPLE, "pb-1 text-13 text-muted-foreground")}>
-                        <span>Name</span>
-                        <span>Type</span>
-                        <span>Example</span>
-                      </div>
                       {ix.args.map((a) => (
                         <div key={a.name} className={cn(TRIPLE, "min-h-8 items-center")}>
                           <code title={a.name} className="truncate font-mono text-foreground">
@@ -594,7 +600,9 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
                           <span>
                             <span className={TYPE_CHIP}>{a.type}</span>
                           </span>
-                          <code className="truncate font-mono text-muted-foreground">{a.example}</code>
+                          <span className="truncate text-muted-foreground">
+                            Example <code className="font-mono">{a.example}</code>
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -603,13 +611,9 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
                   )}
                 </div>
                 <div className={PART}>
-                  <span className={LABEL}>Accounts</span>
+                  {ix.accounts.length > 0 && <span className={LABEL}>Accounts</span>}
                   {ix.accounts.length ? (
                     <div className="flex flex-col text-13">
-                      <div className={cn(PAIR, "pb-1 text-13 text-muted-foreground")}>
-                        <span>Name</span>
-                        <span>Role</span>
-                      </div>
                       {ix.accounts.map((name) => {
                         const roles = accountOf(p, ix.name, name)
                         return (
@@ -617,10 +621,7 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
                             <code title={name} className="truncate font-mono text-foreground">
                               {name}
                             </code>
-                            <span className="flex items-center gap-1.5">
-                              {roles.signer && <span className={ROLE}>signer</span>}
-                              {roles.writable ? <span className={ROLE}>writable</span> : <span className="text-muted-foreground">read only</span>}
-                            </span>
+                            <span className={ROLE}>{rolesOf(roles, true)}</span>
                           </div>
                         )
                       })}
@@ -634,7 +635,7 @@ function Schema({ p, ixs, picked, onOpen }: { p: Project; ixs: Ix[]; picked: str
           </section>
         )
       })}
-      <p className="text-13 leading-5 text-muted-foreground">Generated when the program builds. A new deploy updates this view and the form.</p>
+      <p className="px-4 pt-2 text-13 leading-5 text-muted-foreground">Generated when the program builds. A new deploy updates this view and the form.</p>
     </>
   )
 }
