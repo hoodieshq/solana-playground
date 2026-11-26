@@ -116,7 +116,8 @@ function BriefNote({ text, phone }: { text: string; phone: boolean }) {
    assistant can speak to about this program. Every one of these has a real answer behind it */
 
 const NEXT_STEP = "What's the next step?"
-const ixAsk = (name: string) => `What does ${name} do?`
+// Short, so it stays on one line as the field's suggestion ("What does … do?" wrapped at 16 px)
+const ixAsk = (name: string) => `What is ${name}?`
 
 /** Everything worth asking about this program, the general after the particular */
 function poolOf(p: Project): string[] {

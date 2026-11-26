@@ -429,7 +429,7 @@ export function Ask({ p, phone = false, chips = [], context = false }: { p: Proj
           // The thread's own type, 16 on 24 in the reading weight: what you type is the bubble it becomes, so it
           // must not change size on Send, as in ChatGPT, Claude and Cursor (Almaz, 26 Nov; it was 13 on 25 Nov, to
           // match the lines under the field, which stay 13). The field keeps its 42
-          className={cn("text-16 leading-6 font-read tracking-normal", !tall && "min-h-10 pt-[9px] pb-[9px]", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
+          className={cn("text-16 leading-6 font-read tracking-normal placeholder:truncate", !tall && "min-h-10 pt-[9px] pb-[9px]", !tall && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
         />
         <ComposerToolbar className={cn(!tall && "py-1 pr-1")}>
           {/* The arrow alone, no disc: the disc comes under the pointer (Almaz, 25 Nov). Grey with nothing to send,
