@@ -249,16 +249,26 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     const svg = document.createElementNS(NS, "svg")
     svg.setAttribute("width", "0")
     svg.setAttribute("height", "0")
-    d.append(svg)
+    // What takes the press: an unseen box round the drawing, grown without moving it. It never reaches down over
+    // the field, so a press there is always the field's
+    const hit = document.createElement("i")
+    hit.style.cssText = "position:absolute;inset:0"
+    d.append(svg, hit)
     stage.append(d)
     return d
+  }
+  /* A finger gets 44 px to press, the least a touch target should be (Almaz, 27 Nov: the ball was 31 by 22 and the
+     cat had none to spare). In the stage's own px that is 66, grown upward and sideways from each drawing */
+  const touch = matchMedia("(hover: none), (pointer: coarse)").matches
+  const zone = (d: HTMLElement, top: number, left: number, right = left) => {
+    const inset = `${-top}px ${-right}px 0 ${-left}px`
+    const hit = d.lastChild as HTMLElement
+    if (hit.style.inset !== inset) hit.style.inset = inset
   }
   const cat = { el: el(), x: 0, v: 0, dir: 1, target: null as number | null, vmax: WALK, odo: 0, follow: false, air: false, flip: false, carry: false }
   const toy = (sprite: (spin: number) => Sprite, fr: number, bounce: number, settle = false) => {
     const t = { el: el(), x: 0, h: 0, vx: 0, vh: 0, on: false, spin: 0, odo: 0, held: false, squash: 0, fr, bounce, sprite, settle }
     t.el.style.transformOrigin = "50% 100%"
-    // Room round it to press: more for a finger, where the toy alone is ten px
-    t.el.style.padding = matchMedia("(hover: none)").matches ? "18px 16px 0" : "8px 8px 0"
     t.el.style.opacity = "0"
     return t
   }
@@ -272,6 +282,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   let ball = yarn
   const paint = (t: typeof yarn) => draw(t.el.firstChild as SVGElement, t.sprite(t.spin))
   cat.el.title = "Click the cat and it plays"
+  if (touch) zone(cat.el, 18, 3)
   const W = () => stage.clientWidth
   const LO = 26, HI = () => W() - 26
   const clamp = (x: number) => Math.max(LO, Math.min(HI(), x))
@@ -412,6 +423,12 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     if (cat.target == null && !cat.air && (cat.x < LO || cat.x > HI())) cat.x = clamp(cat.x)
     cat.el.style.left = `${cat.x}px`
     for (const t of toys) {
+      // Room round a toy to press. Standing as the mark the two share the seam between them, so a press there is
+      // one toy's or the other's, never a guess
+      const w = Number((t.el.firstChild as SVGElement).getAttribute("width")), h = Number((t.el.firstChild as SVGElement).getAttribute("height"))
+      const side = touch ? Math.max(8, (66 - w) / 2) : 8, top = touch ? Math.max(8, 66 - h) : 8
+      zone(t.el, top, stood && t === yarn ? 0.75 : side, stood && t === tri ? 0.75 : side)
+      t.el.style.pointerEvents = t.on ? "auto" : "none"
       t.el.style.left = `${t.x}px`
       t.el.style.transform = `translate(-50%, ${-t.h}px)${t.squash > now ? " scale(1.2, 0.8)" : ""}`
     }
@@ -1395,7 +1412,7 @@ export function SoleToggle({ on, onToggle, className }: { on: boolean; onToggle:
       title={on ? "Hide the cat" : "Bring the cat back"}
       onClick={onToggle}
       // As tall as the network and the model beside it; the tap area reaches 44 without moving the line
-      className={`relative flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md before:absolute before:-inset-x-1 before:-inset-y-2.5 hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple ${on ? "text-muted-foreground" : "text-muted-foreground/45"} ${className ?? ""}`}
+      className={`relative flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md before:absolute before:-inset-x-2 before:-inset-y-2.5 hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple ${on ? "text-muted-foreground" : "text-muted-foreground/45"} ${className ?? ""}`}
     >
       <svg viewBox="0 0 9 7" width="18" height="14" shapeRendering="crispEdges" aria-hidden="true">
         {ICON.flatMap((row, y) =>
