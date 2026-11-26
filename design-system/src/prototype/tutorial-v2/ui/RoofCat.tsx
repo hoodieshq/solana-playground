@@ -407,7 +407,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
         cat.odo += Math.abs(cat.v) * dt
         if (!cat.air) {
           // It gallops only while it is really moving; the last strides of a run are steps
-          if (running && Math.abs(cat.v) > 90) S({ f: BOUNDS[Math.floor(cat.odo / BOUND) % 3] })
+          // From 50 a second, not 90: over a short way it never got faster, and the sprint was drawn as steps
+          if (running && Math.abs(cat.v) > 50) S({ f: BOUNDS[Math.floor(cat.odo / BOUND) % 3] })
           else {
             const i = Math.floor(cat.odo / STRIDE)
             S({ f: STEPS[i % 4], tail: i % 6 < 3 ? "up" : "mid" })
@@ -540,6 +541,18 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     if (!ball.on) return
     if (ready) cat.dir = ball.x < cat.x ? -1 : 1
     else await turn(id, ball.x < cat.x ? -1 : 1)
+    // Ready and near: nothing to run, so it is one long spring from where it crouched
+    if (ready && Math.abs(ball.x - cat.x) <= 120) {
+      await until(() => !ball.on || ball.h < 30, id)
+      if (!ball.on) return
+      const dir = ball.x < cat.x ? -1 : 1
+      await leap(id, clamp(ball.x - dir * 20), 200 + Math.abs(ball.x - cat.x), "trap")
+      Object.assign(ball, { vx: 0, vh: 0, h: 0, held: true })
+      cat.v = 0
+      await wait(260, id)
+      ball.held = false
+      return
+    }
     if (Math.abs(ball.x - cat.x) > 70) {
       for (let i = 0; i < 3 && !ready; i++) {
         S({ f: "crouch", tail: i % 2 ? "low" : "mid" })
@@ -773,11 +786,13 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   /** As cats do with a thing near a table's edge (Almaz, 27 Nov): it sits by the toy and pushes it with one paw, a
    * little at a time, with a look at you now and then, until it goes over. What it does next is `lost` */
-  const shove = async (id: number) => {
+  const shove = async (id: number, fast = false) => {
     const end = ball.x > W() / 2 ? 1 : -1
     const seat = () => clamp(ball.x - end * 22)
-    await turn(id, seat() < cat.x ? -1 : 1)
-    await goTo(id, seat(), WALK)
+    if (fast) cat.dir = seat() < cat.x ? -1 : 1
+    else await turn(id, seat() < cat.x ? -1 : 1)
+    // `fast`: it was down and ready to spring, so it runs up; the pushing itself is slow either way
+    await goTo(id, seat(), fast ? RUN : WALK)
     ball.vx = 0
     for (let i = 0; i < 40 && ball.on && (end > 0 ? ball.x < W() + 6 : ball.x > -6); i++) {
       // The paw is on the sprite's left; flipped, it reaches right
@@ -1239,13 +1254,13 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   const dropped = async (id: number) => {
     const byEnd = () => ball.x < 45 || ball.x > W() - 45
-    // Set down by the field's end: it comes over and pushes it off with a paw. Anywhere else it springs after it
+    /* It was down and ready, so whatever comes next starts at a run (Almaz, 27 Nov: let go, it walked). Set down by
+       the field's end: it runs up and pushes the toy off with a paw. Anywhere else it springs after it, on a phone
+       too: its field is as long as the desktop's */
     if (byEnd() && Math.abs(ball.vx) < 40) {
-      await watch(id, 300)
-      if (ball.on && byEnd()) await shove(id)
-    } else if (phone) {
-      await watch(id, 200)
-      if (ball.on) await pat(id, 1)
+      await until(() => !ball.on || (ball.h === 0 && Math.abs(ball.vx) < 8), id)
+      if (ball.on && byEnd()) await shove(id, true)
+      else if (ball.on) await dash(id, true)
     } else await dash(id, true)
     await lost(id)
     await hold(id, 800)
