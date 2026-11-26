@@ -8,8 +8,8 @@ import { reducedMotion } from "./type"
    a day it climbs up and plays a round with a ball of yarn; after that it only hops up, and a ball drops beside it.
    It is there to make the panel feel lived in, not to help: it blinks, follows the pointer with its eyes, listens
    while you type, plays one of six games when you press it or its ball, plays by itself now and then, and sleeps
-   once the pointer has left the panel. A triangle drops in with the ball as a second toy, and every third
-   game it puts the triangle and the ball side by side, which is the Playground mark (26 Nov). Grey on purpose, in the interface's own tones: the motion already draws the
+   once the pointer has left the panel. A triangle drops in with the ball as a second toy; the first thing the
+   cat does is put the two side by side, and after that every third game it puts the triangle and the ball side by side, which is the Playground mark (26 Nov). Grey on purpose, in the interface's own tones: the motion already draws the
    eye, and purple and green mean "current" and "success" here. Board: prototype/review-high/sole-character/roof.html.
    ?sole=full|short|off overrides the once a day rule for a review. It is switched by the small cat under the field
    (SoleToggle), in Settings (Assistant, "The cat"), from ⌘K, or by asking the assistant (programs/store.ts,
@@ -17,7 +17,7 @@ import { reducedMotion } from "./type"
    the cat is a pet, not that (Nikita and Almaz, 26 Nov). The code keeps its first name */
 
 const CSS = `
-.sole-cat svg { display: block; shape-rendering: crispEdges; }
+.sole-cat svg { display: block; shape-rendering: crispEdges; overflow: visible; }
 .sole-cat .b { fill: color-mix(in srgb, var(--text-tertiary) 72%, var(--surface-base)); }
 .sole-cat .s { fill: color-mix(in srgb, var(--text-tertiary) 58%, var(--surface-base)); }
 .sole-cat .f { fill: color-mix(in srgb, var(--text-tertiary) 46%, var(--surface-base)); }
@@ -30,7 +30,7 @@ type Cell = [x: number, y: number, tone: string]
 type Sprite = { cells: Cell[]; box: string; side?: boolean; w?: number; h?: number }
 type Eyes = "open" | "blink" | "happy" | "left" | "right" | "up" | "down"
 type Front = { back?: boolean; dy?: number; sq?: boolean; eyes?: Eyes; tail?: "up" | "mid" | "down"; ears?: "up" | "perk" | "flat"; paw?: 0 | 1 | 2; z?: 0 | 1 | 2 }
-type Step = "stand" | "w1" | "w2" | "w3" | "g1" | "g2" | "g3" | "skid" | "trap" | "roll1" | "roll2" | "up1" | "up2" | "crouch" | "leap" | "wind" | "hit" | "follow"
+type Step = "stand" | "w1" | "w2" | "w3" | "g1" | "g2" | "g3" | "skid" | "trap" | "roll1" | "roll2" | "up1" | "up2" | "crouch" | "leap" | "wind" | "hit" | "follow" | "peer1" | "peer2" | "stalk1" | "stalk2"
 type Side = { f?: Step; tail?: "up" | "mid" | "low" | "run"; eyes?: "open" | "blink" | "down" }
 
 /* Both views share one 20 by 16 box, a head 6 rows tall under 2 rows of ear, 2 by 2 eyes, a body 4 rows thick and
@@ -114,15 +114,29 @@ export function side(pose: Side): Sprite {
   const air = p.f === "leap" || p.f === "g2"
   // On its back: the body on the roof, the head lifted to look, and the legs in the air, one pair higher each frame
   const roll = p.f === "roll1" || p.f === "roll2"
-  const sh = roll ? 2 : p.f === "crouch" || p.f === "skid" || p.f === "trap" ? 1 : p.f === "leap" ? -3 : p.f === "g2" ? -1 : 0
+  /* About to spring: belly on the roof, legs folded under it, front paws out flat, head low, and its rump up,
+     swinging from side to side between the two frames (Almaz, 27 Nov: on its feet it did not look ready) */
+  const stalk = p.f === "stalk1" ? 1 : p.f === "stalk2" ? 2 : 0
+  const sh = roll || stalk ? 2 : p.f === "crouch" || p.f === "skid" || p.f === "trap" ? 1 : p.f === "leap" ? -3 : p.f === "g2" ? -1 : 0
   const put = (x: number, y: number, c = "b") => out.push([x, y + sh, c])
   for (let x = 3; x <= 7; x++) put(x, 7)
   if (p.f === "g1") for (let x = 4; x <= 7; x++) put(x, 6)
+  if (stalk) for (let x = 1 + stalk; x <= 4 + stalk; x++) put(x, 6)
   for (let y = 8; y <= 10; y++) for (let x = p.f === "g2" ? 1 : 2; x <= 10; x++) put(x, y, y === 10 ? "s" : "b")
   const tails = { up: [[1, 8], [0, 7], [0, 6], [0, 5], [0, 4]], mid: [[1, 8], [0, 8], [-1, 7], [-1, 6], [-1, 5]], low: [[1, 9], [0, 9], [-1, 9], [-2, 8], [-2, 7]], run: [[1, 8], [0, 8], [-1, 8], [-2, 7], [-3, 7]] }
   tails[(run ? "run" : p.tail) as "up"].forEach(([x, y], i) => put(x, y, i === 4 ? "e" : "b"))
-  const nod = p.f === "wind" || p.f === "hit" || p.f === "trap" || run ? 1 : 0
-  const H = (x: number, y: number, c = "b") => put(x, y + nod, c)
+  /* Looking over an edge. First the neck goes out and the head a little down (peer1). Then the long look (peer2):
+     its paws at the very edge, the neck bent over it, and the head turned to hang straight down past the roof's end,
+     nose to the drop, ears outward, its chin two rows under the roof's line. Lowered but level, the head read as
+     laid on the ground, not as looking down (Almaz, 27 Nov). The head leaves the sprite's box; the svg lets it show */
+  const peer = p.f === "peer1" ? 1 : p.f === "peer2" ? 2 : 0
+  const fx = peer === 1 ? 3 : stalk ? 1 : 0
+  const nod = peer === 1 ? 3 : stalk ? 2 : p.f === "wind" || p.f === "hit" || p.f === "trap" || run ? 1 : 0
+  // Drawn level first, then turned a quarter round its back corner and hung beyond the paws
+  const H = (x: number, y: number, c = "b") => (peer === 2 ? put(12 + (7 - y), 6 + (x - 7), c) : put(x + fx, y + nod, c))
+  // The neck, from the shoulders out to the head
+  if (peer === 1) for (let y = 7; y <= 7; y++) for (let x = 8; x <= 10; x++) put(x, y)
+  if (peer === 2) for (const [x, y] of [[8, 7], [9, 7], [10, 7], [9, 6], [10, 6], [11, 6], [11, 7], [11, 8], [11, 9]]) put(x, y)
   for (let x = 8; x <= 14; x++) {
     H(x, 2)
     H(x, 7)
@@ -145,7 +159,8 @@ export function side(pose: Side): Sprite {
   // Legs stay on the ground whatever the body does, except in the air
   const L = (list: number[][], c: string) => list.forEach(([x, y]) => out.push([x, y + (air ? sh : 0), c]))
   const back = [[3, 11], [3, 12]], far = [[5, 11], [5, 12], [8, 11], [8, 12]]
-  if (roll) {
+  if (stalk) L([[11, 12], [12, 12], [13, 12]], "s")
+  else if (roll) {
     // Two legs up over the belly, bent at the paw, one higher each frame
     L(p.f === "roll1" ? [[3, 8], [3, 7], [2, 6], [6, 8], [6, 7], [6, 6], [5, 5]] : [[3, 8], [3, 7], [3, 6], [2, 5], [6, 8], [6, 7], [5, 6]], "s")
   } else if (p.f === "w1") {
@@ -249,8 +264,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   // The yarn rolls; the triangle slides a little way and stops
   const yarn = toy(ballSprite, FRICTION, BOUNCE)
-  /** Stood on end by the cat, point to the ball */
-  let stood = false
+  /** Stood on end by the cat, point to the ball; `tipped` once that pair has been broken up and not yet played with */
+  let stood = false, tipped = false
   const tri = toy((n) => TRIS[stood ? 1 : n % 4], 420, 0.25, true)
   const toys = [yarn, tri]
   /** The toy the cat is playing with now */
@@ -316,6 +331,18 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       if (ball.settle && ball.spin % 4 && ball.h === 0 && ball.vh === 0 && ball.vx === 0) {
         ball.spin = 0
         paint(ball)
+      }
+      /* Unseen walls (Almaz, 27 Nov): one a step past each end of the field and a ceiling over it. A toy leaves only
+         one way, down past an end; thrown hard it used to sail on over the code. At a wall it loses its way
+         sideways and drops; at the ceiling it comes back down */
+      if (ball.x < -14 || ball.x > W() + 14) {
+        ball.x = Math.max(-14, Math.min(W() + 14, ball.x))
+        ball.vx = 0
+      }
+      // Over where a toy is dropped in from
+      if (ball.h > 152) {
+        ball.h = 152
+        ball.vh = -Math.abs(ball.vh) * 0.3
       }
       if (ball.h < -130) {
         ball.on = false
@@ -413,6 +440,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     // What it stood on end falls back on its side, clear of the ball
     if (stood) {
       stood = false
+      tipped = true
       tri.x -= 4.5
       paint(tri)
     }
@@ -489,12 +517,14 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   /** After the ball as a cat goes: it watches a beat, drops and wiggles, bursts into a gallop, and takes the last
    * stretch in one pounce that lands with its front paws on the ball */
-  const dash = async (id: number) => {
-    await watch(id, 280)
+  const dash = async (id: number, ready = false) => {
+    // `ready`: it was already down and wiggling while you held the toy, so it goes the moment you let go
+    if (!ready) await watch(id, 280)
     if (!ball.on) return
-    await turn(id, ball.x < cat.x ? -1 : 1)
+    if (ready) cat.dir = ball.x < cat.x ? -1 : 1
+    else await turn(id, ball.x < cat.x ? -1 : 1)
     if (Math.abs(ball.x - cat.x) > 70) {
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 3 && !ready; i++) {
         S({ f: "crouch", tail: i % 2 ? "low" : "mid" })
         await wait(100, id)
       }
@@ -639,13 +669,12 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       dropTri(cat.x - 96, 150, 0)
       await watch(id)
       await pat(id, 3)
-      F({ eyes: "happy" })
-      return wait(500, id)
+      return mark(id)
     }
     throwBall(W() * 0.4, 120, 40)
     dropTri(W() * 0.18, 150, 12)
     await playWith(id, 1)
-    await hold(id, 800)
+    await mark(id)
   }
   /** Every chat after: it hops up and sits, alone. A moment later a ball drops beside it and bounces to rest, and
    * the cat follows it down with its ears up (Almaz, 25 Nov: the ball lay there before the cat came) */
@@ -659,29 +688,98 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     await watch(id, 400)
     F({ eyes: "left" })
     await wait(500, id)
+    // The first thing it does with its toys is put them into the mark, so the cat is Playground's from the start
+    // (Almaz, 27 Nov: left to every third game, most people never saw it)
+    await mark(id)
   }
-  /** A toy went over the roof's end: it runs to the edge and looks down after it, then sits back, waits, looks up,
-   * and the toy drops to it from above (Almaz, 26 Nov: it liked the loss, so every game ends this way, not only a
-   * click on the ball) */
+  /** A toy went over the roof's end: it runs to the edge and looks down after it for a while, working out where it
+   * went, then walks back to where it was and sits; it waits, looks up, and the toy drops to it from above (Almaz,
+   * 26 and 27 Nov: it liked the loss, so every game ends this way, not only a click on the ball) */
   const lost = async (id: number) => {
     if (ball.on) return
     const end = ball.x > W() / 2 ? 1 : -1
+    const edge = end > 0 ? HI() : LO
+    // Its place: where it stood, or a little way in if that was the edge itself
+    const place = Math.abs(cat.x - edge) < 70 ? edge - end * 90 : cat.x
     await turn(id, end)
-    await goTo(id, end > 0 ? HI() : LO, phone ? 80 : RUN)
+    await goTo(id, edge, phone ? 80 : RUN)
     S({ f: "skid" })
     await wait(120, id)
-    // Its tail lies along the roof, not out over the end
-    cat.flip = end > 0
-    F({ eyes: "down", ears: "flat", tail: "down" })
-    await wait(1200, id)
-    F({ eyes: "blink", ears: "flat", tail: "down" })
-    await wait(140, id)
+    /* The look over the edge (Almaz, 27 Nov). It steps to the very brink, its paws at the end of the field, puts its
+       neck out, then hangs its head straight down after the thing and holds there, blinking, its tail moving: it
+       is working out where it went. Then it draws back */
+    cat.dir = end
+    cat.air = true
+    const brink = end > 0 ? W() - 10.5 : 10.5
+    // Quick: two steps out, the neck, one look down of about a second with a blink in it, and back (Almaz, 27 Nov:
+    // held for three seconds it looked stuck)
+    for (const [k, f] of [[0.5, "w1"], [1, "w3"]] as const) {
+      cat.x = edge + (brink - edge) * k
+      S({ f, tail: "mid" })
+      await wait(80, id)
+    }
+    S({ f: "peer1", eyes: "down", tail: "mid" })
+    await wait(130, id)
+    S({ f: "peer2", eyes: "down", tail: "low" })
+    await wait(420, id)
+    S({ f: "peer2", eyes: "blink", tail: "low" })
+    await wait(110, id)
+    S({ f: "peer2", eyes: "down", tail: "mid" })
+    await wait(330, id)
+    S({ f: "peer1", eyes: "down", tail: "mid" })
+    await wait(110, id)
+    cat.x = edge
+    cat.air = false
+    S()
+    await wait(90, id)
+    await turn(id, -end)
+    await goTo(id, place, 70)
+    cat.flip = false
     F({ tail: "mid" })
     await wait(700, id)
     F({ eyes: "up", ears: "perk" })
     await wait(450, id)
     throwBall(cat.x - end * 34, 140, -end * 6)
     await watch(id, 400)
+    // The other toy, if it is gone too, comes down after it: one trip to the edge for both
+    const other = ball === yarn ? tri : yarn
+    if (!other.on) {
+      const was = ball
+      ball = other
+      F({ eyes: "up", ears: "perk" })
+      await wait(350, id)
+      throwBall(cat.x - end * 66, 140, -end * 4)
+      await watch(id, 400)
+      ball = was
+    }
+  }
+  /** As cats do with a thing near a table's edge (Almaz, 27 Nov): it sits by the toy and pushes it with one paw, a
+   * little at a time, with a look at you now and then, until it goes over. What it does next is `lost` */
+  const shove = async (id: number) => {
+    const end = ball.x > W() / 2 ? 1 : -1
+    const seat = () => clamp(ball.x - end * 22)
+    await turn(id, seat() < cat.x ? -1 : 1)
+    await goTo(id, seat(), WALK)
+    ball.vx = 0
+    for (let i = 0; i < 40 && ball.on && (end > 0 ? ball.x < W() + 6 : ball.x > -6); i++) {
+      // The paw is on the sprite's left; flipped, it reaches right
+      cat.flip = end > 0
+      F({ paw: 1, eyes: "left", ears: "perk" })
+      await wait(260, id)
+      F({ paw: 2, eyes: "left", ears: "perk" })
+      ball.x += end * 5
+      ball.spin++
+      paint(ball)
+      await wait(240, id)
+      if (i % 3 === 2) {
+        F()
+        await wait(520, id)
+      }
+      if (ball.on && Math.abs(cat.x - seat()) > 7) await goTo(id, seat(), 40)
+    }
+    cat.flip = end > 0
+    F({ eyes: "down", ears: "perk" })
+    await until(() => !ball.on, id)
   }
   /** The ball was sent off by a click: it goes after it and plays a round or two */
   const after = async (id: number) => {
@@ -979,6 +1077,25 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   let next = Math.floor(Math.random() * GAMES.length)
   let plays = 0
   const game = async (id: number) => {
+    // Straight from the mark: it bats the nearer toy into the other, and they scatter. Then the game
+    if (tipped && yarn.on && tri.on) {
+      const hit = cat.x < tri.x ? tri : yarn, dir = cat.x < tri.x ? 1 : -1
+      if (Math.abs(cat.x - hit.x) < 40) {
+        cat.flip = false
+        cat.dir = dir
+        S({ f: "wind", eyes: "down", tail: "mid" })
+        await wait(130, id)
+        S({ f: "hit", eyes: "down" })
+        await wait(50, id)
+        hit.vx = dir * 130
+        hit.vh = 110
+        S({ f: "follow" })
+        await wait(170, id)
+        ball = hit === tri ? yarn : tri
+        await watch(id, 500)
+      }
+    }
+    tipped = false
     plays++
     // Both toys are needed for the mark; one that is off the roof is waited for first
     if (plays % 3 === 0) {
@@ -987,6 +1104,17 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
         await lost(id)
       }
       return mark(id)
+    }
+    // A toy that came to rest right by the field's end is pushed over it, slowly. Only there: begun from far off it
+    // was a long walk, not a cat at a table's edge (Almaz, 27 Nov)
+    const edge = toys.find((t) => t.on && (t.x < 45 || t.x > W() - 45))
+    if (edge) {
+      ball = edge
+      await shove(id)
+      await lost(id)
+      await hold(id, 700)
+      ball = yarn
+      return
     }
     ball = tri.on && plays % 2 === 0 ? tri : yarn
     await lost(id)
@@ -1023,17 +1151,16 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     idle = window.setTimeout(() => id === act && !pointer && play(sleep), 40000)
     // A toy is off the roof and nothing is bringing it back (a run of presses sent both over the end, and it sat
     // there alone until pressed): it goes and waits for it by itself
-    if (!gone && toys.some((t) => !t.on))
-      fun = window.setTimeout(() => {
-        if (id !== act || gone) return
-        play(async (i) => {
-          for (const t of toys) {
-            ball = t
-            await lost(i)
-          }
-          ball = yarn
-        })
-      }, 1400)
+    const missing = () => !gone && toys.some((t) => !t.on)
+    const fetchAll = () =>
+      play(async (i) => {
+        for (const t of toys) {
+          ball = t
+          await lost(i)
+        }
+        ball = yarn
+      })
+    if (missing()) fun = window.setTimeout(() => id === act && missing() && fetchAll(), 1400)
     // Now and then it plays by itself, three times at most in one chat, a different game each time
     else if (solo < 3 && ball.on && !gone)
       fun = window.setTimeout(() => {
@@ -1045,6 +1172,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       }, 14000 + Math.random() * 12000)
     try {
       for (;;) {
+        // One that went while it sat
+        if (missing() && !asleep) return void fetchAll()
         F({ eyes: gaze() })
         await wait(1800 + Math.random() * 1500, id)
         F({ eyes: "blink" })
@@ -1073,15 +1202,101 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   panel.addEventListener("pointermove", onMove)
   panel.addEventListener("pointerleave", onOut)
-  for (const t of toys)
+  /* A toy can be picked up and put anywhere on the field (Almaz, 27 Nov: to carry the ball to the edge and leave it
+     there for the cat). While you hold it the cat sits and follows it with its eyes; let go and it falls from where
+     it is, with the speed your hand gave it. Left by the field's end, the cat pushes it over with a paw; anywhere
+     else it goes after it as after a press. A press without a move is still a press */
+  const eyeing = async (id: number) => {
+    // A look at what you picked up, then down on its haunches facing it, its tail going from side to side: a cat
+    // about to spring (Almaz, 27 Nov). It turns to keep facing the toy as you carry it past
+    for (let i = 0; i < 6; i++) {
+      F({ ears: "perk", eyes: eyesOn(ball.x, ball.h) })
+      await wait(70, id)
+    }
+    for (let i = 0; ; i++) {
+      cat.dir = ball.x < cat.x ? -1 : 1
+      S({ f: i % 2 ? "stalk2" : "stalk1", tail: i % 2 ? "low" : "mid", eyes: ball.h > 30 ? "open" : "down" })
+      await wait(i % 6 < 4 ? 120 : 280, id)
+    }
+  }
+  const dropped = async (id: number) => {
+    const byEnd = () => ball.x < 45 || ball.x > W() - 45
+    // Set down by the field's end: it comes over and pushes it off with a paw. Anywhere else it springs after it
+    if (byEnd() && Math.abs(ball.vx) < 40) {
+      await watch(id, 300)
+      if (ball.on && byEnd()) await shove(id)
+    } else if (phone) {
+      await watch(id, 200)
+      if (ball.on) await pat(id, 1)
+    } else await dash(id, true)
+    await lost(id)
+    await hold(id, 800)
+  }
+  for (const t of toys) {
+    let drag: { sx: number; sy: number; moved: boolean; x: number; h: number; at: number; vx: number; vh: number } | null = null
+    let dragged = false
+    const where = (e: PointerEvent) => {
+      const r = stage.getBoundingClientRect()
+      return { x: (e.clientX - r.left) / SCALE, h: (r.bottom - e.clientY) / SCALE - 7 }
+    }
+    t.el.style.touchAction = "none"
+    t.el.style.cursor = "grab"
+    t.el.onpointerdown = (e) => {
+      if (!t.on || gone || reducedMotion()) return
+      try {
+        t.el.setPointerCapture(e.pointerId)
+      } catch {
+        // A pointer that can't be captured still drags while it stays over the toy
+      }
+      drag = { sx: e.clientX, sy: e.clientY, moved: false, ...where(e), at: performance.now(), vx: 0, vh: 0 }
+    }
+    t.el.onpointermove = (e) => {
+      if (!drag) return
+      if (!drag.moved) {
+        if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return
+        drag.moved = true
+        // First, so the last act lets go of what it held; then this one is held by you
+        play(eyeing)
+        ball = t
+        t.held = true
+        t.vx = t.vh = 0
+        t.el.style.cursor = "grabbing"
+      }
+      // Still yours if something else let go of it meanwhile (a key in the field stops the cat's act): let go, it
+      // fell under your hand and hung there
+      t.held = true
+      t.vx = t.vh = 0
+      const p = where(e), at = performance.now(), dt = Math.max(1, at - drag.at) / 1000
+      Object.assign(drag, { vx: (p.x - drag.x) / dt, vh: (p.h - drag.h) / dt, x: p.x, h: p.h, at })
+      // An unseen box it stays in: the field's width and a step past each end, so it can be let fall over it, and no
+      // higher than a throw goes, so it is never carried up into the chat (Almaz, 27 Nov)
+      t.x = Math.max(-12, Math.min(W() + 12, p.x))
+      t.h = Math.max(0, Math.min(120, p.h))
+    }
+    t.el.onpointerup = t.el.onpointercancel = () => {
+      const d = drag
+      drag = null
+      t.el.style.cursor = "grab"
+      if (!d?.moved) return
+      // The press that ends a drag is not a press on the toy
+      dragged = true
+      window.setTimeout(() => (dragged = false), 0)
+      play(dropped)
+      ball = t
+      // Held still before it was let go, it just drops
+      const live = performance.now() - d.at < 90
+      t.vx = live ? Math.max(-240, Math.min(240, d.vx)) : 0
+      t.vh = live ? Math.max(-300, Math.min(300, d.vh)) : 0
+    }
     t.el.onclick = () => {
-      if (!t.on || gone) return
+      if (dragged || !t.on || gone) return
       // First, so the last act lets go of what it held
       play(after)
       ball = t
       t.vx = (t.x < W() / 2 ? 1 : -1) * (phone ? 80 : 150 + Math.random() * 60)
       t.vh = 240
     }
+  }
   cat.el.onclick = () => !gone && play(game)
 
   function stop() {
@@ -1097,19 +1312,23 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     for (const t of toys) t.el.remove()
   }
 
-  if (reducedMotion()) {
+  /** The mark already made: the cat, the triangle on end, the ball */
+  const made = () => {
     cat.x = home()
-    throwBall(cat.x - 26, 0)
-    dropTri(cat.x - 62, 0)
+    cat.flip = true
+    stood = true
+    throwBall(Math.round((cat.x + 26 + PAIR - 1.5) / K) * K + 1.5, 0)
+    dropTri(yarn.x - PAIR, 0)
+  }
+  if (reducedMotion()) {
+    made()
     F()
     tick()
     window.clearInterval(clock)
   } else if (mode === "there") {
-    // Back on a chat it already climbed into (the phone's Code and Ask, the panel hidden and shown): it is just there
-    cat.x = home()
-    throwBall(cat.x - 26, 0)
-    dropTri(cat.x - 62, 0)
-    play(async () => {})
+    // Back on a chat it already climbed into (the phone's Code and Ask, the panel hidden and shown): it is just there,
+    // by the mark it made
+    play(async () => made())
   } else play(mode === "full" ? show : again)
 
   return {
