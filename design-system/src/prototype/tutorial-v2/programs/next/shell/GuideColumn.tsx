@@ -309,7 +309,7 @@ function NetworkPicker() {
   )
 }
 
-function ModelPicker() {
+export function ModelPicker() {
   const env = useEnv()
   const c = useChoices()
   const [open, setOpen] = useState(false)

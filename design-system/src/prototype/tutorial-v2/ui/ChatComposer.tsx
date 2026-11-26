@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { CHANGE_CHIP, EXPLAIN_STEP, NEXT_CHIP, STUCK } from "../answers"
 import { LESSON, STEPS } from "../data"
 import { LimitNotice } from "../desktop/navLit/LimitNotice"
+import { ModelPicker } from "../programs/next/shell/GuideColumn"
 import { liveFail, liveWin, useStore, type State } from "../store"
 import { ChipRow } from "./ChipRow"
 import { on } from "./events"
@@ -47,7 +48,9 @@ window.addEventListener("pointercancel", () => (pressing = false), { capture: tr
 
 /** The one way to talk to the assistant: the chips for the moment and the product's composer under
  * them, one line with Send beside it until the words outgrow it, then the full box. Enter sends, Shift+Enter is a
- * new line, and it's never disabled. Chips that don't fit fold into More */
+ * new line, and it's never disabled. Chips that don't fit fold into More.
+ * The field and the line under it are a project's (programs/next/shell/GuideColumn, Ask): one assistant, one
+ * field wherever you meet it (Almaz, 26 Nov). Sole stays out: a cat on the field gets in a lesson's way */
 export function ChatComposer({ phone = false }: { phone?: boolean }) {
   const { s, dispatch } = useStore()
   const [text, setText] = useState("")
@@ -103,7 +106,7 @@ export function ChatComposer({ phone = false }: { phone?: boolean }) {
           // value from here doesn't fire. One after the render puts it back to one line and an empty box
           requestAnimationFrame(() => input.current?.dispatchEvent(new Event("input", { bubbles: true })))
         }}
-        className={cn(!open && "flex-row items-center")}
+        className={cn("rounded-xl focus-within:border-foreground/20 focus-within:ring-0", !open && "flex-row items-center")}
       >
         <ComposerInput
           ref={input}
@@ -117,16 +120,21 @@ export function ChatComposer({ phone = false }: { phone?: boolean }) {
           placeholder={placeholder}
           aria-label={placeholder}
           enterKeyHint="send"
-          // Four lines at most on a phone, then it scrolls
-          // A 22 line, not 15 × 1.5: 22.5 made the box 44.5 tall, half a pixel off every edge under it
-          className={cn("leading-6 placeholder:text-muted-foreground/80!", !open && "min-h-10 pt-2.5 pb-2.5", !open && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
+          // Four lines at most on a phone, then it scrolls. The thread's own type, as a project's field
+          className={cn("text-16 leading-6 font-read tracking-normal", !open && "min-h-10 pt-[9px] pb-[9px]", !open && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
         />
         <ComposerToolbar className={cn(!open && "py-1 pr-1")}>
-          <ComposerSend className="pointer-coarse:size-11 disabled:bg-surface-hover disabled:text-subtle disabled:opacity-100">
+          <ComposerSend className="bg-transparent text-foreground hover:bg-foreground/[0.08] disabled:bg-transparent disabled:text-subtle disabled:opacity-100 pointer-coarse:size-11">
             <ArrowUp />
           </ComposerSend>
         </ComposerToolbar>
       </Composer>
+      <div className="mt-2 flex items-center justify-between gap-3 px-1 text-13 leading-5 text-muted-foreground">
+        {/* The network as a word, not a pick: a lesson runs on devnet, with its wallet and free SOL, and a learner who
+            changed it would only break the lesson. The nav's status still changes it (Almaz, 26 Nov) */}
+        <span className="truncate">Devnet</span>
+        <ModelPicker />
+      </div>
     </div>
   )
 }
