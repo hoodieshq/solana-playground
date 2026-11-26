@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react"
+import { Cat } from "lucide-react"
 
 import { catShown, useSettings } from "../settings/store"
 import { reducedMotion } from "./type"
@@ -8,7 +9,8 @@ import { reducedMotion } from "./type"
    a day it climbs up and plays a round with a ball of yarn; after that it only hops up, and a ball drops beside it.
    It is there to make the panel feel lived in, not to help: it blinks, follows the pointer with its eyes, listens
    while you type, plays one of six games when you press it or its ball, plays by itself now and then, and sleeps
-   once the pointer has left the panel. Grey on purpose, in the interface's own tones: the motion already draws the
+   once the pointer has left the panel. After its first game a triangle drops in as a second toy, and every third
+   game it puts the triangle and the ball side by side, which is the Playground mark (26 Nov). Grey on purpose, in the interface's own tones: the motion already draws the
    eye, and purple and green mean "current" and "success" here. Board: prototype/review-high/sole-character/roof.html.
    ?sole=full|short|off overrides the once a day rule for a review. It is switched by the small cat under the field
    (SoleToggle), in Settings (Assistant, "Sole the cat"), from ⌘K, or by asking the assistant (programs/store.ts,
@@ -63,6 +65,8 @@ export function front(pose: Front): Sprite {
       H(a, 0)
     }
     if (p.ears === "perk") H(a, -1)
+    // The ear's hollow, a shade down; from behind it is the ear's back
+    if (p.ears !== "flat" && !p.back) H(a + d, 1, "f")
   }
   const lx = 2, rx = 7, ey = 4 + hd
   const E = (list: number[][], c = "e") => list.forEach(([x, y]) => put(x, y, c))
@@ -74,6 +78,7 @@ export function front(pose: Front): Sprite {
     const [dx, dy] = ({ left: [-1, 0], right: [1, 0], down: [0, 1], up: [0, -1] } as Record<string, number[]>)[p.eyes] ?? [0, 0]
     E([lx, rx].flatMap((x) => [[x + dx, ey + dy], [x + 1 + dx, ey + dy], [x + dx, ey + 1 + dy], [x + 1 + dx, ey + 1 + dy]]))
   }
+  if (!p.back) put(5, ey + 2, "l")
   const zs = [[], [[12, 3], [13, 3], [12, 4], [13, 4]], [[12, -2], [13, -2], [14, -2], [13, -1], [12, 0], [13, 0], [14, 0]]][p.z]
   zs.forEach(([x, y]) => out.push([x, y, "s"]))
   return { cells: out.filter(([, y]) => y < 13), box: "-5 -3 20 16" }
@@ -97,6 +102,8 @@ export function side(pose: Side): Sprite {
     for (let y = 1; y <= 4; y++) for (let x = 5; x <= 13; x++) at(x, y)
     for (const [x, y] of [[6, -1], [7, -1], [6, -2], [10, -1], [11, -1], [11, -2]]) at(x, y)
     for (const [x, y] of [[10, 1], [11, 1], [10, 2], [11, 2]]) at(x, y, "e")
+    at(14, 3)
+    at(14, 4, "l")
     const paws = p.f === "up1" ? [[10, 7], [11, 7], [12, 7], [13, 6]] : [[10, 6], [11, 6], [12, 6], [13, 6], [14, 5], [14, 4]]
     for (const [x, y] of paws) at(x, y, "s")
     return { cells: out, box: "-2.5 -3 20 16", side: true }
@@ -109,7 +116,7 @@ export function side(pose: Side): Sprite {
   const roll = p.f === "roll1" || p.f === "roll2"
   const sh = roll ? 2 : p.f === "crouch" || p.f === "skid" || p.f === "trap" ? 1 : p.f === "leap" ? -3 : p.f === "g2" ? -1 : 0
   const put = (x: number, y: number, c = "b") => out.push([x, y + sh, c])
-  for (let x = 2; x <= 7; x++) put(x, 7)
+  for (let x = 3; x <= 7; x++) put(x, 7)
   if (p.f === "g1") for (let x = 4; x <= 7; x++) put(x, 6)
   for (let y = 8; y <= 10; y++) for (let x = p.f === "g2" ? 1 : 2; x <= 10; x++) put(x, y, y === 10 ? "s" : "b")
   const tails = { up: [[1, 8], [0, 7], [0, 6], [0, 5], [0, 4]], mid: [[1, 8], [0, 8], [-1, 7], [-1, 6], [-1, 5]], low: [[1, 9], [0, 9], [-1, 9], [-2, 8], [-2, 7]], run: [[1, 8], [0, 8], [-1, 8], [-2, 7], [-3, 7]] }
@@ -121,11 +128,13 @@ export function side(pose: Side): Sprite {
     H(x, 7)
   }
   for (let y = 3; y <= 6; y++) for (let x = 7; x <= 15; x++) H(x, y)
-  for (const [x, y] of [[8, 1], [9, 1], [12, 1], [13, 1]]) H(x, y)
+  for (const [x, y] of [[8, 1], [9, 1], [12, 1], [13, 1]]) H(x, y, x < 10 ? "s" : "b")
   if (!run) {
-    H(8, 0)
+    H(8, 0, "s")
     H(13, 0)
   }
+  H(16, 5, "l")
+  H(16, 6)
   if (p.eyes === "blink") {
     H(12, 5, "l")
     H(13, 5, "l")
@@ -137,8 +146,8 @@ export function side(pose: Side): Sprite {
   const L = (list: number[][], c: string) => list.forEach(([x, y]) => out.push([x, y + (air ? sh : 0), c]))
   const back = [[3, 11], [3, 12]], far = [[5, 11], [5, 12], [8, 11], [8, 12]]
   if (roll) {
-    L([[4, 8], [5, 8]], "f")
-    L(p.f === "roll1" ? [[3, 8], [3, 7], [6, 8], [6, 7], [6, 6]] : [[3, 8], [3, 7], [3, 6], [6, 8], [6, 7]], "s")
+    // Two legs up over the belly, bent at the paw, one higher each frame
+    L(p.f === "roll1" ? [[3, 8], [3, 7], [2, 6], [6, 8], [6, 7], [6, 6], [5, 5]] : [[3, 8], [3, 7], [3, 6], [2, 5], [6, 8], [6, 7], [5, 6]], "s")
   } else if (p.f === "w1") {
     L([[5, 11], [6, 12], [8, 11], [7, 12]], "f")
     L([[3, 11], [2, 12], [10, 11], [11, 12]], "s")
@@ -174,9 +183,14 @@ export function side(pose: Side): Sprite {
   return { cells: out, box: "-2.5 -3 20 16", side: true }
 }
 
-const BALL = [[1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [3, 1], [0, 2], [1, 2], [2, 2], [3, 2], [1, 3], [2, 3]]
-const YARN = [[[1, 0], [2, 1], [3, 2]], [[2, 0], [1, 1], [0, 2]], [[0, 1], [1, 2], [2, 3]], [[3, 1], [2, 2], [1, 3]]]
-const ballSprite = (spin: number): Sprite => ({ cells: BALL.map(([x, y]) => [x, y, YARN[spin % 4].some(([a, b]) => a === x && b === y) ? "y" : "o"]), box: "0 0 4 4", w: 4, h: 4 })
+/* Two toys, each five cells tall: a ball of yarn and a triangle. Side by side, the triangle first, they are the
+   Playground mark, a play triangle and a ring (Nikita, 26 Nov). The ball stays a ball of yarn there: drawn as a ring
+   it grew a hole, which a ball of yarn can't (Almaz, 26 Nov) */
+const round = (x: number, y: number) => (x % 4 !== 0 || y % 4 !== 0) && x >= 0 && x < 5 && y >= 0 && y < 5
+const grid = (on: (x: number, y: number) => string | false): Cell[] => [0, 1, 2, 3, 4].flatMap((y) => [0, 1, 2, 3, 4].flatMap((x): Cell[] => (on(x, y) ? [[x, y, on(x, y) as string]] : [])))
+const ballSprite = (spin: number): Sprite => ({ cells: grid((x, y) => round(x, y) && ((x + y + spin) % 4 === 0 ? "y" : "o")), box: "0 0 5 5", w: 5, h: 5 })
+/* Three plain points. With its corners a shade down to round them it stopped reading as a triangle (Almaz, 26 Nov) */
+const TRI: Sprite = { cells: grid((x, y) => x <= 2 - Math.abs(y - 2) && "o"), box: "0 0 3 5", w: 3, h: 5 }
 
 const NS = "http://www.w3.org/2000/svg"
 /* The stage is laid out half as wide again as the composer and scaled to two thirds: a 3 px cell draws as 2, and
@@ -221,10 +235,21 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     return d
   }
   const cat = { el: el(), x: 0, v: 0, dir: 1, target: null as number | null, vmax: WALK, odo: 0, follow: false, air: false, flip: false, carry: false }
-  const ball = { el: el(), x: 0, h: 0, vx: 0, vh: 0, on: false, spin: 0, odo: 0, held: false, squash: 0 }
+  const toy = (sprite: (spin: number) => Sprite, fr: number, bounce: number) => {
+    const t = { el: el(), x: 0, h: 0, vx: 0, vh: 0, on: false, spin: 0, odo: 0, held: false, squash: 0, fr, bounce, sprite }
+    t.el.style.transformOrigin = "50% 100%"
+    t.el.style.padding = "8px 8px 0"
+    t.el.style.opacity = "0"
+    return t
+  }
+  // The yarn rolls; the triangle slides a little way and stops
+  const yarn = toy(ballSprite, FRICTION, BOUNCE)
+  const tri = toy(() => TRI, 420, 0.25)
+  const toys = [yarn, tri]
+  /** The toy the cat is playing with now */
+  let ball = yarn
+  const paint = (t: typeof yarn) => draw(t.el.firstChild as SVGElement, t.sprite(t.spin))
   cat.el.title = "Sole. Click it and it plays"
-  ball.el.style.transformOrigin = "50% 100%"
-  ball.el.style.padding = "8px 8px 0"
   const W = () => stage.clientWidth
   const LO = 26, HI = () => W() - 26
   const clamp = (x: number) => Math.max(LO, Math.min(HI(), x))
@@ -256,17 +281,18 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     const dt = Math.min(0.05, (t - last) / 1000)
     last = t
     now += dt * 1000
-    if (ball.on && !ball.held) {
+    for (const ball of toys) {
+      if (!ball.on || ball.held) continue
       const over = ball.x < -4 || ball.x > W() + 4
       ball.vh -= G * dt
       ball.h += ball.vh * dt
       if (ball.h <= 0 && !over) {
         ball.h = 0
         if (ball.vh < -120) ball.squash = now + 60
-        ball.vh = ball.vh < -70 ? -ball.vh * BOUNCE : 0
+        ball.vh = ball.vh < -70 ? -ball.vh * ball.bounce : 0
         if (ball.vh === 0) {
           const s = Math.sign(ball.vx)
-          ball.vx -= s * FRICTION * dt
+          ball.vx -= s * ball.fr * dt
           if (Math.sign(ball.vx) !== s) ball.vx = 0
         }
       }
@@ -274,7 +300,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       ball.odo += Math.abs(ball.vx) * dt
       if (ball.odo > 6) {
         ball.odo = 0
-        draw(ball.el.firstChild as SVGElement, ballSprite(++ball.spin))
+        ball.spin++
+        paint(ball)
       }
       if (ball.h < -130) {
         ball.on = false
@@ -295,7 +322,9 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
         // Not for the last few px: a stop that runs a little past its mark would turn it round, ball and all
         if (d > 8) cat.dir = dx > 0 ? 1 : -1
         const running = cat.vmax > 100, acc = running ? BURST : ACCEL
-        const want = cat.dir * Math.min(cat.vmax, Math.sqrt(2 * acc * d) + 12)
+        // Toward the target whichever way it faces: steered by its facing, a step past the mark sent it on
+        // away from it, and it paced to and fro before it stopped
+        const want = Math.sign(dx) * Math.min(cat.vmax, Math.sqrt(2 * acc * d) + 12)
         cat.v += Math.max(-acc * dt, Math.min(acc * dt, want - cat.v))
         cat.x += cat.v * dt
         cat.odo += Math.abs(cat.v) * dt
@@ -314,8 +343,10 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       ball.h = 12
     }
     cat.el.style.left = `${cat.x}px`
-    ball.el.style.left = `${ball.x}px`
-    ball.el.style.transform = `translate(-50%, ${-ball.h}px)${ball.squash > now ? " scale(1.2, 0.8)" : ""}`
+    for (const t of toys) {
+      t.el.style.left = `${t.x}px`
+      t.el.style.transform = `translate(-50%, ${-t.h}px)${t.squash > now ? " scale(1.2, 0.8)" : ""}`
+    }
     for (let i = waiters.length - 1; i >= 0; i--) {
       const w = waiters[i]
       if (w.id !== act) {
@@ -337,7 +368,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     cat.flip = false
     if (cat.carry) ball.h = 0
     cat.carry = false
-    ball.held = false
+    for (const t of toys) t.held = false
     resting = false
     asleep = false
     window.clearTimeout(idle)
@@ -376,7 +407,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     ball.el.style.transform = `translate(-50%, ${-h}px)`
     cat.el.style.left = `${cat.x}px`
     ball.el.style.opacity = "1"
-    draw(ball.el.firstChild as SVGElement, ballSprite(ball.spin))
+    paint(ball)
   }
   /** The swipe: down, the paw back, the paw on the ball, the carry through. Nothing moves before the paw meets the
    * ball; both hold still for a beat on contact, then the ball leaves with a small hop */
@@ -389,7 +420,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     S({ f: "hit", eyes: "down" })
     await wait(50, id)
     ball.held = false
-    ball.vx = dir * Math.sqrt(2 * FRICTION * far * 0.55) * (0.9 + Math.random() * 0.2)
+    ball.vx = dir * Math.sqrt(2 * ball.fr * far * 0.55) * (0.9 + Math.random() * 0.2)
     ball.vh = 150
     S({ f: "follow" })
     await wait(170, id)
@@ -477,7 +508,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       S({ f: i % 2 ? "roll2" : "roll1", tail: "low" })
       ball.x = over + (i % 2 ? 4 : -4) * dir
       ball.h = i === 0 ? 14 : i % 2 ? 36 : 26
-      draw(ball.el.firstChild as SVGElement, ballSprite(++ball.spin))
+      ball.spin++
+      paint(ball)
       await wait(190, id)
     }
     ball.held = false
@@ -604,7 +636,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       S({ f: "up2" })
       ball.h = 31
       ball.vh = 230 + Math.random() * 60
-      draw(ball.el.firstChild as SVGElement, ballSprite(++ball.spin))
+      ball.spin++
+      paint(ball)
       await wait(100, id)
     }
     S({ f: "up1" })
@@ -670,8 +703,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     S()
   }
   /** It takes the ball in its mouth, carries it to the other side of the roof, and puts it down */
-  const carry = async (id: number) => {
-    if (!ball.on) return
+  const carryTo = async (id: number, to: number) => {
     const dir = ball.x < cat.x ? -1 : 1
     await turn(id, dir)
     if (Math.abs(cat.x - (ball.x - dir * 24)) > 5) await goTo(id, ball.x - dir * 24, WALK)
@@ -683,9 +715,10 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     cat.carry = true
     S()
     await wait(160, id)
-    const to = cat.x > W() / 2 ? W() * 0.22 : W() * 0.78
     await turn(id, to < cat.x ? -1 : 1)
     await goTo(id, to, 80)
+  }
+  const putDown = async (id: number) => {
     S({ f: "trap", eyes: "down" })
     await wait(220, id)
     cat.carry = false
@@ -694,16 +727,158 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     S()
     await wait(220, id)
   }
+  const carry = async (id: number) => {
+    if (!ball.on) return
+    await carryTo(id, cat.x > W() / 2 ? W() * 0.22 : W() * 0.78)
+    await putDown(id)
+  }
+  /* The mark. Side by side, the triangle first, the two toys are the Playground mark, and now and then the cat puts
+     them so, a different way each time (Almaz, 26 Nov): it carries the triangle over, nudges it along with its paw,
+     bats the ball across to it, or tosses the triangle up so it lands in place. Then it sits by them, pleased */
+  // Centre to centre with the triangle's tip against the ball, as in the mark: half of three cells and half of five
+  const PAIR = 12
+  const bring = async (id: number) => {
+    // Room for the cat and the triangle on the ball's left; a ball too near the roof's end is carried in first
+    if (yarn.x < 96) {
+      ball = yarn
+      await carryTo(id, 96 + 30)
+      await turn(id, -1)
+      await putDown(id)
+    }
+    ball = tri
+    await carryTo(id, yarn.x - PAIR - 24)
+    await turn(id, 1)
+    await wait(120, id)
+    await putDown(id)
+  }
+  const nudge = async (id: number) => {
+    ball = tri
+    const dest = yarn.x - PAIR
+    await turn(id, tri.x - REACH < cat.x ? -1 : 1)
+    await goTo(id, tri.x - REACH, 70)
+    cat.dir = 1
+    for (let i = 0; i < 12 && dest - tri.x > 2; i++) {
+      S({ f: "hit", eyes: "down" })
+      // As far as one tap slides it, and no further than the ball
+      tri.vx = Math.sqrt(2 * tri.fr * Math.min(dest - tri.x, 34))
+      await wait(80, id)
+      cat.vmax = 95
+      cat.follow = true
+      await until(() => Math.abs(tri.vx) < 5 && Math.abs((cat.target ?? cat.x) - cat.x) < 3, id)
+      cat.follow = false
+      cat.target = null
+      cat.v = 0
+    }
+    S()
+  }
+  const batOver = async (id: number) => {
+    ball = yarn
+    const dest = tri.x + PAIR
+    await turn(id, yarn.x + REACH < cat.x ? -1 : 1)
+    await goTo(id, yarn.x + REACH, 70)
+    cat.dir = -1
+    S({ f: "crouch", tail: "low", eyes: "down" })
+    await wait(160, id)
+    S({ f: "wind", eyes: "down", tail: "mid" })
+    await wait(90, id)
+    S({ f: "hit", eyes: "down" })
+    await wait(50, id)
+    // Rolled, not hopped: friction alone stops it, right by the triangle
+    yarn.vx = -Math.sqrt(2 * yarn.fr * (yarn.x - dest))
+    S({ f: "follow" })
+    await wait(170, id)
+    S()
+    await until(() => yarn.vx === 0, id)
+    yarn.x = dest
+    await wait(200, id)
+  }
+  const toss = async (id: number) => {
+    ball = tri
+    const dest = yarn.x - PAIR
+    const dir = dest < tri.x ? -1 : 1
+    const spot = clamp(tri.x - dir * 21)
+    await turn(id, spot < cat.x ? -1 : 1)
+    if (Math.abs(cat.x - spot) > 5) await goTo(id, spot, WALK)
+    cat.dir = dir
+    S({ f: "crouch", eyes: "down" })
+    await wait(180, id)
+    tri.vx = 0
+    tri.x = cat.x + dir * 21
+    tri.h = 4
+    tri.vh = 300
+    for (let i = 0; i < 3; i++) {
+      S({ f: "up1" })
+      await until(() => tri.vh < 0 && tri.h <= 31, id)
+      S({ f: "up2" })
+      tri.h = 31
+      tri.vh = 240
+      if (i < 2) await wait(100, id)
+    }
+    // The third one sends it over in an arc, down beside the ball
+    tri.held = true
+    const from = tri.x, t0 = now
+    await until(() => {
+      const k = Math.min(1, (now - t0) / 560)
+      tri.x = from + (dest - from) * k
+      tri.h = 31 * (1 - k) + 190 * k * (1 - k)
+      return k === 1
+    }, id)
+    tri.held = false
+    tri.vh = 0
+    tri.squash = now + 80
+    S({ f: "up1" })
+    await wait(160, id)
+    S({ f: "crouch", tail: "mid" })
+    await wait(150, id)
+    S()
+  }
+  let marks = Math.floor(Math.random() * 4)
+  const mark = async (id: number) => {
+    const k = marks++ % 4, gap = yarn.x - tri.x, fly = Math.abs(yarn.x - PAIR - tri.x)
+    if (yarn.x < 40) await bring(id)
+    else if (k === 1 && gap > 45 && tri.x - REACH >= LO) await nudge(id)
+    else if (k === 2 && gap > 45 && yarn.x + REACH <= HI()) await batOver(id)
+    else if (k === 3 && fly > 30 && fly < 170) await toss(id)
+    else await bring(id)
+    for (const t of toys) Object.assign(t, { vx: 0, vh: 0, h: 0 })
+    // On whole cells, so the two meet edge to edge with no seam
+    yarn.x = Math.round((yarn.x - 1.5) / K) * K + 1.5
+    tri.x = yarn.x - PAIR
+    // It comes and sits right by the pair, on the side it is nearer to
+    const left = tri.x - 26, right = yarn.x + 26
+    const to = (cat.x < yarn.x - 7 && left >= LO) || right > HI() ? left : right
+    if (Math.abs(cat.x - to) > 4) {
+      await turn(id, to < cat.x ? -1 : 1)
+      await goTo(id, to, 60)
+    }
+    cat.flip = cat.x < tri.x
+    F({ eyes: cat.x < tri.x ? "right" : "left", ears: "perk" })
+    await wait(900, id)
+    F({ eyes: "happy", ears: "perk" })
+    await wait(1900, id)
+    ball = yarn
+  }
   /* The games, taken in turn so the same one doesn't come twice running. A phone has no room to run */
   const GAMES = phone ? [backPlay, juggle, ambush] : [(id: number) => playWith(id, 1), backPlay, juggle, ambush, dribble, carry]
   let next = Math.floor(Math.random() * GAMES.length)
+  let plays = 0
   const game = async (id: number) => {
+    plays++
+    if (tri.on && yarn.on && plays % 3 === 0) return mark(id)
+    ball = tri.on && plays % 2 === 0 ? tri : yarn
     if (!ball.on) {
       throwBall(clamp(cat.x + (cat.x > W() / 2 ? -60 : 60)), 120, 0)
       await watch(id)
     }
     await GAMES[next++ % GAMES.length](id)
     await hold(id, 700)
+    // After its first game a second toy drops in, on the roof's emptier side
+    if (!tri.on) {
+      ball = tri
+      throwBall(clamp(yarn.x > W() / 2 ? W() * 0.25 : W() * 0.7), 120, 0)
+      await watch(id, 500)
+      ball = yarn
+    }
   }
   const sleep = async (id: number) => {
     asleep = true
@@ -767,13 +942,15 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   panel.addEventListener("pointermove", onMove)
   panel.addEventListener("pointerleave", onOut)
-  ball.el.onclick = () => {
-    if (!ball.on || gone) return
-    ball.held = false
-    ball.vx = (ball.x < W() / 2 ? 1 : -1) * (phone ? 80 : 150 + Math.random() * 60)
-    ball.vh = 240
-    play(after)
-  }
+  for (const t of toys)
+    t.el.onclick = () => {
+      if (!t.on || gone) return
+      // First, so the last act lets go of what it held
+      play(after)
+      ball = t
+      t.vx = (t.x < W() / 2 ? 1 : -1) * (phone ? 80 : 150 + Math.random() * 60)
+      t.vh = 240
+    }
   cat.el.onclick = () => !gone && play(game)
 
   function stop() {
@@ -786,10 +963,9 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     panel.removeEventListener("pointermove", onMove)
     panel.removeEventListener("pointerleave", onOut)
     cat.el.remove()
-    ball.el.remove()
+    for (const t of toys) t.el.remove()
   }
 
-  ball.el.style.opacity = "0"
   if (reducedMotion()) {
     cat.x = home()
     throwBall(cat.x - 26, 0)
@@ -824,9 +1000,11 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       window.clearTimeout(typed)
       if (reducedMotion()) return stop()
       play(async (id) => {
-        ball.on = false
-        ball.el.style.transition = "opacity 160ms"
-        ball.el.style.opacity = "0"
+        for (const t of toys) {
+          t.on = false
+          t.el.style.transition = "opacity 160ms"
+          t.el.style.opacity = "0"
+        }
         cat.flip = false
         cat.dir = 1
         if (!quick) {
@@ -848,11 +1026,6 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
 }
 
-/* The switch's own drawing, 9 by 7 at two px a cell so every cell lands on whole pixels: the same head, ears up in
-   both states, since the ears are what say "cat". On, the eyes are open; off, they are two shut lines and the
-   head is dim */
-const ICON = ["X.......X", "XX.....XX", "XXXXXXXXX", "XooXXXooX", "XccXXXccX", "XXXXXXXXX", ".XXXXXXX."]
-
 /** The cat's own switch, at the end of the line under the field: it hides the cat and brings it back, in every chat */
 export function SoleToggle({ on, onToggle, className }: { on: boolean; onToggle: () => void; className?: string }) {
   return (
@@ -865,15 +1038,10 @@ export function SoleToggle({ on, onToggle, className }: { on: boolean; onToggle:
       // As tall as the network and the model beside it; the tap area reaches 44 without moving the line
       className={`relative flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md before:absolute before:-inset-x-1 before:-inset-y-2.5 hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple ${on ? "text-muted-foreground" : "text-muted-foreground/45"} ${className ?? ""}`}
     >
-      <svg viewBox="0 0 9 7" width="18" height="14" shapeRendering="crispEdges" aria-hidden="true">
-        {ICON.flatMap((row, y) =>
-          [...row].map((c, x) => {
-            // The eyes are cut out of the head, so they read on any ground: two by two when open, one shut line when off
-            if (c === "." || c === "c" || (on && c === "o")) return null
-            return <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="currentColor" />
-          })
-        )}
-      </svg>
+      {/* A line drawing like the icons beside it, not the cat's own pixels: three tries at a pixel head read as a
+          mask, an owl and a lump at this size, and the switch is the interface's, the pixels are the cat's (Almaz,
+          26 Nov) */}
+      <Cat aria-hidden="true" className="size-4" strokeWidth={1.5} />
     </button>
   )
 }
