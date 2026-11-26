@@ -13,8 +13,9 @@ import { reducedMotion } from "./type"
    game it puts the triangle and the ball side by side, which is the Playground mark (26 Nov). Grey on purpose, in the interface's own tones: the motion already draws the
    eye, and purple and green mean "current" and "success" here. Board: prototype/review-high/sole-character/roof.html.
    ?sole=full|short|off overrides the once a day rule for a review. It is switched by the small cat under the field
-   (SoleToggle), in Settings (Assistant, "Sole the cat"), from ⌘K, or by asking the assistant (programs/store.ts,
-   soleAsk) */
+   (SoleToggle), in Settings (Assistant, "The cat"), from ⌘K, or by asking the assistant (programs/store.ts,
+   soleAsk). In the interface it is "the cat": Sole is the name kept for the assistant's own brand (DES-134), and
+   the cat is a pet, not that (Nikita and Almaz, 26 Nov). The code keeps its first name */
 
 const CSS = `
 .sole-cat svg { display: block; shape-rendering: crispEdges; }
@@ -249,7 +250,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   /** The toy the cat is playing with now */
   let ball = yarn
   const paint = (t: typeof yarn) => draw(t.el.firstChild as SVGElement, t.sprite(t.spin))
-  cat.el.title = "Sole. Click it and it plays"
+  cat.el.title = "Click the cat and it plays"
   const W = () => stage.clientWidth
   const LO = 26, HI = () => W() - 26
   const clamp = (x: number) => Math.max(LO, Math.min(HI(), x))
@@ -1032,8 +1033,8 @@ export function SoleToggle({ on, onToggle, className }: { on: boolean; onToggle:
     <button
       type="button"
       aria-pressed={on}
-      aria-label="Sole the cat"
-      title={on ? "Hide Sole the cat" : "Bring Sole the cat back"}
+      aria-label="The cat"
+      title={on ? "Hide the cat" : "Bring the cat back"}
       onClick={onToggle}
       // As tall as the network and the model beside it; the tap area reaches 44 without moving the line
       className={`relative flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md before:absolute before:-inset-x-1 before:-inset-y-2.5 hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple ${on ? "text-muted-foreground" : "text-muted-foreground/45"} ${className ?? ""}`}

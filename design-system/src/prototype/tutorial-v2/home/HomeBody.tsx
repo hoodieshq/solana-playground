@@ -170,7 +170,7 @@ function StartBox() {
     if (sole !== null) {
       setCatShown(sole)
       setText("")
-      return void toast(sole ? "Sole is back. It sits on the assistant's field in an empty chat." : "Sole is hidden. Search or Settings bring it back.")
+      return void toast(sole ? "The cat is back. It sits on the assistant's field in a project." : "The cat is hidden. Search or Settings bring it back.")
     }
     if (describeUnavailable(env)) return openFirstLight({ entry: "home-tile", source: "describe", text: t })
     setSending(true)

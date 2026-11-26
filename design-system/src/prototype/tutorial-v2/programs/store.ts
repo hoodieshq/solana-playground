@@ -1072,7 +1072,7 @@ export function ask(id: string, text: string) {
   const sole = soleAsk(words)
   if (sole !== null) {
     setCatShown(sole)
-    return later(700, () => update(id, (q) => post(q, { k: "assistant", text: sole ? "Sole is back. You'll see it the next time a chat is empty." : "Done, Sole is off. Settings has the switch, or tell me to bring the cat back." })))
+    return later(700, () => update(id, (q) => post(q, { k: "assistant", text: sole ? "The cat is back on the field." : "Done, the cat is off. Settings has the switch, or tell me to bring the cat back." })))
   }
   const p = state.projects[id]
   if (p?.draft) return later(700, () => update(id, (q) => (q.draft ? draftReply(q, text) : q)))

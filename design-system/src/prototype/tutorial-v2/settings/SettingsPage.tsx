@@ -102,7 +102,7 @@ export function SettingsPage({ scene, section, rpcForm, onClose }: { scene: Scen
             <Group id="assistant" title="Assistant">
               <AssistantGroup scene={scene} />
               {/* The cat that sits on the assistant's field while a chat is empty. The assistant turns it off too, when asked */}
-              <Row label="Sole the cat" htmlFor="oak-sole">
+              <Row label="The cat" htmlFor="oak-sole">
                 <Switch id="oak-sole" checked={settings.sole} onCheckedChange={setSole} />
               </Row>
             </Group>
