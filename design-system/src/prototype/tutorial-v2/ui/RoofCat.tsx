@@ -8,7 +8,7 @@ import { reducedMotion } from "./type"
    a day it climbs up and plays a round with a ball of yarn; after that it only hops up, and a ball drops beside it.
    It is there to make the panel feel lived in, not to help: it blinks, follows the pointer with its eyes, listens
    while you type, plays one of six games when you press it or its ball, plays by itself now and then, and sleeps
-   once the pointer has left the panel. After its first game a triangle drops in as a second toy, and every third
+   once the pointer has left the panel. A triangle drops in with the ball as a second toy, and every third
    game it puts the triangle and the ball side by side, which is the Playground mark (26 Nov). Grey on purpose, in the interface's own tones: the motion already draws the
    eye, and purple and green mean "current" and "success" here. Board: prototype/review-high/sole-character/roof.html.
    ?sole=full|short|off overrides the once a day rule for a review. It is switched by the small cat under the field
@@ -189,8 +189,12 @@ export function side(pose: Side): Sprite {
 const round = (x: number, y: number) => (x % 4 !== 0 || y % 4 !== 0) && x >= 0 && x < 5 && y >= 0 && y < 5
 const grid = (on: (x: number, y: number) => string | false): Cell[] => [0, 1, 2, 3, 4].flatMap((y) => [0, 1, 2, 3, 4].flatMap((x): Cell[] => (on(x, y) ? [[x, y, on(x, y) as string]] : [])))
 const ballSprite = (spin: number): Sprite => ({ cells: grid((x, y) => round(x, y) && ((x + y + spin) % 4 === 0 ? "y" : "o")), box: "0 0 5 5", w: 5, h: 5 })
-/* Three plain points. With its corners a shade down to round them it stopped reading as a triangle (Almaz, 26 Nov) */
-const TRI: Sprite = { cells: grid((x, y) => x <= 2 - Math.abs(y - 2) && "o"), box: "0 0 3 5", w: 3, h: 5 }
+/* Three plain points: with its corners a shade down to round them it stopped reading as a triangle (Almaz, 26 Nov).
+   It has weight: thrown, it tumbles through its four turns, and it comes to rest on its long side, point up, not
+   balanced on a corner (Almaz, 26 Nov). Stood on end against the ball, point to it, it is the mark's triangle */
+const tall = (flip: boolean): Sprite => ({ cells: grid((x, y) => x < 3 && (flip ? x >= Math.abs(y - 2) : x <= 2 - Math.abs(y - 2)) && "o"), box: "0 0 3 5", w: 3, h: 5 })
+const wide = (flip: boolean): Sprite => ({ cells: grid((x, y) => y < 3 && Math.abs(x - 2) <= (flip ? 2 - y : y) && "o"), box: "0 0 5 3", w: 5, h: 3 })
+const TRIS = [wide(false), tall(false), wide(true), tall(true)]
 
 const NS = "http://www.w3.org/2000/svg"
 /* The stage is laid out half as wide again as the composer and scaled to two thirds: a 3 px cell draws as 2, and
@@ -235,8 +239,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     return d
   }
   const cat = { el: el(), x: 0, v: 0, dir: 1, target: null as number | null, vmax: WALK, odo: 0, follow: false, air: false, flip: false, carry: false }
-  const toy = (sprite: (spin: number) => Sprite, fr: number, bounce: number) => {
-    const t = { el: el(), x: 0, h: 0, vx: 0, vh: 0, on: false, spin: 0, odo: 0, held: false, squash: 0, fr, bounce, sprite }
+  const toy = (sprite: (spin: number) => Sprite, fr: number, bounce: number, settle = false) => {
+    const t = { el: el(), x: 0, h: 0, vx: 0, vh: 0, on: false, spin: 0, odo: 0, held: false, squash: 0, fr, bounce, sprite, settle }
     t.el.style.transformOrigin = "50% 100%"
     t.el.style.padding = "8px 8px 0"
     t.el.style.opacity = "0"
@@ -244,7 +248,9 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   // The yarn rolls; the triangle slides a little way and stops
   const yarn = toy(ballSprite, FRICTION, BOUNCE)
-  const tri = toy(() => TRI, 420, 0.25)
+  /** Stood on end by the cat, point to the ball */
+  let stood = false
+  const tri = toy((n) => TRIS[stood ? 1 : n % 4], 420, 0.25, true)
   const toys = [yarn, tri]
   /** The toy the cat is playing with now */
   let ball = yarn
@@ -297,10 +303,15 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
         }
       }
       ball.x += ball.vx * dt
-      ball.odo += Math.abs(ball.vx) * dt
+      ball.odo += (Math.abs(ball.vx) + (ball.h > 0 ? Math.abs(ball.vh) * 0.25 : 0)) * dt
       if (ball.odo > 6) {
         ball.odo = 0
         ball.spin++
+        paint(ball)
+      }
+      // At rest it lies on its long side
+      if (ball.settle && ball.spin % 4 && ball.h === 0 && ball.vh === 0 && ball.vx === 0) {
+        ball.spin = 0
         paint(ball)
       }
       if (ball.h < -130) {
@@ -369,6 +380,12 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     if (cat.carry) ball.h = 0
     cat.carry = false
     for (const t of toys) t.held = false
+    // What it stood on end falls back on its side, clear of the ball
+    if (stood) {
+      stood = false
+      tri.x -= 4.5
+      paint(tri)
+    }
     resting = false
     asleep = false
     window.clearTimeout(idle)
@@ -399,6 +416,13 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       await wait(70, id)
       if (!ball.on) break
     }
+  }
+  /** The triangle comes with the ball (Almaz, 26 Nov), not after the first game */
+  const dropTri = (x: number, h: number, vx = 0) => {
+    const was = ball
+    ball = tri
+    throwBall(clamp(x), h, vx)
+    ball = was
   }
   const throwBall = (x: number, h: number, vx = 0) => {
     Object.assign(ball, { x, h, vx, vh: 0, on: true, held: false })
@@ -577,12 +601,14 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     await wait(260, id)
     if (phone) {
       throwBall(cat.x - 40, 130, 14)
+      dropTri(cat.x - 96, 150, 0)
       await watch(id)
       await pat(id, 3)
       F({ eyes: "happy" })
       return wait(500, id)
     }
     throwBall(W() * 0.4, 120, 40)
+    dropTri(W() * 0.18, 150, 12)
     await playWith(id, 1)
     await hold(id, 800)
   }
@@ -594,6 +620,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     F()
     await wait(700, id)
     throwBall(cat.x - 36, 120, 8)
+    dropTri(cat.x - 92, 150, -10)
     await watch(id, 400)
     F({ eyes: "left" })
     await wait(500, id)
@@ -821,6 +848,10 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       const k = Math.min(1, (now - t0) / 560)
       tri.x = from + (dest - from) * k
       tri.h = 31 * (1 - k) + 190 * k * (1 - k)
+      if (tri.spin !== Math.floor(k * 5)) {
+        tri.spin = Math.floor(k * 5)
+        paint(tri)
+      }
       return k === 1
     }, id)
     tri.held = false
@@ -844,6 +875,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     // On whole cells, so the two meet edge to edge with no seam
     yarn.x = Math.round((yarn.x - 1.5) / K) * K + 1.5
     tri.x = yarn.x - PAIR
+    stood = true
+    paint(tri)
     // It comes and sits right by the pair, on the side it is nearer to
     const left = tri.x - 26, right = yarn.x + 26
     const to = (cat.x < yarn.x - 7 && left >= LO) || right > HI() ? left : right
@@ -872,7 +905,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     }
     await GAMES[next++ % GAMES.length](id)
     await hold(id, 700)
-    // After its first game a second toy drops in, on the roof's emptier side
+    // A triangle that went over the edge comes back, on the roof's emptier side
     if (!tri.on) {
       ball = tri
       throwBall(clamp(yarn.x > W() / 2 ? W() * 0.25 : W() * 0.7), 120, 0)
@@ -969,6 +1002,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   if (reducedMotion()) {
     cat.x = home()
     throwBall(cat.x - 26, 0)
+    dropTri(cat.x - 62, 0)
     F()
     tick()
     window.clearInterval(clock)
@@ -976,6 +1010,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     // Back on a chat it already climbed into (the phone's Code and Ask, the panel hidden and shown): it is just there
     cat.x = home()
     throwBall(cat.x - 26, 0)
+    dropTri(cat.x - 62, 0)
     play(async () => {})
   } else play(mode === "full" ? show : again)
 
