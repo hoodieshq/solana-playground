@@ -478,7 +478,11 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     )
   }
 
-  const eyesOn = (x: number, h = 0): Eyes => (h > 26 ? "up" : x < cat.x - 14 ? "left" : x > cat.x + 14 ? "right" : "down")
+  /* Which way to look, for a cat facing you. Sat with its tail the other way the whole drawing is mirrored, eyes and
+     all, so left and right change places: without this it followed the pointer and its toys the wrong way after
+     any game that left it mirrored (Sergey, 26 Nov, on a recording) */
+  const side2 = (e: Eyes): Eyes => (!cat.flip ? e : e === "left" ? "right" : e === "right" ? "left" : e)
+  const eyesOn = (x: number, h = 0): Eyes => (h > 26 ? "up" : side2(x < cat.x - 14 ? "left" : x > cat.x + 14 ? "right" : "down"))
   const goTo = async (id: number, x: number, vmax = WALK) => {
     cat.vmax = vmax
     cat.target = clamp(x)
@@ -529,7 +533,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   /** Turning round goes through a glance at you, not a flip */
   const turn = async (id: number, dir: number) => {
     if (cat.dir === dir) return
-    F({ eyes: dir < 0 ? "left" : "right", ears: "perk" })
+    F({ eyes: side2(dir < 0 ? "left" : "right"), ears: "perk" })
     await wait(90, id)
     cat.dir = dir
   }
@@ -1099,7 +1103,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       await goTo(id, to, 60)
     }
     cat.flip = cat.x < tri.x
-    F({ eyes: cat.x < tri.x ? "right" : "left", ears: "perk" })
+    F({ eyes: side2(cat.x < tri.x ? "right" : "left"), ears: "perk" })
     await wait(900, id)
     F({ eyes: "happy", ears: "perk" })
     await wait(1900, id)
@@ -1178,7 +1182,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   /* Sitting: blink, a sway of the tail, the eyes on the pointer. Forty seconds with the pointer out of the panel
      and it lies down to sleep */
-  const gaze = (): Eyes => (pointer ? (pointer.y > 0 && Math.abs(pointer.x - cat.x) < 30 ? "down" : pointer.x < cat.x - 14 ? "left" : pointer.x > cat.x + 14 ? "right" : "open") : "open")
+  const gaze = (): Eyes => (pointer ? (pointer.y > 0 && Math.abs(pointer.x - cat.x) < 30 ? "down" : side2(pointer.x < cat.x - 14 ? "left" : pointer.x > cat.x + 14 ? "right" : "open")) : "open")
   const rest = async (id: number) => {
     resting = true
     idle = window.setTimeout(() => id === act && !pointer && play(sleep), 40000)
