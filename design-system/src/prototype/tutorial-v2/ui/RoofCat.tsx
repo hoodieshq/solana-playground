@@ -242,7 +242,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   const toy = (sprite: (spin: number) => Sprite, fr: number, bounce: number, settle = false) => {
     const t = { el: el(), x: 0, h: 0, vx: 0, vh: 0, on: false, spin: 0, odo: 0, held: false, squash: 0, fr, bounce, sprite, settle }
     t.el.style.transformOrigin = "50% 100%"
-    t.el.style.padding = "8px 8px 0"
+    // Room round it to press: more for a finger, where the toy alone is ten px
+    t.el.style.padding = matchMedia("(hover: none)").matches ? "18px 16px 0" : "8px 8px 0"
     t.el.style.opacity = "0"
     return t
   }
@@ -286,6 +287,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     const t = performance.now()
     const dt = Math.min(0.05, (t - last) / 1000)
     last = t
+    // The panel is hidden: no roof to stand on, so nothing moves. Counted as wide as nought, every toy fell off it
+    if (!W()) return
     now += dt * 1000
     for (const ball of toys) {
       if (!ball.on || ball.held) continue
@@ -317,6 +320,31 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       if (ball.h < -130) {
         ball.on = false
         ball.el.style.opacity = "0"
+      }
+    }
+    /* The toys are solid to each other (Almaz, 26 Nov: the ball rolled straight through the triangle). The triangle
+       is the heavier of the two, so a rolling ball comes back off it at about a third of its speed and shoves it a
+       little way on; a ball that drops on it glances off its slope to the nearer side. Not while the cat holds either, and
+       not while they stand as the mark */
+    if (yarn.on && tri.on && !yarn.held && !tri.held && !stood) {
+      const flat = tri.spin % 2 === 0, half = (flat ? 7.5 : 4.5) + 7.5, top = tri.h + (flat ? 9 : 15)
+      const dx = yarn.x - tri.x, side = dx < 0 ? -1 : 1
+      if (Math.abs(dx) < half && yarn.h < top && tri.h < yarn.h + 15) {
+        if (yarn.vh < 0 && yarn.h > top - 6) {
+          yarn.h = top
+          yarn.vx += side * Math.max(40, -yarn.vh * 0.45)
+          yarn.vh = -yarn.vh * 0.4
+        } else {
+          const rel = yarn.vx - tri.vx
+          // Only when they are closing: once apart in speed they are let part
+          if (rel * side < 0) {
+            const sum = yarn.vx + 3 * tri.vx
+            yarn.vx = (sum - 3 * 0.8 * rel) / 4
+            tri.vx = (sum + 0.8 * rel) / 4
+            if (Math.abs(rel) > 110 && yarn.h === 0) yarn.vh = 70
+          }
+          yarn.x = tri.x + side * half
+        }
       }
     }
     if (cat.follow && ball.on) cat.target = clamp(ball.x - Math.sign(ball.x - cat.x || 1) * REACH)
@@ -353,6 +381,8 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       ball.x = cat.x + cat.dir * 24
       ball.h = 12
     }
+    // The roof got shorter under it (the panel was dragged narrower): it stays on it
+    if (cat.target == null && !cat.air && (cat.x < LO || cat.x > HI())) cat.x = clamp(cat.x)
     cat.el.style.left = `${cat.x}px`
     for (const t of toys) {
       t.el.style.left = `${t.x}px`
@@ -547,7 +577,12 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   /** Caught: sit by the ball, face out, a paw on it */
   const hold = async (id: number, ms: number) => {
     if (ball.on) {
-      const right = cat.x >= ball.x
+      // On the side it is already on, unless the other toy lies there: it sat down on top of it
+      const other = ball === yarn ? tri : yarn
+      const taken = (r: boolean) => other.on && Math.abs(ball.x + (r ? 22 : -22) - other.x) < 26
+      const free = (r: boolean) => !taken(r) && ball.x + (r ? 22 : -22) >= LO && ball.x + (r ? 22 : -22) <= HI()
+      const near = cat.x >= ball.x
+      const right = free(near) || !free(!near) ? near : !near
       if (Math.abs(cat.x - (ball.x + (right ? 22 : -22))) > 8) await goTo(id, ball.x + (right ? 22 : -22), 60)
       cat.flip = !right
       ball.vx = 0
@@ -625,23 +660,36 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     F({ eyes: "left" })
     await wait(500, id)
   }
-  /** The ball was sent off by a click: it goes after it and plays a round or two. If the ball went over the edge it
-   * runs there, looks down, and a new one drops in */
+  /** A toy went over the roof's end: it runs to the edge and looks down after it, then sits back, waits, looks up,
+   * and the toy drops to it from above (Almaz, 26 Nov: it liked the loss, so every game ends this way, not only a
+   * click on the ball) */
+  const lost = async (id: number) => {
+    if (ball.on) return
+    const end = ball.x > W() / 2 ? 1 : -1
+    await turn(id, end)
+    await goTo(id, end > 0 ? HI() : LO, phone ? 80 : RUN)
+    S({ f: "skid" })
+    await wait(120, id)
+    // Its tail lies along the roof, not out over the end
+    cat.flip = end > 0
+    F({ eyes: "down", ears: "flat", tail: "down" })
+    await wait(1200, id)
+    F({ eyes: "blink", ears: "flat", tail: "down" })
+    await wait(140, id)
+    F({ tail: "mid" })
+    await wait(700, id)
+    F({ eyes: "up", ears: "perk" })
+    await wait(450, id)
+    throwBall(cat.x - end * 34, 140, -end * 6)
+    await watch(id, 400)
+  }
+  /** The ball was sent off by a click: it goes after it and plays a round or two */
   const after = async (id: number) => {
     if (phone) {
       await watch(id, 200)
       if (ball.on) await pat(id, 2)
     } else await playWith(id, 1 + (Math.random() < 0.5 ? 1 : 0))
-    if (!ball.on) {
-      await turn(id, ball.x > W() / 2 ? 1 : -1)
-      await goTo(id, ball.x > W() / 2 ? HI() : LO, RUN)
-      S({ f: "skid" })
-      await wait(120, id)
-      F({ eyes: "down", ears: "flat", tail: "down" })
-      await wait(1300, id)
-      throwBall(W() * 0.5, 130, cat.x > W() / 2 ? 16 : -16)
-      await watch(id)
-    }
+    await lost(id)
     await hold(id, 800)
   }
   /** Up on its hind legs, keeping the ball in the air with its front paws; the fifth time it gets away */
@@ -762,8 +810,10 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   /* The mark. Side by side, the triangle first, the two toys are the Playground mark, and now and then the cat puts
      them so, a different way each time (Almaz, 26 Nov): it carries the triangle over, nudges it along with its paw,
      bats the ball across to it, or tosses the triangle up so it lands in place. Then it sits by them, pleased */
-  // Centre to centre with the triangle's tip against the ball, as in the mark: half of three cells and half of five
-  const PAIR = 12
+  // Centre to centre, the triangle on end with its tip one px short of the ball, as the mark spaces them: touching,
+  // the two ran together and the triangle looked too narrow for the ball (Almaz, 26 Nov). FLAT is the same for the
+  // triangle lying on its side beside the ball, before the cat stands it up
+  const PAIR = 13.5, FLAT = 16.5
   const bring = async (id: number) => {
     // Room for the cat and the triangle on the ball's left; a ball too near the roof's end is carried in first
     if (yarn.x < 96) {
@@ -773,14 +823,14 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
       await putDown(id)
     }
     ball = tri
-    await carryTo(id, yarn.x - PAIR - 24)
+    await carryTo(id, yarn.x - FLAT - 24)
     await turn(id, 1)
     await wait(120, id)
     await putDown(id)
   }
   const nudge = async (id: number) => {
     ball = tri
-    const dest = yarn.x - PAIR
+    const dest = yarn.x - FLAT
     await turn(id, tri.x - REACH < cat.x ? -1 : 1)
     await goTo(id, tri.x - REACH, 70)
     cat.dir = 1
@@ -800,7 +850,7 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
   const batOver = async (id: number) => {
     ball = yarn
-    const dest = tri.x + PAIR
+    const dest = tri.x + FLAT
     await turn(id, yarn.x + REACH < cat.x ? -1 : 1)
     await goTo(id, yarn.x + REACH, 70)
     cat.dir = -1
@@ -857,6 +907,9 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
     tri.held = false
     tri.vh = 0
     tri.squash = now + 80
+    // Thrown, it lands on end
+    stood = true
+    paint(tri)
     S({ f: "up1" })
     await wait(160, id)
     S({ f: "crouch", tail: "mid" })
@@ -867,16 +920,46 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   const mark = async (id: number) => {
     const k = marks++ % 4, gap = yarn.x - tri.x, fly = Math.abs(yarn.x - PAIR - tri.x)
     if (yarn.x < 40) await bring(id)
-    else if (k === 1 && gap > 45 && tri.x - REACH >= LO) await nudge(id)
-    else if (k === 2 && gap > 45 && yarn.x + REACH <= HI()) await batOver(id)
+    // Nudged or rolled only over a short way: on a tablet's long field a dozen taps did not reach
+    else if (k === 1 && gap > 45 && gap < 300 && tri.x - REACH >= LO) await nudge(id)
+    else if (k === 2 && gap > 45 && gap < 300 && yarn.x + REACH <= HI()) await batOver(id)
     else if (k === 3 && fly > 30 && fly < 170) await toss(id)
     else await bring(id)
     for (const t of toys) Object.assign(t, { vx: 0, vh: 0, h: 0 })
-    // On whole cells, so the two meet edge to edge with no seam
+    // On whole cells, so both draw on whole px
     yarn.x = Math.round((yarn.x - 1.5) / K) * K + 1.5
+    // Lying on its side by the ball, it is stood up: a paw under it, and it tips on end against the ball
+    // (Almaz, 26 Nov)
+    if (!stood) {
+      tri.x = yarn.x - FLAT
+      tri.held = true
+      const spot = tri.x - REACH
+      if (spot >= LO) {
+        if (Math.abs(cat.x - spot) > 4) {
+          await turn(id, spot < cat.x ? -1 : 1)
+          await goTo(id, spot, 60)
+        }
+        cat.dir = 1
+        S({ f: "crouch", tail: "low", eyes: "down" })
+        await wait(160, id)
+        S({ f: "wind", eyes: "down", tail: "mid" })
+        await wait(130, id)
+        S({ f: "hit", eyes: "down" })
+        tri.h = 3
+        await wait(80, id)
+      }
+      stood = true
+      tri.x = yarn.x - PAIR
+      tri.h = 4
+      paint(tri)
+      S({ f: "follow" })
+      await wait(110, id)
+      tri.h = 0
+      tri.held = false
+      tri.squash = now + 80
+      await wait(260, id)
+    }
     tri.x = yarn.x - PAIR
-    stood = true
-    paint(tri)
     // It comes and sits right by the pair, on the side it is nearer to
     const left = tri.x - 26, right = yarn.x + 26
     const to = (cat.x < yarn.x - 7 && left >= LO) || right > HI() ? left : right
@@ -897,21 +980,23 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   let plays = 0
   const game = async (id: number) => {
     plays++
-    if (tri.on && yarn.on && plays % 3 === 0) return mark(id)
+    // Both toys are needed for the mark; one that is off the roof is waited for first
+    if (plays % 3 === 0) {
+      for (const t of toys) {
+        ball = t
+        await lost(id)
+      }
+      return mark(id)
+    }
     ball = tri.on && plays % 2 === 0 ? tri : yarn
-    if (!ball.on) {
-      throwBall(clamp(cat.x + (cat.x > W() / 2 ? -60 : 60)), 120, 0)
-      await watch(id)
-    }
+    await lost(id)
     await GAMES[next++ % GAMES.length](id)
+    await lost(id)
     await hold(id, 700)
-    // A triangle that went over the edge comes back, on the roof's emptier side
-    if (!tri.on) {
-      ball = tri
-      throwBall(clamp(yarn.x > W() / 2 ? W() * 0.25 : W() * 0.7), 120, 0)
-      await watch(id, 500)
-      ball = yarn
-    }
+    // The other toy too, if the game knocked it off the roof
+    ball = ball === yarn ? tri : yarn
+    await lost(id)
+    ball = yarn
   }
   const sleep = async (id: number) => {
     asleep = true
@@ -936,8 +1021,21 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   const rest = async (id: number) => {
     resting = true
     idle = window.setTimeout(() => id === act && !pointer && play(sleep), 40000)
+    // A toy is off the roof and nothing is bringing it back (a run of presses sent both over the end, and it sat
+    // there alone until pressed): it goes and waits for it by itself
+    if (!gone && toys.some((t) => !t.on))
+      fun = window.setTimeout(() => {
+        if (id !== act || gone) return
+        play(async (i) => {
+          for (const t of toys) {
+            ball = t
+            await lost(i)
+          }
+          ball = yarn
+        })
+      }, 1400)
     // Now and then it plays by itself, three times at most in one chat, a different game each time
-    if (solo < 3 && ball.on && !gone)
+    else if (solo < 3 && ball.on && !gone)
       fun = window.setTimeout(() => {
         if (id !== act || gone || !ball.on) return
         solo++
