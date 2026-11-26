@@ -8,7 +8,7 @@ import { CATALOG, programBySlug } from "../data"
 import { go, openProgram, usePrograms } from "../store"
 import { programCoverIcon } from "./ProgramCover"
 import { ProgramVoxels } from "./ProgramVoxels"
-import { StandingWord, resumeLabel, standing, useProjectOf } from "./catalog-parts"
+import { resumeLabel, standing, useProjectOf } from "./catalog-parts"
 
 /** The program to start with: one you can build, deploy and call. While the build server can't build
  * Native that is the Anchor counter; once it can, memo, called in one press with no setup */
@@ -57,7 +57,6 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
   const p = programBySlug(slug)!
   const project = useProjectOf(slug)
   // Under way says where it stands; done (every one finished) says nothing, the minutes alone
-  const st = project && !standing(project).done ? standing(project) : null
   const titleId = useId()
   const box = useRef<HTMLElement>(null)
   const [wide, setWide] = useState(true)
@@ -90,9 +89,8 @@ export function ProgramBanner({ phone = false }: { phone?: boolean }) {
               air, so 12 over the name, 2 under it and 20 to the button read, letter to letter, as 25, 16 and 25: the name and its words a tight pair, the line above and the button held off alike (Almaz, 25 Nov) (measured 25 Nov at 36) (Almaz, 25 Nov,
               after Claude's plugin banner). The page's own title above it is 20, so the banner leads (Almaz, 25 Nov). One row, so the dot and the minutes sit on the state's line */}
           <p className="flex items-center gap-1.5 text-13 leading-5 text-muted-foreground tabular-nums">
-            {/* No "Start here": the button says it (Almaz, 20 Nov) */}
-            {st && <StandingWord s={st} className="text-muted-foreground" />}
-            {st && <span aria-hidden="true">·</span>}
+            {/* No "Start here": the button says it (Almaz, 20 Nov). And no step: this line is the time it takes and
+                nothing else, started or not; Continue on the button says it is under way (Almaz, 26 Nov) */}
             {/* The clock as on the cards' minutes (Almaz, 25 Nov) */}
             <Clock aria-hidden="true" className="size-3.5" />
             <span>{`${p.minutes} min`}</span>

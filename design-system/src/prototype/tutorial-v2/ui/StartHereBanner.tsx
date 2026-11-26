@@ -130,9 +130,10 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
             faces, the line over the name at 13 and the words at 16 both muted, the name at 36 (28 on the phone); 12 over the name, 2 under it and 20 to the button read, letter to letter, as 25, 16 and 25: the name and its words a tight pair, the line above and the button held off alike (Almaz, 25 Nov) */}
         <div className="max-w-[20rem] min-w-0">
           <p className="flex items-center gap-1.5 text-13 leading-5 text-muted-foreground tabular-nums">
-            {/* Fresh: how long it takes, with the clock the cards use; under way: the step; done: Done in green.
+            {/* How long it takes, with the clock the cards use, fresh or under way: no step on this line, the
+                button's Continue says it is under way (Almaz, 26 Nov). Done: Done in green.
                 No "Start here": the button says it (Almaz, 20 Nov) */}
-            {b.fresh ? (
+            {!b.finished ? (
               <>
                 <Clock aria-hidden="true" className="size-3.5" />
                 {`${b.lesson.minutes} min`}
