@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react"
-import { Cat } from "lucide-react"
 
 import { catShown, useSettings } from "../settings/store"
 import { reducedMotion } from "./type"
@@ -1027,6 +1026,12 @@ function start(stage: HTMLElement, panel: HTMLElement, phone: boolean, mode: "fu
   }
 }
 
+/* The switch's own drawing, 9 by 7 at two px a cell so every cell lands on whole pixels: the same head, ears up in
+   both states, since the ears are what say "cat". On, the eyes are open; off, they are two shut lines and the
+   head is dim. Kept as first drawn (Almaz, 26 Nov): a head copied from the cat read as an owl, one with slit
+   pupils as a lump, and a line icon was not this cat */
+const ICON = ["X.......X", "XX.....XX", "XXXXXXXXX", "XooXXXooX", "XccXXXccX", "XXXXXXXXX", ".XXXXXXX."]
+
 /** The cat's own switch, at the end of the line under the field: it hides the cat and brings it back, in every chat */
 export function SoleToggle({ on, onToggle, className }: { on: boolean; onToggle: () => void; className?: string }) {
   return (
@@ -1039,10 +1044,15 @@ export function SoleToggle({ on, onToggle, className }: { on: boolean; onToggle:
       // As tall as the network and the model beside it; the tap area reaches 44 without moving the line
       className={`relative flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md before:absolute before:-inset-x-1 before:-inset-y-2.5 hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple ${on ? "text-muted-foreground" : "text-muted-foreground/45"} ${className ?? ""}`}
     >
-      {/* A line drawing like the icons beside it, not the cat's own pixels: three tries at a pixel head read as a
-          mask, an owl and a lump at this size, and the switch is the interface's, the pixels are the cat's (Almaz,
-          26 Nov) */}
-      <Cat aria-hidden="true" className="size-4" strokeWidth={1.5} />
+      <svg viewBox="0 0 9 7" width="18" height="14" shapeRendering="crispEdges" aria-hidden="true">
+        {ICON.flatMap((row, y) =>
+          [...row].map((c, x) => {
+            // The eyes are cut out of the head, so they read on any ground: two by two when open, one shut line when off
+            if (c === "." || c === "c" || (on && c === "o")) return null
+            return <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="currentColor" />
+          })
+        )}
+      </svg>
     </button>
   )
 }
